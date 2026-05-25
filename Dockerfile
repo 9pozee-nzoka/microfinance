@@ -38,7 +38,7 @@ RUN composer dump-autoload --optimize --no-dev
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 3 — Runtime: PHP 8.3-FPM + Nginx + Supervisor
 # ─────────────────────────────────────────────────────────────────────────────
-FROM php:8.3-fpm-alpine3.20
+FROM php:8.4-fpm-alpine
 
 LABEL maintainer="GetCash Capital <dev@getcash.co.ke>"
 
