@@ -98,6 +98,40 @@ services:
       - key: MAIL_FROM_NAME
         value: "GetCash Capital"
 
+      # ── Seed credentials (set in Render dashboard — never commit real values) ──
+      - key: ADMIN_EMAIL
+        sync: false             # set manually: your super-admin login email
+
+      - key: ADMIN_PASSWORD
+        sync: false             # set manually: strong password
+
+      - key: ADMIN_NAME
+        value: "System Administrator"
+
+      - key: ADMIN_PHONE
+        sync: false
+
+      - key: OFFICER_EMAIL
+        sync: false
+
+      - key: OFFICER_PASSWORD
+        sync: false
+
+      - key: OFFICER_NAME
+        value: "Relationship Officer"
+
+      - key: OFFICER_PHONE
+        sync: false
+
+      - key: BRANCH_NAME
+        value: "Head Office"
+
+      - key: BRANCH_LOCATION
+        value: "Nairobi"
+
+      - key: BRANCH_EMAIL
+        sync: false
+
       # ── Africa's Talking ────────────────────────────────────────────────────
       - key: AT_USERNAME
         sync: false             # set manually in Render dashboard

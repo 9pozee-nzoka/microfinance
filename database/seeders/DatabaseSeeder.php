@@ -4,7 +4,6 @@
 namespace Database\Seeders;
 
 use App\Models\Branch;
-use App\Models\Customer;
 use App\Models\LoanProduct;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -15,91 +14,132 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create roles
-        $roles = ['super_admin', 'admin', 'branch_manager', 'loan_officer', 'credit_committee', 'cashier', 'auditor', 'customer'];
-        foreach ($roles as $role) {
-            Role::create(['name' => $role, 'guard_name' => 'web']);
+        // ── Roles (idempotent) ────────────────────────────────────────────────
+        $roleNames = [
+            'super_admin', 'admin', 'branch_manager',
+            'loan_officer', 'credit_committee', 'cashier', 'auditor',
+        ];
+
+        foreach ($roleNames as $name) {
+            Role::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
 
-        // Create branches
-        $branch = Branch::create([
-            'name' => 'Head Office',
-            'code' => 'HQ001',
-            'location' => 'Nairobi',
-            'phone' => '+254700000001',
-            'email' => 'headoffice@getcash.co.ke',
-        ]);
+        $this->command->info('✓ Roles seeded.');
 
-        // Create admin user
-        $admin = User::create([
-            'name' => 'System Administrator',
-            'email' => 'pauljohns730@gmail.com',
-            'password' => Hash::make('Pozee@5268'),
-            'phone_number' => '+254746186990',
-            'branch_id' => $branch->id,
-            'employee_id' => 'EMP-001',
-            'designation' => 'System Administrator',
-            'status' => 'active',
-        ]);
-        $admin->assignRole('super_admin');
+        // ── Head Office branch (idempotent) ───────────────────────────────────
+        $branch = Branch::firstOrCreate(
+            ['code' => 'HQ001'],
+            [
+                'name'     => env('BRANCH_NAME', 'Head Office'),
+                'location' => env('BRANCH_LOCATION', 'Nairobi'),
+                'phone'    => env('BRANCH_PHONE', '+254700000001'),
+                'email'    => env('BRANCH_EMAIL', 'headoffice@getcash.co.ke'),
+                'status'   => 'active',
+            ]
+        );
 
-        // Create loan officer
-        $officer = User::create([
-            'name' => 'Joshua Kyalo',
-            'email' => 'j.kyalo@getcash.co.ke',
-            'password' => Hash::make('password123'),
-            'phone_number' => '+254711111111',
-            'branch_id' => $branch->id,
-            'employee_id' => 'EMP-002',
-            'designation' => 'Relationship Officer',
-            'status' => 'active',
-        ]);
-        $officer->assignRole('loan_officer');
+        $this->command->info('✓ Branch seeded.');
 
-        // Create loan products
-        LoanProduct::create([
-            'name' => 'Chemsha 6 Weeks',
-            'code' => 'CHM-6W',
-            'description' => 'Short-term loan repayable in 6 weeks',
-            'interest_method' => 'flat',
-            'interest_rate' => 30.00, // 30% per annum
-            'min_term_weeks' => 6,
-            'max_term_weeks' => 6,
-            'min_amount' => 1000,
-            'max_amount' => 50000,
-            'processing_fee_rate' => 2.00,
-            'insurance_fee_rate' => 1.00,
-            'late_penalty_rate' => 1.00,
-            'grace_period_days' => 3,
-            'min_guarantors' => 1,
-            'min_savings_multiplier' => 0.20,
-            'requires_collateral' => false,
-            'min_membership_months' => 3,
-            'min_credit_score' => 400,
-        ]);
+        // ── Super-admin user (idempotent) ─────────────────────────────────────
+        $adminEmail = env('ADMIN_EMAIL', 'admin@getcash.co.ke');
 
-        LoanProduct::create([
-            'name' => 'Inuka 6 Weeks',
-            'code' => 'INU-6W',
-            'description' => 'Business growth loan with flexible terms',
-            'interest_method' => 'flat',
-            'interest_rate' => 25.00,
-            'min_term_weeks' => 6,
-            'max_term_weeks' => 12,
-            'min_amount' => 5000,
-            'max_amount' => 100000,
-            'processing_fee_rate' => 2.50,
-            'insurance_fee_rate' => 1.50,
-            'late_penalty_rate' => 1.00,
-            'grace_period_days' => 5,
-            'min_guarantors' => 2,
-            'min_savings_multiplier' => 0.25,
-            'requires_collateral' => true,
-            'collateral_type' => 'goods',
-            'min_membership_months' => 6,
-            'min_credit_score' => 500,
-        ]);
+        $admin = User::firstOrCreate(
+            ['email' => $adminEmail],
+            [
+                'name'        => env('ADMIN_NAME', 'System Administrator'),
+                'password'    => Hash::make(env('ADMIN_PASSWORD', 'ChangeMe@1234')),
+                'phone_number'=> env('ADMIN_PHONE', '+254700000000'),
+                'branch_id'   => $branch->id,
+                'employee_id' => 'EMP-001',
+                'designation' => 'System Administrator',
+                'status'      => 'active',
+            ]
+        );
 
-        $this->command->info('Database seeded successfully!');
+        if (!$admin->hasRole('super_admin')) {
+            $admin->assignRole('super_admin');
+        }
+
+        $this->command->info("✓ Super-admin seeded: {$adminEmail}");
+
+        // ── Loan Officer (idempotent) ─────────────────────────────────────────
+        $officerEmail = env('OFFICER_EMAIL', 'officer@getcash.co.ke');
+
+        $officer = User::firstOrCreate(
+            ['email' => $officerEmail],
+            [
+                'name'        => env('OFFICER_NAME', 'Relationship Officer'),
+                'password'    => Hash::make(env('OFFICER_PASSWORD', 'ChangeMe@5678')),
+                'phone_number'=> env('OFFICER_PHONE', '+254711111111'),
+                'branch_id'   => $branch->id,
+                'employee_id' => 'EMP-002',
+                'designation' => 'Relationship Officer',
+                'status'      => 'active',
+            ]
+        );
+
+        if (!$officer->hasRole('loan_officer')) {
+            $officer->assignRole('loan_officer');
+        }
+
+        $this->command->info("✓ Loan officer seeded: {$officerEmail}");
+
+        // ── Loan Products (idempotent) ────────────────────────────────────────
+        $products = [
+            [
+                'code'                  => 'CHM-6W',
+                'name'                  => 'Chemsha 6 Weeks',
+                'description'           => 'Short-term loan repayable in 6 weeks',
+                'interest_method'       => 'flat',
+                'interest_rate'         => 30.00,
+                'min_term_weeks'        => 6,
+                'max_term_weeks'        => 6,
+                'min_amount'            => 1000,
+                'max_amount'            => 50000,
+                'processing_fee_rate'   => 2.00,
+                'insurance_fee_rate'    => 1.00,
+                'late_penalty_rate'     => 1.00,
+                'grace_period_days'     => 3,
+                'min_guarantors'        => 1,
+                'min_savings_multiplier'=> 0.20,
+                'requires_collateral'   => false,
+                'collateral_type'       => 'none',
+                'min_membership_months' => 3,
+                'min_credit_score'      => 400,
+                'status'                => 'active',
+            ],
+            [
+                'code'                  => 'INU-6W',
+                'name'                  => 'Inuka 6 Weeks',
+                'description'           => 'Business growth loan with flexible terms',
+                'interest_method'       => 'flat',
+                'interest_rate'         => 25.00,
+                'min_term_weeks'        => 6,
+                'max_term_weeks'        => 12,
+                'min_amount'            => 5000,
+                'max_amount'            => 100000,
+                'processing_fee_rate'   => 2.50,
+                'insurance_fee_rate'    => 1.50,
+                'late_penalty_rate'     => 1.00,
+                'grace_period_days'     => 5,
+                'min_guarantors'        => 2,
+                'min_savings_multiplier'=> 0.25,
+                'requires_collateral'   => true,
+                'collateral_type'       => 'goods',
+                'min_membership_months' => 6,
+                'min_credit_score'      => 500,
+                'status'                => 'active',
+            ],
+        ];
+
+        foreach ($products as $product) {
+            LoanProduct::firstOrCreate(['code' => $product['code']], $product);
+        }
+
+        $this->command->info('✓ Loan products seeded.');
+        $this->command->info('');
+        $this->command->info('════════════════════════════════════════');
+        $this->command->info('  Database seeded successfully!');
+        $this->command->info('════════════════════════════════════════');
     }
 }
