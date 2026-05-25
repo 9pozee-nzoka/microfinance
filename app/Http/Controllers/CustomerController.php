@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\CreditScore;
 use App\Models\Customer;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CustomerController extends Controller
 {
@@ -39,6 +41,117 @@ class CustomerController extends Controller
             'customers', 'totalCustomers', 'activeCustomers',
             'pendingCustomers', 'dormantCustomers', 'branches'
         ));
+    }
+
+    // ── Create Form ──────────────────────────────────────────────
+    public function create()
+    {
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
+        $officers = User::where('status', 'active')->orderBy('name')->get();
+
+        return view('customers.create', compact('branches', 'officers'));
+    }
+
+    // ── Store New Customer ────────────────────────────────────────
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'full_name'                 => 'required|string|max:255',
+            'phone_number'              => 'required|string|max:20|unique:customers,phone_number',
+            'email'                     => 'nullable|email|max:255|unique:customers,email',
+            'id_number'                 => 'required|string|max:20|unique:customers,id_number',
+            'date_of_birth'             => 'required|date|before:' . now()->subYears(18)->toDateString(),
+            'gender'                    => 'required|in:male,female,other',
+            'nationality'               => 'nullable|string|max:100',
+            'address'                   => 'nullable|string|max:500',
+            'county'                    => 'nullable|string|max:100',
+            'sub_county'                => 'nullable|string|max:100',
+            'ward'                      => 'nullable|string|max:100',
+            'employment_type'           => 'required|in:salaried,self_employed,business,farmer,other',
+            'monthly_income'            => 'required|numeric|min:0',
+            'employer_name'             => 'nullable|string|max:255',
+            'business_name'             => 'nullable|string|max:255',
+            'business_type'             => 'nullable|string|max:255',
+            'next_of_kin_name'          => 'required|string|max:255',
+            'next_of_kin_phone'         => 'required|string|max:20',
+            'next_of_kin_relationship'  => 'required|string|max:100',
+            'next_of_kin_address'       => 'nullable|string|max:500',
+            'branch_id'                 => 'required|exists:branches,id',
+            'relationship_officer_id'   => 'required|exists:users,id',
+            'share_capital'             => 'nullable|numeric|min:0',
+            'id_front'                  => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'id_back'                   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'passport_photo'            => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
+            'kra_pin'                   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+        ]);
+
+        // Handle file uploads
+        $paths = [];
+        foreach (['id_front' => 'id_front_path', 'id_back' => 'id_back_path', 'passport_photo' => 'passport_photo_path', 'kra_pin' => 'kra_pin_path'] as $field => $column) {
+            if ($request->hasFile($field)) {
+                $paths[$column] = $request->file($field)->store('kyc', 'public');
+            }
+        }
+
+        $customer = Customer::create(array_merge($validated, $paths, [
+            'share_capital' => $request->share_capital ?? 0,
+            'status'        => 'pending',
+        ]));
+
+        return redirect()->route('customers.new')
+            ->with('success', "Customer {$customer->full_name} registered successfully. Pending KYC verification.");
+    }
+
+    // ── Customer Profile ──────────────────────────────────────────
+    public function profile(Customer $customer)
+    {
+        $customer->load(['branch', 'relationshipOfficer', 'loans.product', 'transactions', 'creditScores']);
+
+        return view('customers.profile', compact('customer'));
+    }
+
+    // ── Edit Form ─────────────────────────────────────────────────
+    public function edit(Customer $customer)
+    {
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
+        $officers = User::where('status', 'active')->orderBy('name')->get();
+
+        return view('customers.edit', compact('customer', 'branches', 'officers'));
+    }
+
+    // ── Update Customer ───────────────────────────────────────────
+    public function update(Request $request, Customer $customer)
+    {
+        $validated = $request->validate([
+            'full_name'                 => 'required|string|max:255',
+            'phone_number'              => 'required|string|max:20|unique:customers,phone_number,' . $customer->id,
+            'email'                     => 'nullable|email|max:255|unique:customers,email,' . $customer->id,
+            'id_number'                 => 'required|string|max:20|unique:customers,id_number,' . $customer->id,
+            'date_of_birth'             => 'required|date|before:' . now()->subYears(18)->toDateString(),
+            'gender'                    => 'required|in:male,female,other',
+            'nationality'               => 'nullable|string|max:100',
+            'address'                   => 'nullable|string|max:500',
+            'county'                    => 'nullable|string|max:100',
+            'sub_county'                => 'nullable|string|max:100',
+            'ward'                      => 'nullable|string|max:100',
+            'employment_type'           => 'required|in:salaried,self_employed,business,farmer,other',
+            'monthly_income'            => 'required|numeric|min:0',
+            'employer_name'             => 'nullable|string|max:255',
+            'business_name'             => 'nullable|string|max:255',
+            'business_type'             => 'nullable|string|max:255',
+            'next_of_kin_name'          => 'required|string|max:255',
+            'next_of_kin_phone'         => 'required|string|max:20',
+            'next_of_kin_relationship'  => 'required|string|max:100',
+            'next_of_kin_address'       => 'nullable|string|max:500',
+            'branch_id'                 => 'required|exists:branches,id',
+            'relationship_officer_id'   => 'required|exists:users,id',
+            'status'                    => 'required|in:pending,active,suspended,dormant',
+        ]);
+
+        $customer->update($validated);
+
+        return redirect()->route('customers.profile', $customer)
+            ->with('success', 'Customer details updated successfully.');
     }
 
     // ── Newly Registered ─────────────────────────────────────────

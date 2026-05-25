@@ -37,7 +37,7 @@ class DashboardController extends Controller
             ->whereDate('next_due_date', '<=', $today)
             ->count();
         $prepaidLoans = Loan::where('status', 'active')
-            ->whereColumn('total_paid', '>', DB::raw('(total_repayable * 0.5)'))
+            ->whereRaw('total_paid > (total_repayable * 0.5)')
             ->count();
 
         // Risk Metrics

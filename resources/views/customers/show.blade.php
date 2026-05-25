@@ -109,7 +109,7 @@
                 {{ $customers->total() }} {{ Str::plural('record', $customers->total()) }} found
             </div>
         </div>
-        <button class="btn btn-primary" onclick="openAddModal()">
+        <button class="btn btn-primary" onclick="window.location='{{ route('customers.create') }}'">
             <i class="fas fa-user-plus"></i> Add Customer
         </button>
     </div>
@@ -313,19 +313,22 @@
                     {{-- Actions --}}
                     <td>
                         <div style="display: flex; gap: 5px; justify-content: center;">
-                            <a href="#" class="action-btn" title="View Profile">
+                            <a href="{{ route('customers.profile', $customer) }}" class="action-btn" title="View Profile">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <a href="#" class="action-btn" title="Edit Customer">
+                            <a href="{{ route('customers.edit', $customer) }}" class="action-btn" title="Edit Customer">
                                 <i class="fas fa-pen"></i>
                             </a>
                             @if($customer->status === 'pending')
-                            <a href="#" class="action-btn success" title="Activate">
-                                <i class="fas fa-check"></i>
-                            </a>
+                            <form method="POST" action="{{ route('customers.activate', $customer) }}" style="display:inline;">
+                                @csrf @method('PATCH')
+                                <button type="submit" class="action-btn success" title="Activate">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </form>
                             @endif
                             @if(in_array($customer->status, ['active', 'dormant']))
-                            <a href="#" class="action-btn" title="View Loans" style="color: #9C27B0;">
+                            <a href="{{ route('loans.create', ['customer_id' => $customer->id]) }}" class="action-btn" title="Apply for Loan" style="color: #9C27B0;">
                                 <i class="fas fa-hand-holding-usd"></i>
                             </a>
                             @endif

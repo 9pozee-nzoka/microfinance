@@ -47,6 +47,9 @@
             <i class="fas fa-paper-plane"></i> Disburse
         </button>
         @endif
+        <button class="btn btn-outline" onclick="openSmsModal()" style="color:#7B1FA2; border-color:#CE93D8;">
+            <i class="fas fa-sms"></i> Send SMS
+        </button>
     </div>
 </div>
 
@@ -223,6 +226,49 @@
     </table>
 </div>
 
+{{-- ── SMS History ── --}}
+@php $smsLogs = \App\Models\SmsLog::where('loan_id', $loan->id)->latest()->limit(10)->get(); @endphp
+@if($smsLogs->count())
+<div class="card" style="margin-bottom:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="section-title" style="margin-bottom:0;"><i class="fas fa-sms" style="color:#7B1FA2; margin-right:6px;"></i>SMS History</div>
+        <a href="{{ route('collection.sms-logs') }}?search={{ $loan->loan_number }}" style="font-size:12px; color:var(--primary);">View all →</a>
+    </div>
+    <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px;">
+        @foreach($smsLogs as $sms)
+        @php
+            $sc = match($sms->status) {
+                'sent'      => ['#E8F5E9','#2E7D32','fa-check-circle'],
+                'failed'    => ['#FFEBEE','#C62828','fa-times-circle'],
+                'pending'   => ['#E3F2FD','#1565C0','fa-clock'],
+                default     => ['#F5F5F5','#757575','fa-ban'],
+            };
+        @endphp
+        <div style="display:flex; align-items:flex-start; gap:10px; padding:10px 12px; background:#FAFBFC; border-radius:8px; border:1px solid var(--border);">
+            <i class="fas {{ $sc[2] }}" style="color:{{ $sc[1] }}; margin-top:2px; font-size:14px; flex-shrink:0;"></i>
+            <div style="flex:1; min-width:0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+                    <span style="font-size:12px; font-weight:600;">{{ $sms->phone_number }}</span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="badge" style="background:{{ $sc[0] }}; color:{{ $sc[1] }}; font-size:10px;">{{ ucfirst($sms->status) }}</span>
+                        <span style="font-size:11px; color:var(--text-secondary);">{{ $sms->created_at->diffForHumans() }}</span>
+                    </div>
+                </div>
+                <div style="font-size:12px; color:var(--text-secondary); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    {{ $sms->message }}
+                </div>
+                <div style="font-size:11px; color:var(--text-secondary); margin-top:2px;">
+                    {{ ucfirst(str_replace('_',' ',$sms->message_type)) }}
+                    @if($sms->at_cost) &nbsp;·&nbsp; KES {{ $sms->at_cost }} @endif
+                    @if($sms->sent_at) &nbsp;·&nbsp; Sent {{ $sms->sent_at->format('d M Y H:i') }} @endif
+                </div>
+            </div>
+        </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
 {{-- ── Guarantors ── --}}
 @if($loan->guarantors->count())
 <div class="card">
@@ -323,6 +369,86 @@
     </div>
 </div>
 
+{{-- ── SMS Modal ── --}}
+<div id="smsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:12px; padding:30px; width:500px; max-width:95%; max-height:92vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="font-size:16px; font-weight:600; color:var(--text-primary);">
+                <i class="fas fa-sms" style="color:#7B1FA2;"></i> Send SMS
+            </h3>
+            <button onclick="closeModal('smsModal')" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-secondary); line-height:1;">&times;</button>
+        </div>
+
+        {{-- Recipient info --}}
+        <div style="background:#F3E5F5; border:1px solid #CE93D8; border-radius:8px; padding:12px 14px; margin-bottom:18px; font-size:13px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <i class="fas fa-user-circle" style="color:#7B1FA2; font-size:18px;"></i>
+                <div>
+                    <div style="font-weight:700;">{{ $loan->customer->full_name }}</div>
+                    <div style="font-size:12px; color:var(--text-secondary);">
+                        {{ $loan->customer->phone_number }}
+                        &nbsp;·&nbsp; {{ $loan->loan_number }}
+                        @if($loan->days_in_arrears > 0)
+                            &nbsp;·&nbsp; <span style="color:var(--danger); font-weight:600;">{{ $loan->days_in_arrears }} days overdue</span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ route('collection.sms.send') }}">
+            @csrf
+            <input type="hidden" name="recipient_type" value="loan">
+            <input type="hidden" name="loan_id" value="{{ $loan->id }}">
+
+            <div style="margin-bottom:15px;">
+                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Message Type <span style="color:var(--danger)">*</span></label>
+                <select name="message_type" id="smsType" class="filter-select" style="width:100%;" onchange="loadSmsTemplate()" required>
+                    <option value="payment_reminder">Payment Reminder</option>
+                    <option value="overdue_notice" {{ $loan->days_in_arrears > 0 ? 'selected' : '' }}>Overdue Notice</option>
+                    <option value="payment_received">Payment Received</option>
+                    <option value="loan_approved">Loan Approved</option>
+                    <option value="loan_disbursed">Loan Disbursed</option>
+                    <option value="custom">Custom Message</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom:15px;">
+                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">
+                    Message <span style="color:var(--danger)">*</span>
+                    <span id="smsCharCount" style="color:var(--text-secondary); font-weight:400; float:right;">(0 / 459 chars)</span>
+                </label>
+                <textarea name="message" id="smsMessage" rows="5" required
+                          oninput="updateSmsCount(this)"
+                          style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:13px; resize:vertical; line-height:1.5;"
+                          placeholder="Type your message…"></textarea>
+                <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:3px;">
+                    @foreach(['{name}' => 'Customer name', '{loan_number}' => 'Loan no.', '{amount_due}' => 'Installment', '{due_date}' => 'Due date', '{outstanding}' => 'Balance', '{days_overdue}' => 'Days overdue'] as $tag => $hint)
+                    <span onclick="insertSmsTag('{{ $tag }}')"
+                          title="{{ $hint }}"
+                          style="display:inline-block; padding:2px 7px; border-radius:4px; background:#E3F2FD; color:var(--primary); font-size:11px; font-family:monospace; cursor:pointer; transition:background 0.1s;"
+                          onmouseover="this.style.background='var(--primary)';this.style.color='#fff'"
+                          onmouseout="this.style.background='#E3F2FD';this.style.color='var(--primary)'">{{ $tag }}</span>
+                    @endforeach
+                </div>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Schedule (optional)</label>
+                <input type="datetime-local" name="scheduled_at" class="filter-select" style="width:100%;">
+                <div style="font-size:11px; color:var(--text-secondary); margin-top:3px;">Leave blank to send immediately via queue</div>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn btn-outline" onclick="closeModal('smsModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="background:#7B1FA2; border-color:#7B1FA2;">
+                    <i class="fas fa-paper-plane"></i> Send SMS
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -330,11 +456,63 @@
 function openApproveModal()  { document.getElementById('approveModal').style.display  = 'flex'; }
 function openRejectModal()   { document.getElementById('rejectModal').style.display   = 'flex'; }
 function openDisburseModal() { document.getElementById('disburseModal').style.display = 'flex'; }
+function openSmsModal()      {
+    loadSmsTemplate();
+    document.getElementById('smsModal').style.display = 'flex';
+}
 function closeModal(id)      { document.getElementById(id).style.display = 'none'; }
 
 function toggleDisburseFields() {
     const method = document.getElementById('disburseMethod').value;
     document.getElementById('mpesaReceiptField').style.display = method === 'mpesa' ? 'block' : 'none';
 }
+
+// ── SMS helpers ──────────────────────────────────────────────────
+const smsTemplates = {
+    payment_reminder: 'Dear {{ $loan->customer->full_name }}, your loan {{ $loan->loan_number }} payment of KSH {{ number_format($loan->weekly_installment, 0) }} is due on {{ $loan->next_due_date?->format("d M Y") ?? "N/A" }}. Please pay on time to avoid penalties. GetCash Capital.',
+    overdue_notice:   'Dear {{ $loan->customer->full_name }}, your loan {{ $loan->loan_number }} is {{ $loan->days_in_arrears }} days overdue. Outstanding balance: KSH {{ number_format($loan->outstanding_balance, 0) }}. Please pay immediately to avoid further charges. GetCash Capital.',
+    payment_received: 'Dear {{ $loan->customer->full_name }}, we have received your payment for loan {{ $loan->loan_number }}. Outstanding balance: KSH {{ number_format($loan->outstanding_balance, 0) }}. Thank you. GetCash Capital.',
+    loan_approved:    'Dear {{ $loan->customer->full_name }}, your loan application {{ $loan->loan_number }} of KSH {{ number_format($loan->principal_amount, 0) }} has been approved. Disbursement will follow shortly. GetCash Capital.',
+    loan_disbursed:   'Dear {{ $loan->customer->full_name }}, your loan {{ $loan->loan_number }} of KSH {{ number_format($loan->principal_amount, 0) }} has been disbursed. First repayment of KSH {{ number_format($loan->weekly_installment, 0) }} is due on {{ $loan->first_due_date?->format("d M Y") ?? "N/A" }}. GetCash Capital.',
+    custom: '',
+};
+
+function loadSmsTemplate() {
+    const type = document.getElementById('smsType').value;
+    const ta   = document.getElementById('smsMessage');
+    ta.value   = smsTemplates[type] || '';
+    updateSmsCount(ta);
+}
+
+function updateSmsCount(ta) {
+    const len  = ta.value.length;
+    const msgs = Math.ceil(len / 160) || 1;
+    document.getElementById('smsCharCount').textContent =
+        `(${len} chars · ${msgs} SMS${msgs > 1 ? ' parts' : ''})`;
+    ta.style.borderColor = len > 459 ? 'var(--danger)' : 'var(--border)';
+}
+
+function insertSmsTag(tag) {
+    const ta  = document.getElementById('smsMessage');
+    const pos = ta.selectionStart;
+    ta.value  = ta.value.slice(0, pos) + tag + ta.value.slice(ta.selectionEnd);
+    ta.selectionStart = ta.selectionEnd = pos + tag.length;
+    ta.focus();
+    updateSmsCount(ta);
+}
+
+// Close modals on backdrop click
+['approveModal','rejectModal','disburseModal','smsModal'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', function(e) {
+        if (e.target === this) this.style.display = 'none';
+    });
+});
+
+// Pre-load template on page load if overdue
+document.addEventListener('DOMContentLoaded', () => {
+    @if($loan->days_in_arrears > 0)
+    document.getElementById('smsType').value = 'overdue_notice';
+    @endif
+});
 </script>
 @endsection

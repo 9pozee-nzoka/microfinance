@@ -3,6 +3,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -21,13 +22,15 @@ return new class extends Migration
             $table->decimal('interest_paid', 15, 2)->default(0);
             $table->decimal('total_paid', 15, 2)->default(0);
             $table->decimal('balance', 15, 2);
-            $table->enum('status', ['pending', 'partial', 'paid', 'overdue', 'waived'])->default('pending');
+            $table->string('status', 20)->default('pending');
             $table->date('paid_date')->nullable();
             $table->timestamps();
-            
+
             $table->unique(['loan_id', 'installment_number']);
             $table->index(['due_date', 'status']);
         });
+
+        DB::statement("ALTER TABLE repayment_schedules ADD CONSTRAINT repayment_schedules_status_check CHECK (status IN ('pending','partial','paid','overdue','waived'))");
     }
 
     public function down(): void

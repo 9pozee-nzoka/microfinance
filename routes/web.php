@@ -2,6 +2,8 @@
 // routes/web.php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\CollectionController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\CustomerController;
@@ -45,10 +47,17 @@ Route::middleware(['auth'])->group(function () {
     // Customer Management
     Route::prefix('customers')->name('customers.')->group(function () {
         Route::get('/',                [CustomerController::class, 'index'])->name('index');
+        Route::get('/create',          [CustomerController::class, 'create'])->name('create');
+        Route::post('/',               [CustomerController::class, 'store'])->name('store');
         Route::get('/new',             [CustomerController::class, 'newlyRegistered'])->name('new');
         Route::get('/rejected',        [CustomerController::class, 'rejected'])->name('rejected');
         Route::get('/credit-history',  [CustomerController::class, 'creditHistory'])->name('credit-history');
         Route::get('/limits',          [CustomerController::class, 'limits'])->name('limits');
+
+        // Customer profile & edit (must come before /{customer} catch-all)
+        Route::get('/{customer}/profile', [CustomerController::class, 'profile'])->name('profile');
+        Route::get('/{customer}/edit',    [CustomerController::class, 'edit'])->name('edit');
+        Route::put('/{customer}',         [CustomerController::class, 'update'])->name('update');
 
         // Customer actions
         Route::patch('/{customer}/verify-kyc',    [CustomerController::class, 'verifyKyc'])->name('verify-kyc');
@@ -63,11 +72,29 @@ Route::middleware(['auth'])->group(function () {
     // Loan Management
     Route::prefix('loans')->name('loans.')->group(function () {
         Route::get('/approve-new',          [LoanController::class, 'approveNew'])->name('approve');
+        Route::get('/create',               [LoanController::class, 'create'])->name('create');
+        Route::post('/',                    [LoanController::class, 'store'])->name('store');
         Route::get('/',                     [LoanController::class, 'index'])->name('index');
         Route::get('/{loan}',               [LoanController::class, 'show'])->name('show');
         Route::patch('/{loan}/approve',     [LoanController::class, 'approve'])->name('approve-action');
         Route::patch('/{loan}/reject',      [LoanController::class, 'rejectLoan'])->name('reject');
         Route::patch('/{loan}/disburse',    [LoanController::class, 'disburse'])->name('disburse');
+    });
+
+    // Loan Collections & SMS
+    Route::prefix('loans/collection')->name('collection.')->group(function () {
+        Route::get('/',                                    [CollectionController::class, 'index'])->name('index');
+        Route::get('/overdue',                             [CollectionController::class, 'overdue'])->name('overdue');
+        Route::get('/sms-logs',                            [CollectionController::class, 'smsLogs'])->name('sms-logs');
+        Route::post('/sms/send',                           [CollectionController::class, 'sendSms'])->name('sms.send');
+        Route::post('/sms/bulk',                           [CollectionController::class, 'sendBulkSms'])->name('sms.bulk');
+        Route::patch('/sms/{smsLog}/cancel',               [CollectionController::class, 'cancelSms'])->name('sms.cancel');
+        Route::get('/schedules',                           [CollectionController::class, 'schedules'])->name('schedules');
+        Route::post('/schedules',                          [CollectionController::class, 'storeSchedule'])->name('schedules.store');
+        Route::put('/schedules/{schedule}',                [CollectionController::class, 'updateSchedule'])->name('schedules.update');
+        Route::delete('/schedules/{schedule}',             [CollectionController::class, 'destroySchedule'])->name('schedules.destroy');
+        Route::post('/schedules/{schedule}/run',           [CollectionController::class, 'runSchedule'])->name('schedules.run');
+        Route::patch('/schedules/{schedule}/toggle',       [CollectionController::class, 'toggleSchedule'])->name('schedules.toggle');
     });
 
     // Transactions
@@ -110,7 +137,26 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Reports
-    Route::get('/reports', function () {
-        return view('reports.index');
-    })->name('reports.index');
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [ReportController::class, 'index'])->name('index');
+
+        // Portfolio
+        Route::get('/portfolio/loan-book',      [ReportController::class, 'loanBook'])->name('portfolio.loan-book');
+        Route::get('/portfolio/par',             [ReportController::class, 'par'])->name('portfolio.par');
+        Route::get('/portfolio/disbursements',   [ReportController::class, 'disbursements'])->name('portfolio.disbursements');
+        Route::get('/portfolio/collections',     [ReportController::class, 'collections'])->name('portfolio.collections');
+
+        // Operational
+        Route::get('/operational/daily',         [ReportController::class, 'dailyActivity'])->name('operational.daily');
+        Route::get('/operational/officers',      [ReportController::class, 'officerPerformance'])->name('operational.officers');
+        Route::get('/operational/branches',      [ReportController::class, 'branchPerformance'])->name('operational.branches');
+
+        // Financial
+        Route::get('/financial/income',          [ReportController::class, 'incomeStatement'])->name('financial.income');
+        Route::get('/financial/ledger',          [ReportController::class, 'transactionLedger'])->name('financial.ledger');
+
+        // Customer
+        Route::get('/customers/register',        [ReportController::class, 'customerRegister'])->name('customers.register');
+        Route::get('/customers/credit-scores',   [ReportController::class, 'creditScoreReport'])->name('customers.credit-scores');
+    });
 });

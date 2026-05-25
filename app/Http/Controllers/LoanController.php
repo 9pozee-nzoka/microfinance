@@ -2,13 +2,110 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Customer;
+use App\Models\Guarantor;
 use App\Models\Loan;
 use App\Models\LoanProduct;
 use App\Models\Branch;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class LoanController extends Controller
 {
+    // ── Create Form ──────────────────────────────────────────────
+    public function create(Request $request)
+    {
+        $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
+        $officers = User::where('status', 'active')->orderBy('name')->get();
+        $customer = $request->filled('customer_id')
+            ? Customer::where('status', 'active')->findOrFail($request->customer_id)
+            : null;
+
+        return view('loans.create', compact('products', 'branches', 'officers', 'customer'));
+    }
+
+    // ── Store New Loan ────────────────────────────────────────────
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'customer_id'               => 'required|exists:customers,id',
+            'product_id'                => 'required|exists:loan_products,id',
+            'branch_id'                 => 'required|exists:branches,id',
+            'relationship_officer_id'   => 'required|exists:users,id',
+            'principal_amount'          => 'required|numeric|min:1',
+            'term_weeks'                => 'required|integer|min:1',
+            'purpose'                   => 'required|in:business,education,medical,agriculture,home_improvement,other',
+            'purpose_description'       => 'nullable|string|max:500',
+            'collateral_description'    => 'nullable|string|max:500',
+            'collateral_value'          => 'nullable|string|max:100',
+            'interest_amount'           => 'required|numeric|min:0',
+            'processing_fee'            => 'required|numeric|min:0',
+            'insurance_fee'             => 'required|numeric|min:0',
+            'total_repayable'           => 'required|numeric|min:0',
+            'weekly_installment'        => 'required|numeric|min:0',
+            'application_date'          => 'required|date',
+            'guarantors'                => 'nullable|array',
+            'guarantors.*.customer_id'  => 'nullable|exists:customers,id',
+            'guarantors.*.amount'       => 'nullable|numeric|min:0',
+        ]);
+
+        // Validate product limits
+        $product = LoanProduct::findOrFail($validated['product_id']);
+        if ($validated['principal_amount'] < $product->min_amount || $validated['principal_amount'] > $product->max_amount) {
+            return back()->withInput()->withErrors([
+                'principal_amount' => "Amount must be between KSH " . number_format($product->min_amount, 0) . " and KSH " . number_format($product->max_amount, 0) . " for this product.",
+            ]);
+        }
+        if ($validated['term_weeks'] < $product->min_term_weeks || $validated['term_weeks'] > $product->max_term_weeks) {
+            return back()->withInput()->withErrors([
+                'term_weeks' => "Term must be between {$product->min_term_weeks} and {$product->max_term_weeks} weeks for this product.",
+            ]);
+        }
+
+        $loan = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $request) {
+            $loan = Loan::create([
+                'customer_id'             => $validated['customer_id'],
+                'product_id'              => $validated['product_id'],
+                'branch_id'               => $validated['branch_id'],
+                'relationship_officer_id' => $validated['relationship_officer_id'],
+                'principal_amount'        => $validated['principal_amount'],
+                'interest_amount'         => $validated['interest_amount'],
+                'processing_fee'          => $validated['processing_fee'],
+                'insurance_fee'           => $validated['insurance_fee'],
+                'total_repayable'         => $validated['total_repayable'],
+                'term_weeks'              => $validated['term_weeks'],
+                'weekly_installment'      => $validated['weekly_installment'],
+                'purpose'                 => $validated['purpose'],
+                'purpose_description'     => $validated['purpose_description'],
+                'collateral_description'  => $validated['collateral_description'],
+                'collateral_value'        => $validated['collateral_value'],
+                'outstanding_balance'     => $validated['principal_amount'],
+                'application_date'        => $validated['application_date'],
+                'status'                  => 'pending',
+            ]);
+
+            // Save guarantors
+            if (!empty($validated['guarantors'])) {
+                foreach ($validated['guarantors'] as $g) {
+                    if (!empty($g['customer_id'])) {
+                        Guarantor::create([
+                            'loan_id'               => $loan->id,
+                            'guarantor_customer_id' => $g['customer_id'],
+                            'guaranteed_amount'     => $g['amount'] ?? 0,
+                            'status'                => 'pending',
+                        ]);
+                    }
+                }
+            }
+
+            return $loan;
+        });
+
+        return redirect()->route('loans.show', $loan)
+            ->with('success', "Loan application {$loan->loan_number} submitted successfully. Pending approval.");
+    }
+
     // ── Pending Approval queue ───────────────────────────────────
     public function approveNew(Request $request)
     {

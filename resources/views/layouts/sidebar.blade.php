@@ -53,12 +53,12 @@
             </a>
         </div>
 
-        <button class="nav-item has-submenu {{ request()->routeIs('loans.*') ? 'active expanded' : '' }}">
+        <button class="nav-item has-submenu {{ request()->routeIs('loans.*') || request()->routeIs('collection.*') ? 'active expanded' : '' }}">
             <i class="fas fa-hand-holding-usd"></i>
             <span>Loan Management</span>
             <i class="fas fa-chevron-right chevron"></i>
         </button>
-        <div class="submenu {{ request()->routeIs('loans.*') ? 'show' : '' }}">
+        <div class="submenu {{ request()->routeIs('loans.*') || request()->routeIs('collection.*') ? 'show' : '' }}">
             <a href="{{ route('loans.approve') }}" class="nav-item {{ request()->routeIs('loans.approve') ? 'active' : '' }}">
                 <i class="fas fa-check-circle"></i>
                 <span>Approve New Loans</span>
@@ -66,6 +66,22 @@
             <a href="{{ route('loans.index') }}" class="nav-item {{ request()->routeIs('loans.index') ? 'active' : '' }}">
                 <i class="fas fa-list"></i>
                 <span>All Loans</span>
+            </a>
+            <a href="{{ route('collection.index') }}" class="nav-item {{ request()->routeIs('collection.index') ? 'active' : '' }}">
+                <i class="fas fa-bell"></i>
+                <span>Loan Collection</span>
+            </a>
+            <a href="{{ route('collection.overdue') }}" class="nav-item {{ request()->routeIs('collection.overdue') ? 'active' : '' }}">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Overdue Loans</span>
+            </a>
+            <a href="{{ route('collection.schedules') }}" class="nav-item {{ request()->routeIs('collection.schedules') ? 'active' : '' }}">
+                <i class="fas fa-calendar-alt"></i>
+                <span>SMS Schedules</span>
+            </a>
+            <a href="{{ route('collection.sms-logs') }}" class="nav-item {{ request()->routeIs('collection.sms-logs') ? 'active' : '' }}">
+                <i class="fas fa-sms"></i>
+                <span>SMS Logs</span>
             </a>
         </div>
 

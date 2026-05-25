@@ -16,9 +16,11 @@ return new class extends Migration
             $table->string('location')->nullable();
             $table->string('phone')->nullable();
             $table->string('email')->nullable();
-            $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->string('status', 20)->default('active');
             $table->timestamps();
         });
+
+        DB::statement("ALTER TABLE branches ADD CONSTRAINT branches_status_check CHECK (status IN ('active','inactive'))");
     }
 
     public function down(): void
