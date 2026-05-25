@@ -110,6 +110,12 @@
             <span>Report Management</span>
             <i class="fas fa-chevron-right chevron" style="font-size: 10px;"></i>
         </a>
+
+        <a href="{{ route('mpesa.index') }}" class="nav-item {{ request()->routeIs('mpesa.*') ? 'active' : '' }}">
+            <i class="fas fa-mobile-alt"></i>
+            <span>M-Pesa Transactions</span>
+            <i class="fas fa-chevron-right chevron" style="font-size: 10px;"></i>
+        </a>
     </nav>
 
     <div style="margin-top: auto; padding: 15px 20px; border-top: 1px solid var(--border);">

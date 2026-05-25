@@ -3,10 +3,12 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CollectionController;
+use App\Http\Controllers\MpesaController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerPortalController;
 use App\Models\Customer;
 use App\Models\Loan;
 use Illuminate\Http\Request;
@@ -158,5 +160,48 @@ Route::middleware(['auth'])->group(function () {
         // Customer
         Route::get('/customers/register',        [ReportController::class, 'customerRegister'])->name('customers.register');
         Route::get('/customers/credit-scores',   [ReportController::class, 'creditScoreReport'])->name('customers.credit-scores');
+    });
+});
+
+// ============================================
+// M-PESA ROUTES
+// ============================================
+
+// Safaricom callback URLs — no auth, no CSRF
+Route::prefix('mpesa')->name('mpesa.')->group(function () {
+    // Safaricom callbacks (must be publicly accessible)
+    Route::post('/stk/callback',  [MpesaController::class, 'stkCallback'])->name('stk.callback');
+    Route::post('/b2c/result',    [MpesaController::class, 'b2cResult'])->name('b2c.result');
+    Route::post('/b2c/timeout',   [MpesaController::class, 'b2cTimeout'])->name('b2c.timeout');
+});
+
+// Staff-authenticated M-Pesa actions
+Route::middleware(['auth'])->prefix('mpesa')->name('mpesa.')->group(function () {
+    Route::get('/',                                          [MpesaController::class, 'index'])->name('index');
+    Route::post('/loans/{loan}/stk-push',                   [MpesaController::class, 'initiateStkPush'])->name('stk.push');
+    Route::post('/loans/{loan}/disburse',                   [MpesaController::class, 'initiateB2c'])->name('b2c.disburse');
+    Route::get('/transactions/{mpesaTxn}/status',           [MpesaController::class, 'stkStatus'])->name('stk.status');
+});
+
+// ============================================
+// CUSTOMER PORTAL ROUTES
+// ============================================
+
+// Portal auth (no middleware — guests access login)
+Route::prefix('portal')->name('portal.')->group(function () {
+    Route::get('/login',  [CustomerPortalController::class, 'showLogin'])->name('login');
+    Route::post('/login', [CustomerPortalController::class, 'login'])->name('login.post');
+    Route::post('/logout',[CustomerPortalController::class, 'logout'])->name('logout');
+
+    // Protected portal routes
+    Route::middleware(['auth', 'customer.portal'])->group(function () {
+        Route::get('/dashboard',                          [CustomerPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('/loans',                              [CustomerPortalController::class, 'loans'])->name('loans');
+        Route::get('/loans/{loan}',                       [CustomerPortalController::class, 'loanDetail'])->name('loan.detail');
+        Route::get('/loans/{loan}/pay',                   [CustomerPortalController::class, 'showPayment'])->name('loan.pay');
+        Route::post('/loans/{loan}/pay',                  [CustomerPortalController::class, 'submitPayment'])->name('loan.pay.submit');
+        Route::get('/transactions',                       [CustomerPortalController::class, 'transactions'])->name('transactions');
+        Route::get('/profile',                            [CustomerPortalController::class, 'profile'])->name('profile');
+        Route::post('/profile/change-password',           [CustomerPortalController::class, 'changePassword'])->name('change-password');
     });
 });

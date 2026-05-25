@@ -47,6 +47,11 @@
             <i class="fas fa-paper-plane"></i> Disburse
         </button>
         @endif
+        @if(in_array($loan->status, ['disbursed', 'active']))
+        <button class="btn btn-primary" onclick="openStkModal()" style="background:#2E7D32; border-color:#2E7D32;">
+            <i class="fas fa-mobile-alt"></i> Request Payment
+        </button>
+        @endif
         <button class="btn btn-outline" onclick="openSmsModal()" style="color:#7B1FA2; border-color:#CE93D8;">
             <i class="fas fa-sms"></i> Send SMS
         </button>
@@ -340,32 +345,164 @@
 
 {{-- ── Disburse Modal ── --}}
 <div id="disburseModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:30px; width:500px; max-width:95%;">
-        <h3 style="font-size:16px; font-weight:600; margin-bottom:16px;">Disburse Loan {{ $loan->loan_number }}</h3>
-        <form method="POST" action="{{ route('loans.disburse', $loan) }}">
-            @csrf @method('PATCH')
-            <div style="margin-bottom:15px;">
-                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Disbursement Method <span style="color:var(--danger)">*</span></label>
-                <select name="disbursement_method" id="disburseMethod" class="filter-select" style="width:100%;" onchange="toggleDisburseFields()" required>
-                    <option value="">-- Select --</option>
-                    <option value="mpesa">M-Pesa</option>
-                    <option value="bank_transfer">Bank Transfer</option>
-                    <option value="cash">Cash</option>
-                </select>
+    <div style="background:white; border-radius:12px; padding:30px; width:520px; max-width:95%;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="font-size:16px; font-weight:600;">Disburse Loan {{ $loan->loan_number }}</h3>
+            <button onclick="closeModal('disburseModal')" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-secondary);">&times;</button>
+        </div>
+
+        {{-- Loan summary --}}
+        <div style="background:#F0FBFD; border:1px solid #B3E5FC; border-radius:8px; padding:12px 14px; margin-bottom:18px; font-size:13px;">
+            <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-secondary);">Principal Amount</span>
+                <strong>KSH {{ number_format($loan->principal_amount, 0) }}</strong>
             </div>
-            <div id="mpesaReceiptField" style="display:none; margin-bottom:15px;">
-                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">M-Pesa Receipt No. <span style="color:var(--danger)">*</span></label>
-                <input type="text" name="mpesa_receipt_number" placeholder="e.g. QHX1234ABC" class="filter-select" style="width:100%; text-transform:uppercase;">
+            <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                <span style="color:var(--text-secondary);">Customer Phone</span>
+                <strong>{{ $loan->customer->phone_number }}</strong>
             </div>
-            <div style="margin-bottom:20px;">
-                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Reference / Notes</label>
-                <input type="text" name="disbursement_reference" placeholder="Optional reference" class="filter-select" style="width:100%;">
+        </div>
+
+        {{-- Method tabs --}}
+        <div style="display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:18px;">
+            <button type="button" onclick="switchDisburseTab('mpesa')" id="tab-mpesa"
+                    style="padding:9px 18px; font-size:13px; font-weight:600; border:none; background:none; cursor:pointer; color:var(--primary); border-bottom:2px solid var(--primary); margin-bottom:-2px;">
+                <i class="fas fa-mobile-alt"></i> M-Pesa B2C
+            </button>
+            <button type="button" onclick="switchDisburseTab('manual')" id="tab-manual"
+                    style="padding:9px 18px; font-size:13px; font-weight:500; border:none; background:none; cursor:pointer; color:var(--text-secondary); border-bottom:2px solid transparent; margin-bottom:-2px;">
+                <i class="fas fa-university"></i> Manual / Bank
+            </button>
+        </div>
+
+        {{-- M-Pesa B2C panel --}}
+        <div id="panel-mpesa">
+            <div style="background:#E8F5E9; border:1px solid #A5D6A7; border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:12px; color:#2E7D32;">
+                <i class="fas fa-info-circle"></i>
+                Funds will be sent directly to the customer's M-Pesa. The loan will be marked as disbursed immediately and the schedule generated.
             </div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Phone Number <span style="color:var(--danger)">*</span></label>
+                <input type="text" id="b2cPhone" value="{{ $loan->customer->phone_number }}"
+                       style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:monospace;">
+                <div style="font-size:11px; color:var(--text-secondary); margin-top:3px;">Format: 0712345678 or 254712345678</div>
+            </div>
+            <div style="margin-bottom:18px;">
+                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Amount to Disburse (KSH) <span style="color:var(--danger)">*</span></label>
+                <input type="number" id="b2cAmount" value="{{ $loan->principal_amount }}"
+                       min="1" max="{{ $loan->principal_amount }}" step="1"
+                       style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+                <div style="font-size:11px; color:var(--text-secondary); margin-top:3px;">
+                    Principal: KSH {{ number_format($loan->principal_amount, 0) }}
+                    (fees of KSH {{ number_format($loan->processing_fee + $loan->insurance_fee, 0) }} deducted separately)
+                </div>
+            </div>
+            <div id="b2cResult" style="display:none; margin-bottom:14px;"></div>
             <div style="display:flex; gap:10px; justify-content:flex-end;">
                 <button type="button" class="btn btn-outline" onclick="closeModal('disburseModal')">Cancel</button>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Confirm Disbursement</button>
+                <button type="button" class="btn btn-primary" id="b2cBtn" onclick="initiateB2c()">
+                    <i class="fas fa-paper-plane"></i> Send via M-Pesa
+                </button>
             </div>
-        </form>
+        </div>
+
+        {{-- Manual / Bank panel --}}
+        <div id="panel-manual" style="display:none;">
+            <form method="POST" action="{{ route('loans.disburse', $loan) }}">
+                @csrf @method('PATCH')
+                <div style="margin-bottom:15px;">
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Disbursement Method <span style="color:var(--danger)">*</span></label>
+                    <select name="disbursement_method" id="manualMethod" class="filter-select" style="width:100%;" onchange="toggleManualFields()" required>
+                        <option value="">-- Select --</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="cash">Cash</option>
+                        <option value="mpesa">M-Pesa (manual receipt)</option>
+                    </select>
+                </div>
+                <div id="mpesaReceiptField" style="display:none; margin-bottom:15px;">
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">M-Pesa Receipt No. <span style="color:var(--danger)">*</span></label>
+                    <input type="text" name="mpesa_receipt_number" placeholder="e.g. QHX1234ABC" class="filter-select" style="width:100%; text-transform:uppercase; font-family:monospace;">
+                </div>
+                <div style="margin-bottom:20px;">
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Reference / Notes</label>
+                    <input type="text" name="disbursement_reference" placeholder="Optional reference" class="filter-select" style="width:100%;">
+                </div>
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('disburseModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Confirm Disbursement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- ── STK Push Modal ── --}}
+<div id="stkModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:12px; padding:30px; width:480px; max-width:95%;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="font-size:16px; font-weight:600; color:var(--text-primary);">
+                <i class="fas fa-mobile-alt" style="color:var(--primary);"></i> Request M-Pesa Payment
+            </h3>
+            <button onclick="closeModal('stkModal')" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-secondary);">&times;</button>
+        </div>
+
+        <div style="background:#E3F2FD; border:1px solid #90CAF9; border-radius:8px; padding:12px 14px; margin-bottom:18px; font-size:12px; color:#1565C0;">
+            <i class="fas fa-info-circle"></i>
+            An STK push will be sent to the customer's phone. They will see a payment prompt and enter their M-Pesa PIN to complete the payment.
+        </div>
+
+        <div style="background:#F8FAFC; border-radius:8px; padding:12px 14px; margin-bottom:18px; font-size:13px; border:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:var(--text-secondary);">Customer</span>
+                <strong>{{ $loan->customer->full_name }}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:var(--text-secondary);">Outstanding Balance</span>
+                <strong style="color:var(--primary);">KSH {{ number_format($loan->outstanding_balance, 0) }}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-secondary);">Weekly Installment</span>
+                <strong>KSH {{ number_format($loan->weekly_installment, 0) }}</strong>
+            </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Phone Number <span style="color:var(--danger)">*</span></label>
+            <input type="text" id="stkPhone" value="{{ $loan->customer->phone_number }}"
+                   style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:monospace;">
+        </div>
+
+        <div style="margin-bottom:18px;">
+            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Amount (KSH) <span style="color:var(--danger)">*</span></label>
+            <input type="number" id="stkAmount" value="{{ number_format($loan->weekly_installment, 2, '.', '') }}"
+                   min="1" max="{{ $loan->outstanding_balance }}" step="1"
+                   style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px;">
+            <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                <button type="button" onclick="setStkAmount({{ $loan->weekly_installment }})"
+                        style="padding:4px 10px; font-size:11px; border:1px solid var(--border); border-radius:4px; background:white; cursor:pointer;">
+                    Weekly: KSH {{ number_format($loan->weekly_installment, 0) }}
+                </button>
+                @if($loan->arrears_amount > 0)
+                <button type="button" onclick="setStkAmount({{ $loan->arrears_amount }})"
+                        style="padding:4px 10px; font-size:11px; border:1px solid var(--danger); border-radius:4px; background:#FFEBEE; color:var(--danger); cursor:pointer;">
+                    Arrears: KSH {{ number_format($loan->arrears_amount, 0) }}
+                </button>
+                @endif
+                <button type="button" onclick="setStkAmount({{ $loan->outstanding_balance }})"
+                        style="padding:4px 10px; font-size:11px; border:1px solid var(--primary); border-radius:4px; background:#E3F2FD; color:var(--primary); cursor:pointer;">
+                    Full: KSH {{ number_format($loan->outstanding_balance, 0) }}
+                </button>
+            </div>
+        </div>
+
+        <div id="stkResult" style="display:none; margin-bottom:14px;"></div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn btn-outline" onclick="closeModal('stkModal')">Cancel</button>
+            <button type="button" class="btn btn-primary" id="stkBtn" onclick="initiateStkPush()">
+                <i class="fas fa-mobile-alt"></i> Send STK Push
+            </button>
+        </div>
     </div>
 </div>
 
@@ -456,15 +593,157 @@
 function openApproveModal()  { document.getElementById('approveModal').style.display  = 'flex'; }
 function openRejectModal()   { document.getElementById('rejectModal').style.display   = 'flex'; }
 function openDisburseModal() { document.getElementById('disburseModal').style.display = 'flex'; }
+function openStkModal()      { document.getElementById('stkModal').style.display      = 'flex'; }
 function openSmsModal()      {
     loadSmsTemplate();
     document.getElementById('smsModal').style.display = 'flex';
 }
-function closeModal(id)      { document.getElementById(id).style.display = 'none'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-function toggleDisburseFields() {
-    const method = document.getElementById('disburseMethod').value;
+// ── Disburse tab switching ───────────────────────────────────
+function switchDisburseTab(tab) {
+    document.getElementById('panel-mpesa').style.display  = tab === 'mpesa'  ? 'block' : 'none';
+    document.getElementById('panel-manual').style.display = tab === 'manual' ? 'block' : 'none';
+    document.getElementById('tab-mpesa').style.cssText  = tab === 'mpesa'
+        ? 'padding:9px 18px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--primary);border-bottom:2px solid var(--primary);margin-bottom:-2px;'
+        : 'padding:9px 18px;font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent;margin-bottom:-2px;';
+    document.getElementById('tab-manual').style.cssText = tab === 'manual'
+        ? 'padding:9px 18px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--primary);border-bottom:2px solid var(--primary);margin-bottom:-2px;'
+        : 'padding:9px 18px;font-size:13px;font-weight:500;border:none;background:none;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent;margin-bottom:-2px;';
+}
+
+function toggleManualFields() {
+    const method = document.getElementById('manualMethod').value;
     document.getElementById('mpesaReceiptField').style.display = method === 'mpesa' ? 'block' : 'none';
+}
+
+// ── B2C Disbursement ─────────────────────────────────────────
+function initiateB2c() {
+    const phone  = document.getElementById('b2cPhone').value.trim();
+    const amount = document.getElementById('b2cAmount').value;
+    const btn    = document.getElementById('b2cBtn');
+    const result = document.getElementById('b2cResult');
+
+    if (!phone || !amount) { alert('Please enter phone and amount.'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+    result.style.display = 'none';
+
+    fetch('{{ route("mpesa.b2c.disburse", $loan) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        },
+        body: JSON.stringify({ phone, amount }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        result.style.display = 'block';
+        if (data.success) {
+            result.innerHTML = `<div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:12px;font-size:13px;color:#2E7D32;">
+                <i class="fas fa-check-circle"></i> ${data.message}
+            </div>`;
+            btn.innerHTML = '<i class="fas fa-check"></i> Disbursed';
+            setTimeout(() => location.reload(), 2500);
+        } else {
+            result.innerHTML = `<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:8px;padding:12px;font-size:13px;color:#C62828;">
+                <i class="fas fa-exclamation-circle"></i> ${data.message}
+            </div>`;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send via M-Pesa';
+        }
+    })
+    .catch(() => {
+        result.style.display = 'block';
+        result.innerHTML = `<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:8px;padding:12px;font-size:13px;color:#C62828;">
+            <i class="fas fa-exclamation-circle"></i> Network error. Please try again.
+        </div>`;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send via M-Pesa';
+    });
+}
+
+// ── STK Push ─────────────────────────────────────────────────
+let stkPollInterval = null;
+
+function setStkAmount(amount) {
+    document.getElementById('stkAmount').value = amount;
+}
+
+function initiateStkPush() {
+    const phone  = document.getElementById('stkPhone').value.trim();
+    const amount = document.getElementById('stkAmount').value;
+    const btn    = document.getElementById('stkBtn');
+    const result = document.getElementById('stkResult');
+
+    if (!phone || !amount) { alert('Please enter phone and amount.'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+    result.style.display = 'none';
+
+    fetch('{{ route("mpesa.stk.push", $loan) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        },
+        body: JSON.stringify({ phone, amount }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        result.style.display = 'block';
+        if (data.success) {
+            result.innerHTML = `<div style="background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:12px;font-size:13px;color:#1565C0;">
+                <i class="fas fa-mobile-alt"></i> ${data.message}
+                <div style="margin-top:6px;font-size:11px;opacity:0.8;">Waiting for customer to complete payment…</div>
+            </div>`;
+            btn.innerHTML = '<i class="fas fa-clock"></i> Waiting…';
+
+            // Poll for completion
+            if (data.mpesa_txn_id) {
+                stkPollInterval = setInterval(() => pollStkStatus(data.mpesa_txn_id, btn, result), 5000);
+            }
+        } else {
+            result.innerHTML = `<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:8px;padding:12px;font-size:13px;color:#C62828;">
+                <i class="fas fa-exclamation-circle"></i> ${data.message}
+            </div>`;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-mobile-alt"></i> Send STK Push';
+        }
+    })
+    .catch(() => {
+        result.style.display = 'block';
+        result.innerHTML = `<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:8px;padding:12px;font-size:13px;color:#C62828;">
+            <i class="fas fa-exclamation-circle"></i> Network error. Please try again.
+        </div>`;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-mobile-alt"></i> Send STK Push';
+    });
+}
+
+function pollStkStatus(txnId, btn, result) {
+    fetch(`/mpesa/transactions/${txnId}/status`)
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'completed') {
+            clearInterval(stkPollInterval);
+            result.innerHTML = `<div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:12px;font-size:13px;color:#2E7D32;">
+                <i class="fas fa-check-circle"></i> Payment received! Receipt: <strong>${data.receipt}</strong>
+            </div>`;
+            btn.innerHTML = '<i class="fas fa-check"></i> Payment Received';
+            setTimeout(() => location.reload(), 2000);
+        } else if (data.status === 'failed') {
+            clearInterval(stkPollInterval);
+            result.innerHTML = `<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:8px;padding:12px;font-size:13px;color:#C62828;">
+                <i class="fas fa-times-circle"></i> Payment failed: ${data.result_desc}
+            </div>`;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-mobile-alt"></i> Send STK Push';
+        }
+    });
 }
 
 // ── SMS helpers ──────────────────────────────────────────────────

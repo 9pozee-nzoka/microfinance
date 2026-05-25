@@ -13,7 +13,7 @@ class Customer extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'customer_number', 'full_name', 'phone_number', 'email',
+        'user_id', 'customer_number', 'full_name', 'phone_number', 'email',
         'id_number', 'date_of_birth', 'gender', 'nationality',
         'address', 'county', 'sub_county', 'ward',
         'employment_type', 'employer_name', 'monthly_income',
@@ -38,6 +38,11 @@ class Customer extends Model
         'savings_balance' => 'decimal:2',
         'credit_limit' => 'decimal:2',
     ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function branch(): BelongsTo
     {

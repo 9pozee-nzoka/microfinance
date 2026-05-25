@@ -13,6 +13,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "pusher/pusher-php-server": "^7.2",
+        "safaricom/mpesa": "^1.0",
         "spatie/laravel-permission": "^7.4"
     },
     "require-dev": {

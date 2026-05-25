@@ -18,6 +18,28 @@
 </div>
 @endif
 
+{{-- Portal credentials flash (shown once after activation) --}}
+@if(session('portal_credentials'))
+@php $creds = session('portal_credentials'); @endphp
+<div style="background:#E3F2FD; border:1px solid #90CAF9; border-radius:10px; padding:16px 20px; margin-bottom:16px;">
+    <div style="font-size:14px; font-weight:700; color:#1565C0; margin-bottom:10px;">
+        <i class="fas fa-user-check"></i> Customer Portal Account Created
+    </div>
+    <p style="font-size:13px; color:#1976D2; margin-bottom:10px;">
+        Share these credentials with the customer. Portal URL:
+        <strong>{{ url('/portal/login') }}</strong>
+    </p>
+    <div style="background:white; border-radius:8px; padding:12px 16px; font-family:monospace; font-size:13px; border:1px solid #BBDEFB;">
+        <div><strong>Email:</strong> {{ $creds['email'] }}</div>
+        <div style="margin-top:6px;"><strong>Password:</strong> {{ $creds['password'] }}</div>
+    </div>
+    <p style="font-size:11px; color:#1976D2; margin-top:8px;">
+        <i class="fas fa-exclamation-triangle"></i>
+        This is shown only once. Please note it down before leaving this page.
+    </p>
+</div>
+@endif
+
 <div class="card" style="margin-bottom: 20px;">
     <div class="card-header">
         <span class="card-title">Newly Registered Customers</span>

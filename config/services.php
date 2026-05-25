@@ -41,4 +41,21 @@ return [
         'sender_id' => env('AT_SENDER_ID', ''),
     ],
 
+    'mpesa' => [
+        'env'                    => env('MPESA_ENV', 'sandbox'),
+        'consumer_key'           => env('MPESA_CONSUMER_KEY', ''),
+        'consumer_secret'        => env('MPESA_CONSUMER_SECRET', ''),
+        'shortcode'              => env('MPESA_SHORTCODE', ''),
+        'passkey'                => env('MPESA_PASSKEY', ''),
+        'b2c_shortcode'          => env('MPESA_B2C_SHORTCODE', env('MPESA_SHORTCODE', '')),
+        'b2c_initiator'          => env('MPESA_B2C_INITIATOR', ''),
+        'b2c_security_credential'=> env('MPESA_B2C_SECURITY_CREDENTIAL', ''),
+        'paybill'                => env('MPESA_SHORTCODE', ''),
+    ],
+
+    'bank' => [
+        'name'    => env('BANK_NAME', 'Equity Bank'),
+        'account' => env('BANK_ACCOUNT', ''),
+    ],
+
 ];

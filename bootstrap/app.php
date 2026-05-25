@@ -12,7 +12,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'customer.portal' => \App\Http\Middleware\CustomerPortalMiddleware::class,
+        ]);
+
+        // Exclude M-Pesa Safaricom callback URLs from CSRF
+        $middleware->validateCsrfTokens(except: [
+            'mpesa/stk/callback',
+            'mpesa/b2c/result',
+            'mpesa/b2c/timeout',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

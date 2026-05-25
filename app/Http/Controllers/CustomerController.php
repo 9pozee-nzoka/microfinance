@@ -8,7 +8,10 @@ use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 
 class CustomerController extends Controller
 {
@@ -190,12 +193,42 @@ class CustomerController extends Controller
     // ── Activate Customer ────────────────────────────────────────
     public function activate(Customer $customer)
     {
-        $customer->update([
-            'status'       => 'active',
-            'activated_at' => now(),
-        ]);
+        DB::transaction(function () use ($customer) {
+            $customer->update([
+                'status'       => 'active',
+                'activated_at' => now(),
+            ]);
 
-        return back()->with('success', "{$customer->full_name} has been activated.");
+            // Create a portal user account if one doesn't exist yet
+            if (! $customer->user_id) {
+                // Ensure the customer role exists
+                Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
+
+                $tempPassword = Str::random(10);
+
+                $user = User::create([
+                    'name'         => $customer->full_name,
+                    'email'        => $customer->email ?? strtolower(str_replace(' ', '.', $customer->full_name)) . '.' . $customer->id . '@portal.getcash.co.ke',
+                    'password'     => Hash::make($tempPassword),
+                    'phone_number' => $customer->phone_number,
+                    'branch_id'    => $customer->branch_id,
+                    'designation'  => 'Customer',
+                    'status'       => 'active',
+                ]);
+
+                $user->assignRole('customer');
+
+                $customer->update(['user_id' => $user->id]);
+
+                // Store temp password in session so staff can share it
+                session()->flash('portal_credentials', [
+                    'email'    => $user->email,
+                    'password' => $tempPassword,
+                ]);
+            }
+        });
+
+        return back()->with('success', "{$customer->full_name} has been activated. A portal account has been created.");
     }
 
     // ── Reject Customer ──────────────────────────────────────────
