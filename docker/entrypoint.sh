@@ -2,7 +2,7 @@
 set -e
 
 echo "──────────────────────────────────────────"
-echo "  GetCash Capital — Deploy Entrypoint"
+echo "  MweelaCash Capital — Deploy Entrypoint"
 echo "──────────────────────────────────────────"
 
 # ── 1. Write .env from environment variables ──────────────────────────────────
