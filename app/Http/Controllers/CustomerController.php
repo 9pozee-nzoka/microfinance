@@ -1,0 +1,284 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Branch;
+use App\Models\CreditScore;
+use App\Models\Customer;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class CustomerController extends Controller
+{
+    // ── Manage Customers (main list) ─────────────────────────────
+    public function index(Request $request)
+    {
+        $query = Customer::with('branch', 'relationshipOfficer');
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('full_name', 'like', "%{$s}%")
+                  ->orWhere('phone_number', 'like', "%{$s}%")
+                  ->orWhere('id_number', 'like', "%{$s}%")
+                  ->orWhere('customer_number', 'like', "%{$s}%");
+            });
+        }
+        if ($request->filled('status'))          $query->where('status', $request->status);
+        if ($request->filled('branch'))          $query->where('branch_id', $request->branch);
+        if ($request->filled('employment_type')) $query->where('employment_type', $request->employment_type);
+
+        $customers       = $query->latest()->paginate(20)->withQueryString();
+        $totalCustomers  = Customer::count();
+        $activeCustomers = Customer::where('status', 'active')->count();
+        $pendingCustomers= Customer::where('status', 'pending')->count();
+        $dormantCustomers= Customer::whereIn('status', ['dormant', 'suspended'])->count();
+        $branches        = Branch::where('status', 'active')->orderBy('name')->get();
+
+        return view('customers.show', compact(
+            'customers', 'totalCustomers', 'activeCustomers',
+            'pendingCustomers', 'dormantCustomers', 'branches'
+        ));
+    }
+
+    // ── Newly Registered ─────────────────────────────────────────
+    public function newlyRegistered(Request $request)
+    {
+        $query = Customer::where('status', 'pending')
+            ->with('branch', 'relationshipOfficer');
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('full_name', 'like', "%{$s}%")
+                  ->orWhere('phone_number', 'like', "%{$s}%")
+                  ->orWhere('id_number', 'like', "%{$s}%");
+            });
+        }
+        if ($request->filled('branch')) $query->where('branch_id', $request->branch);
+
+        $customers = $query->latest()->paginate(20)->withQueryString();
+        $branches  = Branch::where('status', 'active')->orderBy('name')->get();
+
+        return view('customers.new', compact('customers', 'branches'));
+    }
+
+    // ── Verify KYC ───────────────────────────────────────────────
+    public function verifyKyc(Customer $customer)
+    {
+        $customer->update([
+            'kyc_verified_at' => now(),
+            'kyc_verified_by' => auth()->id(),
+        ]);
+
+        return back()->with('success', "KYC verified for {$customer->full_name}.");
+    }
+
+    // ── Activate Customer ────────────────────────────────────────
+    public function activate(Customer $customer)
+    {
+        $customer->update([
+            'status'       => 'active',
+            'activated_at' => now(),
+        ]);
+
+        return back()->with('success', "{$customer->full_name} has been activated.");
+    }
+
+    // ── Reject Customer ──────────────────────────────────────────
+    public function reject(Request $request, Customer $customer)
+    {
+        $request->validate(['reason' => 'required|string|max:500']);
+
+        $customer->update([
+            'status'           => 'rejected',
+            'rejection_reason' => $request->reason,
+        ]);
+
+        return back()->with('success', "{$customer->full_name} has been rejected.");
+    }
+
+    // ── Rejected Customers list ──────────────────────────────────
+    public function rejected(Request $request)
+    {
+        $query = Customer::where('status', 'rejected')
+            ->with('branch', 'relationshipOfficer');
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('full_name', 'like', "%{$s}%")
+                  ->orWhere('phone_number', 'like', "%{$s}%")
+                  ->orWhere('id_number', 'like', "%{$s}%");
+            });
+        }
+        if ($request->filled('reason')) {
+            $query->where('rejection_reason', 'like', '%' . $request->reason . '%');
+        }
+
+        $customers = $query->latest()->paginate(20)->withQueryString();
+
+        return view('customers.rejected', compact('customers'));
+    }
+
+    // ── Re-activate a rejected customer ─────────────────────────
+    public function reactivate(Customer $customer)
+    {
+        $customer->update([
+            'status'           => 'pending',
+            'rejection_reason' => null,
+        ]);
+
+        return back()->with('success', "{$customer->full_name} moved back to pending review.");
+    }
+
+    // ── Permanently delete a rejected customer ───────────────────
+    public function destroy(Customer $customer)
+    {
+        if ($customer->status !== 'rejected') {
+            return back()->with('error', 'Only rejected customers can be deleted.');
+        }
+
+        $name = $customer->full_name;
+        $customer->delete();
+
+        return back()->with('success', "{$name} has been permanently deleted.");
+    }
+
+    // ── Credit Score History ─────────────────────────────────────
+    public function creditHistory(Request $request)
+    {
+        $query = Customer::with(['creditScores' => fn($q) => $q->latest()->limit(1), 'branch']);
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('full_name', 'like', "%{$s}%")
+                  ->orWhere('phone_number', 'like', "%{$s}%");
+            });
+        }
+
+        if ($request->filled('rating')) {
+            $ranges = [
+                'excellent' => [800, 1000],
+                'good'      => [650, 799],
+                'fair'      => [500, 649],
+                'poor'      => [350, 499],
+                'bad'       => [0, 349],
+            ];
+            if (isset($ranges[$request->rating])) {
+                [$min, $max] = $ranges[$request->rating];
+                $query->whereBetween('credit_score', [$min, $max]);
+            }
+        }
+
+        $customers = $query->latest()->paginate(20)->withQueryString();
+
+        return view('customers.credit-history', compact('customers'));
+    }
+
+    // ── Recalculate Credit Score ─────────────────────────────────
+    public function recalculateScore(Customer $customer)
+    {
+        $customer->load(['repayments', 'loans', 'creditScores']);
+
+        // Savings history (max 300): based on savings balance vs avg
+        $avgSavings = Customer::avg('savings_balance') ?: 1;
+        $savingsScore = min(300, round(($customer->savings_balance / $avgSavings) * 150));
+
+        // Repayment history (max 400): ratio of on-time payments
+        $totalRepayments = $customer->repayments()->count();
+        $onTime = $customer->repayments()->where('status', 'confirmed')
+            ->whereNull('reversal_reason')->count();
+        $repaymentScore = $totalRepayments > 0
+            ? min(400, round(($onTime / $totalRepayments) * 400))
+            : 200; // neutral for new customers
+
+        // Income stability (max 150): based on monthly income
+        $incomeScore = min(150, round(($customer->monthly_income ?? 0) / 1000 * 10));
+
+        // Guarantor strength (max 100): number of guarantors accepted
+        $guarantorScore = min(100, $customer->guarantorLoans()
+            ->where('status', 'accepted')->count() * 25);
+
+        // Collateral (max 50): has active loans with collateral
+        $collateralScore = $customer->loans()
+            ->whereNotNull('collateral_description')->exists() ? 50 : 0;
+
+        $totalScore = $savingsScore + $repaymentScore + $incomeScore + $guarantorScore + $collateralScore;
+        $rating     = CreditScore::calculateRating($totalScore);
+
+        DB::transaction(function () use ($customer, $savingsScore, $repaymentScore, $incomeScore, $guarantorScore, $collateralScore, $totalScore, $rating) {
+            CreditScore::create([
+                'customer_id'              => $customer->id,
+                'savings_history_score'    => $savingsScore,
+                'repayment_history_score'  => $repaymentScore,
+                'income_stability_score'   => $incomeScore,
+                'guarantor_strength_score' => $guarantorScore,
+                'collateral_value_score'   => $collateralScore,
+                'total_score'              => $totalScore,
+                'rating'                   => $rating,
+                'recommendation'           => $totalScore >= 500
+                    ? 'Eligible for loan products'
+                    : 'Requires improvement before loan eligibility',
+                'calculated_by'  => auth()->id(),
+                'calculated_at'  => now(),
+            ]);
+
+            $customer->update(['credit_score' => $totalScore]);
+        });
+
+        return back()->with('success', "Credit score recalculated for {$customer->full_name}: {$totalScore} ({$rating}).");
+    }
+
+    // ── Limit Management ─────────────────────────────────────────
+    public function limits(Request $request)
+    {
+        $query = Customer::with(['branch', 'activeLoans']);
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('full_name', 'like', "%{$s}%")
+                  ->orWhere('phone_number', 'like', "%{$s}%");
+            });
+        }
+
+        if ($request->filled('tier')) {
+            $query->where(function ($q) use ($request) {
+                match ($request->tier) {
+                    'platinum' => $q->where('credit_limit', '>=', 500000),
+                    'gold'     => $q->whereBetween('credit_limit', [200000, 499999]),
+                    'silver'   => $q->whereBetween('credit_limit', [50000, 199999]),
+                    'bronze'   => $q->where('credit_limit', '<', 50000),
+                    default    => null,
+                };
+            });
+        }
+
+        $customers = $query->where('status', 'active')->latest()->paginate(20)->withQueryString();
+
+        // Aggregate stats from DB (not paginator)
+        $totalLimits   = Customer::where('status', 'active')->sum('credit_limit');
+        $withLimits    = Customer::where('status', 'active')->where('credit_limit', '>', 0)->count();
+        $withoutLimits = Customer::where('status', 'active')->where('credit_limit', 0)->count();
+        $avgLimit      = Customer::where('status', 'active')->where('credit_limit', '>', 0)->avg('credit_limit') ?? 0;
+
+        return view('customers.limits', compact(
+            'customers', 'totalLimits', 'withLimits', 'withoutLimits', 'avgLimit'
+        ));
+    }
+
+    // ── Adjust Credit Limit ──────────────────────────────────────
+    public function adjustLimit(Request $request, Customer $customer)
+    {
+        $request->validate([
+            'credit_limit' => 'required|numeric|min:0|max:10000000',
+            'reason'       => 'nullable|string|max:500',
+        ]);
+
+        $customer->update(['credit_limit' => $request->credit_limit]);
+
+        return back()->with('success', "Credit limit updated to KSH " . number_format($request->credit_limit, 0) . " for {$customer->full_name}.");
+    }
+}
