@@ -36,7 +36,7 @@ COPY . .
 RUN composer dump-autoload --optimize --no-dev
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Stage 3 — Runtime: PHP 8.3-FPM + Nginx + Supervisor
+# Stage 3 — Runtime: PHP 8.4-FPM + Nginx + Supervisor
 # ─────────────────────────────────────────────────────────────────────────────
 FROM php:8.4-fpm-alpine
 
@@ -44,30 +44,22 @@ LABEL maintainer="GetCash Capital <dev@getcash.co.ke>"
 
 # ── System packages ───────────────────────────────────────────────────────────
 RUN apk add --no-cache \
-    # Web server & process manager
     nginx \
     supervisor \
-    # Utilities
     curl \
     bash \
-    # PostgreSQL — both dev headers (for pdo_pgsql) AND client binary (for psql in entrypoint)
+    netcat-openbsd \ 
     postgresql-dev \
     postgresql-client \
-    # Image processing (GD)
     libpng-dev \
     libjpeg-turbo-dev \
     freetype-dev \
-    # Zip
     libzip-dev \
     zip \
     unzip \
-    # PHP string handling
     oniguruma-dev \
-    # Internationalisation
     icu-dev \
-    # XML / DomPDF
     libxml2-dev \
-    # DomPDF font rendering
     fontconfig \
     ttf-freefont
 
@@ -93,8 +85,34 @@ RUN docker-php-ext-configure gd \
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY docker/php.ini "$PHP_INI_DIR/conf.d/99-app.ini"
 
-# ── Supervisor log directory (Alpine doesn't create it automatically) ─────────
-RUN mkdir -p /var/log/supervisor /run/nginx
+# ── PHP-FPM config: listen on TCP port 9000 ───────────────────────────────────
+# Remove default pool config and create our own
+RUN rm -f /usr/local/etc/php-fpm.d/*.conf \
+    && { \
+    echo '[global]'; \
+    echo 'daemonize = no'; \
+    echo 'error_log = /proc/self/fd/2'; \
+    echo ''; \
+    echo '[www]'; \
+    echo 'user = www-data'; \
+    echo 'group = www-data'; \
+    echo 'listen = 127.0.0.1:9000'; \
+    echo 'listen.owner = www-data'; \
+    echo 'listen.group = www-data'; \
+    echo 'pm = dynamic'; \
+    echo 'pm.max_children = 5'; \
+    echo 'pm.start_servers = 2'; \
+    echo 'pm.min_spare_servers = 1'; \
+    echo 'pm.max_spare_servers = 3'; \
+    echo 'catch_workers_output = yes'; \
+    echo 'decorate_workers_output = no'; \
+    echo 'clear_env = no'; \
+    echo 'access.log = /proc/self/fd/2'; \
+    echo 'slowlog = /proc/self/fd/2'; \
+} > /usr/local/etc/php-fpm.d/www.conf
+
+# ── Supervisor & Nginx directories ────────────────────────────────────────────
+RUN mkdir -p /var/log/supervisor /run/nginx /var/run
 
 # ── Nginx config ──────────────────────────────────────────────────────────────
 COPY docker/nginx.conf      /etc/nginx/nginx.conf
@@ -106,7 +124,7 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # ── Application ───────────────────────────────────────────────────────────────
 WORKDIR /var/www/html
 
-# Copy source (respects .dockerignore — no node_modules, no .env, no tests)
+# Copy source (respects .dockerignore)
 COPY . .
 
 # Overlay compiled frontend assets from Stage 1
@@ -128,6 +146,10 @@ RUN mkdir -p \
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost/healthz || exit 1
 
 EXPOSE 80
 
