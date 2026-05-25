@@ -1,0 +1,146 @@
+services:
+  # ── Web Service ─────────────────────────────────────────────────────────────
+  - type: web
+    name: getcash-capital
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    # Render's free tier uses port 10000; the Dockerfile exposes 80.
+    # Render auto-maps its external port to the container's port 80.
+    plan: starter          # change to standard/pro for production SLAs
+
+    healthCheckPath: /healthz
+
+    envVars:
+      - key: APP_NAME
+        value: "GetCash Capital"
+
+      - key: APP_ENV
+        value: production
+
+      - key: APP_DEBUG
+        value: "false"
+
+      - key: APP_URL
+        # Render sets RENDER_EXTERNAL_URL automatically; override here once you
+        # know your custom domain.
+        fromService:
+          type: web
+          name: getcash-capital
+          property: host
+
+      - key: APP_KEY
+        generateValue: true          # Render generates a random base64 key
+
+      - key: APP_LOCALE
+        value: en
+
+      # ── Database (Render PostgreSQL) ────────────────────────────────────────
+      - key: DB_CONNECTION
+        value: pgsql
+
+      - key: DB_HOST
+        fromDatabase:
+          name: getcash-db
+          property: host
+
+      - key: DB_PORT
+        fromDatabase:
+          name: getcash-db
+          property: port
+
+      - key: DB_DATABASE
+        fromDatabase:
+          name: getcash-db
+          property: database
+
+      - key: DB_USERNAME
+        fromDatabase:
+          name: getcash-db
+          property: user
+
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: getcash-db
+          property: password
+
+      # ── Session / Cache / Queue ─────────────────────────────────────────────
+      - key: SESSION_DRIVER
+        value: database
+
+      - key: CACHE_STORE
+        value: database
+
+      - key: QUEUE_CONNECTION
+        value: database
+
+      - key: BROADCAST_CONNECTION
+        value: log
+
+      - key: FILESYSTEM_DISK
+        value: local
+
+      # ── Logging ─────────────────────────────────────────────────────────────
+      - key: LOG_CHANNEL
+        value: stderr           # Render captures stderr as structured logs
+
+      - key: LOG_LEVEL
+        value: error
+
+      # ── Mail ────────────────────────────────────────────────────────────────
+      - key: MAIL_MAILER
+        value: log              # swap to smtp/ses/mailgun in production
+
+      - key: MAIL_FROM_ADDRESS
+        value: "noreply@getcash.co.ke"
+
+      - key: MAIL_FROM_NAME
+        value: "GetCash Capital"
+
+      # ── Africa's Talking ────────────────────────────────────────────────────
+      - key: AT_USERNAME
+        sync: false             # set manually in Render dashboard
+
+      - key: AT_API_KEY
+        sync: false
+
+      - key: AT_SENDER_ID
+        sync: false
+
+      # ── Pusher (optional) ───────────────────────────────────────────────────
+      - key: PUSHER_APP_ID
+        sync: false
+
+      - key: PUSHER_APP_KEY
+        sync: false
+
+      - key: PUSHER_APP_SECRET
+        sync: false
+
+      - key: PUSHER_APP_CLUSTER
+        value: mt1
+
+      # ── M-Pesa ──────────────────────────────────────────────────────────────
+      - key: MPESA_ENV
+        value: production
+
+      - key: MPESA_CONSUMER_KEY
+        sync: false
+
+      - key: MPESA_CONSUMER_SECRET
+        sync: false
+
+      - key: MPESA_SHORTCODE
+        sync: false
+
+      - key: MPESA_PASSKEY
+        sync: false
+
+  # ── PostgreSQL Database ──────────────────────────────────────────────────────
+databases:
+  - name: getcash-db
+    plan: starter              # free tier: 1 GB storage, 97 MB RAM
+    databaseName: microfinance
+    user: getcash
+    region: oregon             # choose closest to your users

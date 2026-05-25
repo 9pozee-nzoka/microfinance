@@ -1,0 +1,47 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Local env — never bake secrets into the image
+.env
+.env.*
+!.env.example
+
+# Dev dependencies and caches
+node_modules
+vendor
+npm-debug.log
+yarn-error.log
+
+# Built assets (rebuilt in Docker)
+public/build
+public/hot
+
+# Laravel caches (regenerated at boot)
+bootstrap/cache/*.php
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+
+# Tests
+tests
+phpunit.xml
+.phpunit.result.cache
+
+# Docker files themselves (not needed inside the image)
+docker
+Dockerfile
+.dockerignore
+render.yaml
+
+# IDE / OS
+.idea
+.vscode
+*.DS_Store
+Thumbs.db
+
+# Docs
+README.md
+CHANGELOG.md
