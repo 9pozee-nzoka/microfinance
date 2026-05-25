@@ -10,7 +10,6 @@ RUN npm ci --ignore-scripts
 
 COPY vite.config.js ./
 COPY resources/ ./resources/
-# public/ needed so vite can write the manifest
 COPY public/ ./public/
 
 RUN npm run build
@@ -28,7 +27,12 @@ RUN composer install \
     --no-interaction \
     --no-progress \
     --optimize-autoloader \
-    --prefer-dist
+    --prefer-dist \
+    --no-scripts
+
+# Copy full app so artisan exists for post-autoload scripts
+COPY . .
+RUN composer dump-autoload --optimize
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 3 — Runtime: PHP 8.3-FPM + Nginx
@@ -52,7 +56,6 @@ RUN apk add --no-cache \
     postgresql-dev \
     icu-dev \
     libxml2-dev \
-    # DomPDF needs these
     fontconfig \
     ttf-freefont
 
