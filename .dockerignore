@@ -31,8 +31,6 @@ phpunit.xml
 .phpunit.result.cache
 
 # Docker files themselves (not needed inside the image)
-docker
-Dockerfile
 .dockerignore
 render.yaml
 
