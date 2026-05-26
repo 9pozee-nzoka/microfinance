@@ -63,6 +63,13 @@ RUN apk add --no-cache \
     fontconfig \
     ttf-freefont
 
+
+# After: RUN apk add --no-cache nginx ...
+# Add:
+RUN mkdir -p /var/lib/nginx/tmp /run/nginx \
+    && chown -R www-data:www-data /var/lib/nginx /run/nginx \
+    && chmod -R 755 /var/lib/nginx /run/nginx
+
 # ── PHP extensions ────────────────────────────────────────────────────────────
 RUN docker-php-ext-configure gd \
         --with-freetype \
