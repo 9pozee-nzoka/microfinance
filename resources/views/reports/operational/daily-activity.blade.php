@@ -3,11 +3,11 @@
 @section('page-title', 'Daily Activity Summary')
 
 @section('content')
-<div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+<div class="page-actions">
     <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
     <form method="GET" action="{{ route('reports.operational.daily') }}" style="display:flex; gap:10px; align-items:center;">
-        <label style="font-size:13px; color:var(--text-secondary);">Date:</label>
-        <input type="date" name="date" value="{{ $date->toDateString() }}" class="filter-select" style="width:160px;">
+        <label class="form-label">Date:</label>
+        <input type="date" name="date" value="{{ $date->toDateString() }}" class="filter-select">
         <button type="submit" class="btn btn-primary" style="height:38px; padding:0 16px;"><i class="fas fa-search"></i> Go</button>
     </form>
 </div>
@@ -60,27 +60,29 @@
 <div class="grid-2" style="margin-bottom:20px; gap:20px;">
     <div class="card">
         <div style="font-size:13px; font-weight:600; margin-bottom:14px;">Transaction Breakdown</div>
-        <table class="data-table">
-            <thead><tr><th>Type</th><th>Direction</th><th>Count</th><th>Amount</th></tr></thead>
-            <tbody>
-                @forelse($txnByType as $t)
-                <tr>
-                    <td style="font-size:12px;">{{ ucfirst(str_replace('_',' ',$t->transaction_type)) }}</td>
-                    <td>
-                        <span class="badge {{ $t->direction === 'credit' ? 'badge-success' : 'badge-danger' }}">
-                            {{ ucfirst($t->direction) }}
-                        </span>
-                    </td>
-                    <td>{{ $t->cnt }}</td>
-                    <td style="font-weight:600; color:{{ $t->direction === 'credit' ? 'var(--success)' : 'var(--danger)' }};">
-                        KSH {{ number_format($t->total, 0) }}
-                    </td>
-                </tr>
-                @empty
-                <tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-secondary);">No transactions</td></tr>
-                @endforelse
-            </tbody>
-        </table>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Type</th><th>Direction</th><th>Count</th><th>Amount</th></tr></thead>
+                <tbody>
+                    @forelse($txnByType as $t)
+                    <tr>
+                        <td style="font-size:12px;">{{ ucfirst(str_replace('_',' ',$t->transaction_type)) }}</td>
+                        <td>
+                            <span class="badge {{ $t->direction === 'credit' ? 'badge-success' : 'badge-danger' }}">
+                                {{ ucfirst($t->direction) }}
+                            </span>
+                        </td>
+                        <td>{{ $t->cnt }}</td>
+                        <td style="font-weight:600; color:{{ $t->direction === 'credit' ? 'var(--success)' : 'var(--danger)' }};">
+                            KSH {{ number_format($t->total, 0) }}
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-secondary);">No transactions</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
     <div class="card">
         <div style="font-size:13px; font-weight:600; margin-bottom:14px;">Recent Transactions</div>
@@ -96,7 +98,7 @@
                 </div>
             </div>
             @empty
-            <div style="text-align:center; padding:30px; color:var(--text-secondary); font-size:13px;">No transactions on this day</div>
+            <div class="empty-state">No transactions on this day</div>
             @endforelse
         </div>
     </div>

@@ -27,40 +27,42 @@
 {{-- Filter Bar --}}
 <div class="card" style="margin-bottom: 20px;">
     <form method="GET" action="{{ route('loans.index') }}">
-        <div class="card-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 0;">
-            <div class="search-box" style="width: 250px;">
-                <i class="fas fa-search"></i>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Loan No. / Customer / Phone">
+        <div class="filter-row">
+            <div style="flex: 1 1 220px;">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Loan No. / Customer / Phone">
+                </div>
             </div>
-            <select name="status" class="filter-select">
+            <select name="status" class="filter-select" style="flex: 1 1 150px;">
                 <option value="">All Status</option>
                 @foreach(['pending'=>'Pending','under_review'=>'Under Review','partially_approved'=>'Partially Approved','approved'=>'Approved','disbursed'=>'Disbursed','active'=>'Active','completed'=>'Completed','defaulted'=>'Defaulted','rejected'=>'Rejected','written_off'=>'Written Off'] as $val => $label)
                     <option value="{{ $val }}" {{ request('status') === $val ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
-            <select name="product" class="filter-select">
+            <select name="product" class="filter-select" style="flex: 1 1 150px;">
                 <option value="">All Products</option>
                 @foreach($products as $product)
                     <option value="{{ $product->id }}" {{ request('product') == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
                 @endforeach
             </select>
-            <select name="branch" class="filter-select">
+            <select name="branch" class="filter-select" style="flex: 1 1 140px;">
                 <option value="">All Branches</option>
                 @foreach($branches as $branch)
                     <option value="{{ $branch->id }}" {{ request('branch') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
                 @endforeach
             </select>
-            <select name="risk" class="filter-select">
-                <option value="">All Risk Levels</option>
-                @foreach(['low'=>'Low Risk','medium'=>'Medium Risk','high'=>'High Risk','watch'=>'Watch','default'=>'Default'] as $val => $label)
+            <select name="risk" class="filter-select" style="flex: 1 1 130px;">
+                <option value="">All Risk</option>
+                @foreach(['low'=>'Low','medium'=>'Medium','high'=>'High','watch'=>'Watch','default'=>'Default'] as $val => $label)
                     <option value="{{ $val }}" {{ request('risk') === $val ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
-            <div style="display: flex; gap: 10px; margin-left: auto; align-items:center;">
-                <input type="date" name="date_from" value="{{ request('date_from') }}" class="filter-select" style="width: 140px;">
-                <input type="date" name="date_to"   value="{{ request('date_to') }}"   class="filter-select" style="width: 140px;">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
-                <a href="{{ route('loans.index') }}" class="btn btn-outline"><i class="fas fa-undo"></i> Reset</a>
+            <input type="date" name="date_from" value="{{ request('date_from') }}" class="filter-select" style="flex: 1 1 130px;">
+            <input type="date" name="date_to"   value="{{ request('date_to') }}"   class="filter-select" style="flex: 1 1 130px;">
+            <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> <span class="btn-label">Filter</span></button>
+                <a href="{{ route('loans.index') }}" class="btn btn-outline"><i class="fas fa-undo"></i></a>
             </div>
         </div>
     </form>
@@ -75,6 +77,7 @@
         </div>
     </div>
 
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -180,25 +183,24 @@
             </tr>
             @empty
             <tr>
-                <td colspan="16" style="text-align: center; padding: 60px; color: var(--text-secondary);">
-                    <i class="fas fa-hand-holding-usd" style="font-size: 56px; margin-bottom: 20px; display: block; opacity: 0.3;"></i>
-                    <p style="font-size: 16px; margin-bottom: 10px;">No loans found</p>
-                    <p style="font-size: 13px; opacity: 0.7;">Try adjusting your filters or add a new loan application</p>
+                <td colspan="16">
+                    <div class="empty-state">
+                        <i class="fas fa-hand-holding-usd"></i>
+                        <p>No loans found</p>
+                        <p>Try adjusting your filters or add a new loan application</p>
+                    </div>
                 </td>
             </tr>
             @endforelse
         </tbody>
     </table>
+    </div>
 
     {{-- Pagination --}}
     @if(isset($loans) && $loans->hasPages())
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-top: 1px solid var(--border);">
-        <span style="font-size: 12px; color: var(--text-secondary);">
-            Showing {{ $loans->firstItem() ?? 0 }} to {{ $loans->lastItem() ?? 0 }} of {{ $loans->total() }} entries
-        </span>
-        <div style="display: flex; gap: 5px;">
-            {{ $loans->links() }}
-        </div>
+    <div class="pagination-wrap">
+        <span>Showing {{ $loans->firstItem() ?? 0 }}–{{ $loans->lastItem() ?? 0 }} of {{ $loans->total() }}</span>
+        {{ $loans->links() }}
     </div>
     @endif
 </div>

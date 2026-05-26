@@ -10,7 +10,7 @@
 @endsection
 
 @section('content')
-<div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+<div class="page-actions">
     <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;">
         <i class="fas fa-arrow-left"></i> Reports
     </a>
@@ -81,8 +81,8 @@
     <form method="GET" action="{{ route('reports.portfolio.loan-book') }}">
         <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Branch</label>
-                <select name="branch" class="filter-select" style="width:160px;">
+                <label class="form-label">Branch</label>
+                <select name="branch" class="filter-select">
                     <option value="">All Branches</option>
                     @foreach($branches as $b)
                         <option value="{{ $b->id }}" {{ request('branch') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
@@ -90,8 +90,8 @@
                 </select>
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Product</label>
-                <select name="product" class="filter-select" style="width:180px;">
+                <label class="form-label">Product</label>
+                <select name="product" class="filter-select">
                     <option value="">All Products</option>
                     @foreach($products as $p)
                         <option value="{{ $p->id }}" {{ request('product') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
@@ -99,8 +99,8 @@
                 </select>
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Risk</label>
-                <select name="risk" class="filter-select" style="width:140px;">
+                <label class="form-label">Risk</label>
+                <select name="risk" class="filter-select">
                     <option value="">All Risk</option>
                     @foreach(['low','medium','high','watch','default'] as $r)
                         <option value="{{ $r }}" {{ request('risk') === $r ? 'selected' : '' }}>{{ ucfirst($r) }}</option>
@@ -108,7 +108,7 @@
                 </select>
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Search</label>
+                <label class="form-label">Search</label>
                 <div class="search-box" style="width:200px;">
                     <i class="fas fa-search"></i>
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Name / Loan No…">
@@ -127,7 +127,8 @@
     <div class="card-header" style="margin-bottom:14px;">
         <span style="font-size:14px; font-weight:600;">Loan Book — {{ $loans->total() }} loans</span>
     </div>
-    <div style="overflow-x:auto;">
+    <div class="table-wrap">
+        
         <table class="data-table" style="min-width:1100px;">
             <thead>
                 <tr>
@@ -176,9 +177,10 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
     @if($loans->hasPages())
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 4px 4px; border-top:1px solid var(--border); margin-top:8px;">
+    <div class="pagination-wrap">
         <span style="font-size:12px; color:var(--text-secondary);">Showing {{ $loans->firstItem() }}–{{ $loans->lastItem() }} of {{ $loans->total() }}</span>
         {{ $loans->links() }}
     </div>

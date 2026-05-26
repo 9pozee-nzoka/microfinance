@@ -3,7 +3,7 @@
 @section('page-title', 'Transaction Ledger')
 
 @section('content')
-<div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+<div class="page-actions">
     <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
     <span style="font-size:12px; color:var(--text-secondary);">{{ $dateFrom->format('d M Y') }} — {{ $dateTo->format('d M Y') }}</span>
 </div>
@@ -48,16 +48,16 @@
     <form method="GET" action="{{ route('reports.financial.ledger') }}">
         <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Date From</label>
-                <input type="date" name="date_from" value="{{ request('date_from', $dateFrom->toDateString()) }}" class="filter-select" style="width:150px;">
+                <label class="form-label">Date From</label>
+                <input type="date" name="date_from" value="{{ request('date_from', $dateFrom->toDateString()) }}" class="filter-select">
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Date To</label>
-                <input type="date" name="date_to" value="{{ request('date_to', $dateTo->toDateString()) }}" class="filter-select" style="width:150px;">
+                <label class="form-label">Date To</label>
+                <input type="date" name="date_to" value="{{ request('date_to', $dateTo->toDateString()) }}" class="filter-select">
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Type</label>
-                <select name="type" class="filter-select" style="width:180px;">
+                <label class="form-label">Type</label>
+                <select name="type" class="filter-select">
                     <option value="">All Types</option>
                     @foreach(['loan_disbursement','loan_repayment','savings_deposit','savings_withdrawal','share_capital','processing_fee','insurance_fee','penalty','refund','adjustment'] as $t)
                         <option value="{{ $t }}" {{ request('type') === $t ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$t)) }}</option>
@@ -65,16 +65,16 @@
                 </select>
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Direction</label>
-                <select name="direction" class="filter-select" style="width:130px;">
+                <label class="form-label">Direction</label>
+                <select name="direction" class="filter-select">
                     <option value="">Both</option>
                     <option value="credit" {{ request('direction') === 'credit' ? 'selected' : '' }}>Credit</option>
                     <option value="debit"  {{ request('direction') === 'debit'  ? 'selected' : '' }}>Debit</option>
                 </select>
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Source</label>
-                <select name="source" class="filter-select" style="width:130px;">
+                <label class="form-label">Source</label>
+                <select name="source" class="filter-select">
                     <option value="">All</option>
                     @foreach(['mpesa','bank','cash','internal','system'] as $s)
                         <option value="{{ $s }}" {{ request('source') === $s ? 'selected' : '' }}>{{ ucfirst($s) }}</option>
@@ -96,7 +96,7 @@
     <div class="card-header" style="margin-bottom:14px;">
         <span style="font-size:14px; font-weight:600;">Transactions — {{ $transactions->total() }} records</span>
     </div>
-    <div style="overflow-x:auto;">
+    <div class="table-wrap">
         <table class="data-table" style="min-width:1000px;">
             <thead>
                 <tr><th>#</th><th>Txn No.</th><th>Customer</th><th>Type</th><th>Direction</th><th>Source</th><th>Ext. Ref</th><th>Amount</th><th>Status</th><th>Date</th></tr>
@@ -135,7 +135,7 @@
         </table>
     </div>
     @if($transactions->hasPages())
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 4px 4px; border-top:1px solid var(--border); margin-top:8px;">
+    <div class="pagination-wrap">
         <span style="font-size:12px; color:var(--text-secondary);">Showing {{ $transactions->firstItem() }}–{{ $transactions->lastItem() }} of {{ $transactions->total() }}</span>
         {{ $transactions->appends(request()->query())->links() }}
     </div>

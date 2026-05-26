@@ -5,72 +5,56 @@
 
 @section('styles')
 <style>
-    .detail-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
-    .detail-value { font-size: 14px; font-weight: 500; color: var(--text-primary); }
-    .section-title {
-        font-size: 13px; font-weight: 600; color: var(--text-primary);
-        margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
-        display: flex; align-items: center; gap: 8px;
-    }
-    .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
     .avatar-lg {
         width: 72px; height: 72px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         font-size: 26px; font-weight: 700; color: #fff; flex-shrink: 0;
     }
-    .tab-nav { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
-    .tab-btn {
-        padding: 10px 20px; font-size: 13px; font-weight: 500;
-        border: none; background: none; cursor: pointer; color: var(--text-secondary);
-        border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s;
-    }
-    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
-    .tab-pane { display: none; }
-    .tab-pane.active { display: block; }
 </style>
 @endsection
 
 @section('content')
 
 @if(session('success'))
-<div style="background:#E8F5E9; border:1px solid #A5D6A7; border-radius:8px; padding:12px 16px; margin-bottom:16px; color:#2E7D32; display:flex; align-items:center; gap:10px;">
+<div class="flash-success">
     <i class="fas fa-check-circle"></i> {{ session('success') }}
 </div>
 @endif
 @if(session('error'))
-<div style="background:#FFEBEE; border:1px solid #FFCDD2; border-radius:8px; padding:12px 16px; margin-bottom:16px; color:#C62828; display:flex; align-items:center; gap:10px;">
+<div class="flash-error">
     <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
 </div>
 @endif
 
-{{-- Portal credentials flash (shown once after activation) --}}
 @if(session('portal_credentials'))
 @php $creds = session('portal_credentials'); @endphp
-<div style="background:#E3F2FD; border:1px solid #90CAF9; border-radius:10px; padding:16px 20px; margin-bottom:16px;">
-    <div style="font-size:14px; font-weight:700; color:#1565C0; margin-bottom:10px;">
-        <i class="fas fa-user-check"></i> Customer Portal Account Created
+<div class="flash-info">
+    <div style="flex:1;">
+        <div style="font-size:14px; font-weight:700; margin-bottom:8px;">
+            <i class="fas fa-user-check"></i> Customer Portal Account Created
+        </div>
+        <p style="margin-bottom:10px;">
+            Share these credentials with the customer. They can log in at
+            <strong>{{ url('/portal/login') }}</strong>
+        </p>
+        <div style="background:white; border-radius:8px; padding:12px 16px; font-family:monospace; font-size:13px; border:1px solid #BBDEFB; color:#1565C0;">
+            <div><strong>Email:</strong> {{ $creds['email'] }}</div>
+            <div style="margin-top:6px;"><strong>Password:</strong> {{ $creds['password'] }}</div>
+        </div>
+        <p style="font-size:11px; margin-top:8px;">
+            <i class="fas fa-exclamation-triangle"></i>
+            This is shown only once. Please note it down before leaving this page.
+        </p>
     </div>
-    <p style="font-size:13px; color:#1976D2; margin-bottom:10px;">
-        Share these credentials with the customer. They can log in at
-        <strong>{{ url('/portal/login') }}</strong>
-    </p>
-    <div style="background:white; border-radius:8px; padding:12px 16px; font-family:monospace; font-size:13px; border:1px solid #BBDEFB;">
-        <div><strong>Email:</strong> {{ $creds['email'] }}</div>
-        <div style="margin-top:6px;"><strong>Password:</strong> {{ $creds['password'] }}</div>
-    </div>
-    <p style="font-size:11px; color:#1976D2; margin-top:8px;">
-        <i class="fas fa-exclamation-triangle"></i>
-        This is shown only once. Please note it down before leaving this page.
-    </p>
 </div>
 @endif
 
 {{-- Back + Actions --}}
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+<div class="page-actions">
     <a href="{{ route('customers.index') }}" class="btn btn-outline" style="font-size:13px;">
         <i class="fas fa-arrow-left"></i> Back
     </a>
-    <div style="display:flex; gap:8px;">
+    <div class="action-group">
         @if($customer->status === 'active')
         <a href="{{ route('loans.create', ['customer_id' => $customer->id]) }}" class="btn btn-primary">
             <i class="fas fa-hand-holding-usd"></i> Apply for Loan
@@ -219,6 +203,7 @@
         @endif
     </div>
     <div class="card">
+        <div class="table-wrap">
         <table class="data-table">
             <thead>
                 <tr>
@@ -254,16 +239,18 @@
                     <td><a href="{{ route('loans.show', $loan) }}" class="btn btn-outline" style="padding:4px 10px; font-size:12px;"><i class="fas fa-eye"></i></a></td>
                 </tr>
                 @empty
-                <tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);">No loans found</td></tr>
+                <tr><td colspan="9"><div class="empty-state"><i class="fas fa-hand-holding-usd"></i><p>No loans found</p><small>This customer has no loan applications on record</small></div></td></tr>
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 
 {{-- ── Tab: Transactions ── --}}
 <div class="tab-pane" id="tab-transactions">
     <div class="card">
+        <div class="table-wrap">
         <table class="data-table">
             <thead>
                 <tr><th>Txn No.</th><th>Type</th><th>Source</th><th>Amount</th><th>Direction</th><th>Status</th><th>Date</th></tr>
@@ -282,10 +269,11 @@
                     <td style="font-size:12px; color:var(--text-secondary);">{{ $txn->created_at->format('d M Y h:i A') }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="7" style="text-align:center; padding:40px; color:var(--text-secondary);">No transactions found</td></tr>
+                <tr><td colspan="7"><div class="empty-state"><i class="fas fa-exchange-alt"></i><p>No transactions found</p><small>This customer has no recorded transactions</small></div></td></tr>
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 
@@ -301,6 +289,7 @@
         </form>
     </div>
     <div class="card">
+        <div class="table-wrap">
         <table class="data-table">
             <thead>
                 <tr><th>Date</th><th>Savings</th><th>Repayment</th><th>Income</th><th>Guarantor</th><th>Collateral</th><th>Total</th><th>Rating</th><th>Recommendation</th></tr>
@@ -325,10 +314,11 @@
                     <td style="font-size:12px; color:var(--text-secondary);">{{ $cs->recommendation }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);">No credit score history</td></tr>
+                <tr><td colspan="9"><div class="empty-state"><i class="fas fa-chart-line"></i><p>No credit score history</p><small>Scores will appear here after the first calculation</small></div></td></tr>
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 

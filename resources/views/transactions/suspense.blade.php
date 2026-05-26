@@ -29,44 +29,38 @@
 {{-- Filter Bar --}}
 <div class="card" style="margin-bottom: 20px;">
     <form method="GET" action="{{ route('transactions.suspense') }}">
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
-            <div>
+        <div class="filter-row">
+            <div style="flex: 1 1 130px;">
                 <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Status</label>
-                <select name="status" class="filter-select">
+                <select name="status" class="filter-select" style="width:100%;">
                     <option value="">All Status</option>
-                    <option value="unmatched" {{ request('status') === 'unmatched' ? 'selected' : '' }}>Unmatched</option>
-                    <option value="matched" {{ request('status') === 'matched' ? 'selected' : '' }}>Matched</option>
-                    <option value="escalated" {{ request('status') === 'escalated' ? 'selected' : '' }}>Escalated</option>
-                    <option value="refunded" {{ request('status') === 'refunded' ? 'selected' : '' }}>Refunded</option>
+                    <option value="unmatched"  {{ request('status') === 'unmatched'  ? 'selected':'' }}>Unmatched</option>
+                    <option value="matched"    {{ request('status') === 'matched'    ? 'selected':'' }}>Matched</option>
+                    <option value="escalated"  {{ request('status') === 'escalated'  ? 'selected':'' }}>Escalated</option>
+                    <option value="refunded"   {{ request('status') === 'refunded'   ? 'selected':'' }}>Refunded</option>
                 </select>
             </div>
-            <div>
+            <div style="flex: 1 1 120px;">
                 <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Source</label>
-                <select name="source" class="filter-select">
-                    <option value="">All Sources</option>
-                    <option value="mpesa" {{ request('source') === 'mpesa' ? 'selected' : '' }}>M-Pesa</option>
-                    <option value="bank" {{ request('source') === 'bank' ? 'selected' : '' }}>Bank</option>
-                    <option value="cash" {{ request('source') === 'cash' ? 'selected' : '' }}>Cash</option>
+                <select name="source" class="filter-select" style="width:100%;">
+                    <option value="">All</option>
+                    <option value="mpesa" {{ request('source') === 'mpesa' ? 'selected':'' }}>M-Pesa</option>
+                    <option value="bank"  {{ request('source') === 'bank'  ? 'selected':'' }}>Bank</option>
+                    <option value="cash"  {{ request('source') === 'cash'  ? 'selected':'' }}>Cash</option>
                 </select>
             </div>
-            <div>
-                <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Date From</label>
-                <input type="date" name="date_from" value="{{ request('date_from') }}" class="filter-select" style="width: 150px;">
-            </div>
-            <div>
-                <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Date To</label>
-                <input type="date" name="date_to" value="{{ request('date_to') }}" class="filter-select" style="width: 150px;">
-            </div>
-            <div>
+            <input type="date" name="date_from" value="{{ request('date_from') }}" class="filter-select" style="flex: 1 1 130px;">
+            <input type="date" name="date_to"   value="{{ request('date_to') }}"   class="filter-select" style="flex: 1 1 130px;">
+            <div style="flex: 1 1 180px;">
                 <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Search</label>
-                <div class="search-box" style="width: 220px;">
+                <div class="search-box">
                     <i class="fas fa-search"></i>
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Phone / M-Pesa Code / ID">
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Phone / M-Pesa / ID">
                 </div>
             </div>
-            <div style="display: flex; gap: 8px; margin-top: 18px;">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
-                <a href="{{ route('transactions.suspense') }}" class="btn btn-outline"><i class="fas fa-undo"></i> Reset</a>
+            <div style="display: flex; gap: 8px; flex-shrink: 0; align-items: flex-end;">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> <span class="btn-label">Filter</span></button>
+                <a href="{{ route('transactions.suspense') }}" class="btn btn-outline"><i class="fas fa-undo"></i></a>
             </div>
         </div>
     </form>
@@ -84,6 +78,7 @@
         </div>
     </div>
 
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -170,23 +165,22 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 
     @if($suspenseEntries->hasPages())
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-top: 1px solid var(--border);">
-        <span style="font-size: 12px; color: var(--text-secondary);">
-            Showing {{ $suspenseEntries->firstItem() ?? 0 }} to {{ $suspenseEntries->lastItem() ?? 0 }} of {{ $suspenseEntries->total() }} entries
-        </span>
+    <div class="pagination-wrap">
+        <span>Showing {{ $suspenseEntries->firstItem() ?? 0 }}–{{ $suspenseEntries->lastItem() ?? 0 }} of {{ $suspenseEntries->total() }}</span>
         {{ $suspenseEntries->appends(request()->query())->links() }}
     </div>
     @endif
 </div>
 
 {{-- Match Modal --}}
-<div id="matchModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:30px; width:540px; max-width:95%; max-height:90vh; overflow-y:auto;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h3 style="font-size:16px; font-weight:600;">Match Suspense Payment</h3>
-            <button onclick="closeMatchModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-secondary);">&times;</button>
+<div id="matchModal" class="modal-overlay" onclick="if(event.target===this)closeMatchModal()">
+    <div class="modal-box wide">
+        <div class="modal-header">
+            <div class="modal-title">Match Suspense Payment</div>
+            <button class="modal-close" onclick="closeMatchModal()">&times;</button>
         </div>
 
         <div id="matchSummary" style="padding:12px; background:#FFF3E0; border-radius:8px; margin-bottom:20px; font-size:13px;"></div>
@@ -196,27 +190,29 @@
             @method('PATCH')
             <input type="hidden" name="suspense_id" id="matchSuspenseId">
 
-            <div style="margin-bottom:15px;">
-                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Find Customer <span style="color:var(--danger)">*</span></label>
-                <input type="text" id="matchCustomerSearch" placeholder="Search by name, phone or ID..." class="filter-select" style="width:100%;" autocomplete="off" oninput="searchMatchCustomers(this.value)">
+            <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Find Customer <span class="req">*</span></label>
+                <input type="text" id="matchCustomerSearch" placeholder="Search by name, phone or ID..." class="form-control" autocomplete="off" oninput="searchMatchCustomers(this.value)">
                 <input type="hidden" name="customer_id" id="matchCustomerId">
-                <div id="matchCustomerDropdown" style="display:none; position:absolute; background:white; border:1px solid var(--border); border-radius:6px; width:460px; max-height:180px; overflow-y:auto; z-index:3000; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                <div id="matchCustomerDropdown" style="display:none; position:absolute; background:white; border:1px solid var(--border); border-radius:6px; left:0; right:0; max-height:180px; overflow-y:auto; z-index:3000; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
                 <div id="matchSelectedCustomer" style="display:none; margin-top:8px; padding:10px; background:#E8F5E9; border-radius:6px; font-size:12px;"></div>
             </div>
 
-            <div id="matchLoanField" style="display:none; margin-bottom:15px;">
-                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Apply to Loan</label>
-                <select name="loan_id" id="matchLoanSelect" class="filter-select" style="width:100%;">
+            <div id="matchLoanField" class="form-group" style="display:none;">
+                <label class="form-label">Apply to Loan</label>
+                <select name="loan_id" id="matchLoanSelect" class="form-control">
                     <option value="">-- Select customer first --</option>
                 </select>
             </div>
 
-            <div style="margin-bottom:20px;">
-                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Resolution Notes</label>
-                <textarea name="resolution_notes" rows="2" placeholder="Notes about this match..." style="width:100%; padding:10px; border:1px solid var(--border); border-radius:6px; font-size:13px; resize:vertical;"></textarea>
+            <div class="form-group">
+                <label class="form-label">Resolution Notes</label>
+                <textarea name="resolution_notes" rows="2" placeholder="Notes about this match..." class="form-control"></textarea>
+            </div>
             </div>
 
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-outline" onclick="closeMatchModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-link"></i> Confirm Match</button>
             </div>
@@ -225,50 +221,52 @@
 </div>
 
 {{-- Add Suspense Entry Modal --}}
-<div id="addSuspenseModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:30px; width:520px; max-width:95%;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h3 style="font-size:16px; font-weight:600;">Add Suspense Entry</h3>
-            <button onclick="closeAddSuspenseModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-secondary);">&times;</button>
+<div id="addSuspenseModal" class="modal-overlay" onclick="if(event.target===this)closeAddSuspenseModal()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title">Add Suspense Entry</div>
+            <button class="modal-close" onclick="closeAddSuspenseModal()">&times;</button>
         </div>
         <form method="POST" action="{{ route('transactions.suspense.store') }}">
             @csrf
+            <div class="modal-body">
             <div class="grid-2" style="gap:15px; margin-bottom:15px;">
-                <div>
-                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Source <span style="color:var(--danger)">*</span></label>
-                    <select name="source" class="filter-select" style="width:100%;" required>
+                <div class="form-group">
+                    <label class="form-label">Source <span class="req">*</span></label>
+                    <select name="source" class="form-control" required>
                         <option value="">-- Select --</option>
                         <option value="mpesa">M-Pesa</option>
                         <option value="bank">Bank</option>
                         <option value="cash">Cash</option>
                     </select>
                 </div>
-                <div>
-                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">External Reference <span style="color:var(--danger)">*</span></label>
-                    <input type="text" name="external_reference" placeholder="M-Pesa code / Bank ref" class="filter-select" style="width:100%; text-transform:uppercase;" required>
+                <div class="form-group">
+                    <label class="form-label">External Reference <span class="req">*</span></label>
+                    <input type="text" name="external_reference" placeholder="M-Pesa code / Bank ref" class="form-control" style="text-transform:uppercase;" required>
                 </div>
             </div>
             <div class="grid-2" style="gap:15px; margin-bottom:15px;">
-                <div>
-                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Phone Number</label>
-                    <input type="text" name="phone_number" placeholder="07XXXXXXXX" class="filter-select" style="width:100%;">
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    <input type="text" name="phone_number" placeholder="07XXXXXXXX" class="form-control">
                 </div>
-                <div>
-                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Bill Reference (ID No.)</label>
-                    <input type="text" name="bill_reference" placeholder="National ID number" class="filter-select" style="width:100%;">
-                </div>
-            </div>
-            <div class="grid-2" style="gap:15px; margin-bottom:20px;">
-                <div>
-                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Amount (KSH) <span style="color:var(--danger)">*</span></label>
-                    <input type="number" name="amount" min="1" step="0.01" placeholder="0.00" class="filter-select" style="width:100%;" required>
-                </div>
-                <div>
-                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Payment Date <span style="color:var(--danger)">*</span></label>
-                    <input type="date" name="payment_date" value="{{ today()->toDateString() }}" class="filter-select" style="width:100%;" required>
+                <div class="form-group">
+                    <label class="form-label">Bill Reference (ID No.)</label>
+                    <input type="text" name="bill_reference" placeholder="National ID number" class="form-control">
                 </div>
             </div>
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <div class="grid-2" style="gap:15px; margin-bottom:15px;">
+                <div class="form-group">
+                    <label class="form-label">Amount (KSH) <span class="req">*</span></label>
+                    <input type="number" name="amount" min="1" step="0.01" placeholder="0.00" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Payment Date <span class="req">*</span></label>
+                    <input type="date" name="payment_date" value="{{ today()->toDateString() }}" class="form-control" required>
+                </div>
+            </div>
+            </div>
+            <div class="modal-footer">
                 <button type="button" class="btn btn-outline" onclick="closeAddSuspenseModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Entry</button>
             </div>
@@ -281,10 +279,10 @@
 @section('scripts')
 <script>
 function openAddSuspenseModal() {
-    document.getElementById('addSuspenseModal').style.display = 'flex';
+    document.getElementById('addSuspenseModal').classList.add('show');
 }
 function closeAddSuspenseModal() {
-    document.getElementById('addSuspenseModal').style.display = 'none';
+    document.getElementById('addSuspenseModal').classList.remove('show');
 }
 
 function openMatchModal(id, ref, amount) {
@@ -293,10 +291,10 @@ function openMatchModal(id, ref, amount) {
         `<i class="fas fa-info-circle" style="color:var(--warning);"></i>
          Matching payment <strong>${ref}</strong> of <strong>KSH ${Number(amount).toLocaleString()}</strong>`;
     document.getElementById('matchForm').action = `/transactions/suspense/${id}/match`;
-    document.getElementById('matchModal').style.display = 'flex';
+    document.getElementById('matchModal').classList.add('show');
 }
 function closeMatchModal() {
-    document.getElementById('matchModal').style.display = 'none';
+    document.getElementById('matchModal').classList.remove('show');
     document.getElementById('matchCustomerSearch').value = '';
     document.getElementById('matchCustomerId').value = '';
     document.getElementById('matchSelectedCustomer').style.display = 'none';

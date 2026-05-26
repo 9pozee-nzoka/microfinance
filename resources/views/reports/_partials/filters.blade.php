@@ -6,23 +6,23 @@
 --}}
 <div class="card" style="margin-bottom: 20px;">
     <form method="GET" action="{{ $action }}">
-        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+        <div class="filter-row scroll-x">
 
             @if($showDate ?? true)
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Date From</label>
-                <input type="date" name="date_from" value="{{ request('date_from') }}" class="filter-select" style="width:150px;">
+                <label class="form-label">Date From</label>
+                <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-control">
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Date To</label>
-                <input type="date" name="date_to" value="{{ request('date_to') }}" class="filter-select" style="width:150px;">
+                <label class="form-label">Date To</label>
+                <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-control">
             </div>
             @endif
 
             @if(($showBranch ?? false) && !empty($branches))
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Branch</label>
-                <select name="branch" class="filter-select" style="width:160px;">
+                <label class="form-label">Branch</label>
+                <select name="branch" class="form-control">
                     <option value="">All Branches</option>
                     @foreach($branches as $b)
                         <option value="{{ $b->id }}" {{ request('branch') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
@@ -33,8 +33,8 @@
 
             @if(($showProduct ?? false) && !empty($products))
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Product</label>
-                <select name="product" class="filter-select" style="width:180px;">
+                <label class="form-label">Product</label>
+                <select name="product" class="form-control">
                     <option value="">All Products</option>
                     @foreach($products as $p)
                         <option value="{{ $p->id }}" {{ request('product') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
@@ -45,7 +45,7 @@
 
             @if($showSearch ?? false)
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Search</label>
+                <label class="form-label">Search</label>
                 <div class="search-box" style="width:200px;">
                     <i class="fas fa-search"></i>
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Name / Loan No…">

@@ -3,16 +3,16 @@
 @section('page-title', 'Branch Performance')
 
 @section('content')
-<div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+<div class="page-actions">
     <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
     <form method="GET" action="{{ route('reports.operational.branches') }}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
         <div>
-            <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">Date From</label>
-            <input type="date" name="date_from" value="{{ request('date_from', $dateFrom->toDateString()) }}" class="filter-select" style="width:150px;">
+            <label class="form-label">Date From</label>
+            <input type="date" name="date_from" value="{{ request('date_from', $dateFrom->toDateString()) }}" class="filter-select">
         </div>
         <div>
-            <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">Date To</label>
-            <input type="date" name="date_to" value="{{ request('date_to', $dateTo->toDateString()) }}" class="filter-select" style="width:150px;">
+            <label class="form-label">Date To</label>
+            <input type="date" name="date_to" value="{{ request('date_to', $dateTo->toDateString()) }}" class="filter-select">
         </div>
         <div style="padding-top:18px;">
             <button type="submit" class="btn btn-primary" style="height:38px; padding:0 16px;"><i class="fas fa-search"></i> Filter</button>
@@ -25,7 +25,8 @@
 </div>
 
 <div class="card">
-    <div style="overflow-x:auto;">
+    <div class="table-wrap">
+        <div class="table-wrap">
         <table class="data-table">
             <thead>
                 <tr>
@@ -81,6 +82,7 @@
             </tfoot>
             @endif
         </table>
+        </div>
     </div>
 </div>
 @endsection

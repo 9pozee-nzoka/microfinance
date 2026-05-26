@@ -6,7 +6,7 @@
 @section('content')
 
 @if(session('success'))
-<div style="background:#E8F5E9; border:1px solid #A5D6A7; border-radius:8px; padding:12px 16px; margin-bottom:16px; color:#2E7D32; display:flex; align-items:center; gap:10px;">
+<div class="flash-success">
     <i class="fas fa-check-circle"></i> {{ session('success') }}
 </div>
 @endif
@@ -59,7 +59,7 @@
 </form>
 
 <div class="card">
-    <div style="overflow-x:auto;">
+    <div class="table-wrap">
         <table class="data-table">
             <thead>
                 <tr>
@@ -123,8 +123,8 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);">
-                        No M-Pesa transactions found
+                    <td colspan="9">
+                        <div class="empty-state">No M-Pesa transactions found</div>
                     </td>
                 </tr>
                 @endforelse

@@ -8,6 +8,7 @@
 <div class="card">
     <div class="card-title" style="margin-bottom: 16px;">All Loan Applications</div>
 
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -76,6 +77,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 
     @if($loans->hasPages())
     <div style="margin-top: 16px; display: flex; justify-content: center;">

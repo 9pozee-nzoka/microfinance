@@ -33,6 +33,7 @@
 </form>
 
 <div class="card">
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -76,6 +77,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 
     @if($transactions->hasPages())
     <div style="margin-top: 16px; display: flex; justify-content: center;">

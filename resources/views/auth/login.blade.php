@@ -24,6 +24,15 @@
             width: 100%;
             max-width: 400px;
         }
+        @media (max-width: 480px) {
+            body { align-items: flex-start; padding: 24px 0; background: white; }
+            .login-card {
+                padding: 32px 20px;
+                border-radius: 0;
+                box-shadow: none;
+                min-height: 100vh;
+            }
+        }
         .brand {
             text-align: center;
             margin-bottom: 30px;
@@ -45,17 +54,14 @@
             font-size: 24px;
             color: #2C3E50;
         }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
+        .form-label {
             display: block;
             font-size: 13px;
             font-weight: 600;
             color: #2C3E50;
             margin-bottom: 6px;
         }
-        .form-group input {
+        .form-control {
             width: 100%;
             padding: 12px 15px;
             border: 1px solid #E8ECF1;
@@ -64,7 +70,7 @@
             outline: none;
             transition: border-color 0.2s;
         }
-        .form-group input:focus {
+        .form-control:focus {
             border-color: #00BCD4;
         }
         .btn-login {
@@ -82,14 +88,6 @@
         .btn-login:hover {
             background: #00ACC1;
         }
-        .error {
-            background: #FFEBEE;
-            color: #C62828;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            margin-bottom: 20px;
-        }
     </style>
 </head>
 <body>
@@ -101,7 +99,7 @@
         </div>
 
         @if($errors->any())
-            <div class="error">
+            <div class="flash-error">
                 {{ $errors->first() }}
             </div>
         @endif
@@ -109,12 +107,12 @@
         <form method="POST" action="{{ route('login.post') }}">
             @csrf
             <div class="form-group">
-                <label>Email Address</label>
-                <input type="email" name="email" placeholder="Enter your email" required autofocus>
+                <label class="form-label">Email Address</label>
+                <input type="email" name="email" class="form-control" placeholder="Enter your email" required autofocus>
             </div>
             <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" placeholder="Enter your password" required>
+                <label class="form-label">Password</label>
+                <input type="password" name="password" class="form-control" placeholder="Enter your password" required>
             </div>
             <button type="submit" class="btn-login">Sign In</button>
         </form>

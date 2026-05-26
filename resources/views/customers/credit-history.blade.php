@@ -8,7 +8,7 @@
 
 {{-- Flash messages --}}
 @if(session('success'))
-<div style="background:#E8F5E9; border:1px solid #A5D6A7; border-radius:8px; padding:12px 16px; margin-bottom:16px; color:#2E7D32; display:flex; align-items:center; gap:10px;">
+<div class="flash-success">
     <i class="fas fa-check-circle"></i> {{ session('success') }}
 </div>
 @endif
@@ -23,12 +23,14 @@
 
     {{-- Filter bar --}}
     <form method="GET" action="{{ route('customers.credit-history') }}" style="margin-bottom:20px;">
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
-            <div class="search-box" style="width: 260px;">
-                <i class="fas fa-search"></i>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by name or phone">
+        <div class="filter-row">
+            <div style="flex:1 1 200px;">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by name or phone">
+                </div>
             </div>
-            <select name="rating" class="filter-select" style="width: 200px;">
+            <select name="rating" class="filter-select" style="flex:1 1 160px;">
                 <option value="">All Score Ranges</option>
                 <option value="excellent" {{ request('rating') === 'excellent' ? 'selected' : '' }}>Excellent (800+)</option>
                 <option value="good"      {{ request('rating') === 'good'      ? 'selected' : '' }}>Good (650–799)</option>
@@ -36,11 +38,12 @@
                 <option value="poor"      {{ request('rating') === 'poor'      ? 'selected' : '' }}>Poor (350–499)</option>
                 <option value="bad"       {{ request('rating') === 'bad'       ? 'selected' : '' }}>Bad (&lt;350)</option>
             </select>
-            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Search</button>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> <span class="btn-label">Search</span></button>
             <a href="{{ route('customers.credit-history') }}" class="btn btn-outline"><i class="fas fa-undo"></i></a>
         </div>
     </form>
 
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -141,5 +144,6 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 </div>
 @endsection

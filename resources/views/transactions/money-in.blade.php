@@ -29,52 +29,39 @@
 {{-- Filter Bar --}}
 <div class="card" style="margin-bottom: 20px;">
     <form method="GET" action="{{ route('transactions.money-in') }}">
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
-            <div>
-                <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Date From</label>
-                <input type="date" name="date_from" value="{{ request('date_from', today()->toDateString()) }}" class="filter-select" style="width: 150px;">
-            </div>
-            <div>
-                <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Date To</label>
-                <input type="date" name="date_to" value="{{ request('date_to', today()->toDateString()) }}" class="filter-select" style="width: 150px;">
-            </div>
-            <div>
-                <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Transaction Type</label>
-                <select name="type" class="filter-select">
-                    <option value="">All Types</option>
-                    <option value="loan_repayment" {{ request('type') === 'loan_repayment' ? 'selected' : '' }}>Loan Repayment</option>
-                    <option value="savings_deposit" {{ request('type') === 'savings_deposit' ? 'selected' : '' }}>Savings Deposit</option>
-                    <option value="share_capital" {{ request('type') === 'share_capital' ? 'selected' : '' }}>Share Capital</option>
-                </select>
-            </div>
-            <div>
-                <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Source</label>
-                <select name="source" class="filter-select">
-                    <option value="">All Sources</option>
-                    <option value="mpesa" {{ request('source') === 'mpesa' ? 'selected' : '' }}>M-Pesa</option>
-                    <option value="bank" {{ request('source') === 'bank' ? 'selected' : '' }}>Bank</option>
-                    <option value="cash" {{ request('source') === 'cash' ? 'selected' : '' }}>Cash</option>
-                </select>
-            </div>
-            <div>
-                <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Search</label>
-                <div class="search-box" style="width: 220px;">
+        <div class="filter-row">
+            <input type="date" name="date_from" value="{{ request('date_from', today()->toDateString()) }}" class="filter-select" style="flex:1 1 130px;">
+            <input type="date" name="date_to"   value="{{ request('date_to',   today()->toDateString()) }}" class="filter-select" style="flex:1 1 130px;">
+            <select name="type" class="filter-select" style="flex:1 1 150px;">
+                <option value="">All Types</option>
+                <option value="loan_repayment"  {{ request('type') === 'loan_repayment'  ? 'selected':'' }}>Loan Repayment</option>
+                <option value="savings_deposit" {{ request('type') === 'savings_deposit' ? 'selected':'' }}>Savings Deposit</option>
+                <option value="share_capital"   {{ request('type') === 'share_capital'   ? 'selected':'' }}>Share Capital</option>
+            </select>
+            <select name="source" class="filter-select" style="flex:1 1 120px;">
+                <option value="">All Sources</option>
+                <option value="mpesa" {{ request('source') === 'mpesa' ? 'selected':'' }}>M-Pesa</option>
+                <option value="bank"  {{ request('source') === 'bank'  ? 'selected':'' }}>Bank</option>
+                <option value="cash"  {{ request('source') === 'cash'  ? 'selected':'' }}>Cash</option>
+            </select>
+            <div style="flex:1 1 180px;">
+                <div class="search-box">
                     <i class="fas fa-search"></i>
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Name / Phone / Ref">
                 </div>
             </div>
-            <div style="display: flex; gap: 8px; margin-top: 18px;">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
-                <a href="{{ route('transactions.money-in') }}" class="btn btn-outline"><i class="fas fa-undo"></i> Reset</a>
+            <div style="display:flex; gap:8px; flex-shrink:0;">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> <span class="btn-label">Filter</span></button>
+                <a href="{{ route('transactions.money-in') }}" class="btn btn-outline"><i class="fas fa-undo"></i></a>
             </div>
         </div>
     </form>
 </div>
 
 {{-- Record Payment Button --}}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-    <span style="font-size: 13px; color: var(--text-secondary);">
-        Showing <strong>{{ $transactions->total() }}</strong> transactions
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:8px;">
+    <span style="font-size:13px; color:var(--text-secondary);">
+        <strong>{{ $transactions->total() }}</strong> transactions
     </span>
     <button class="btn btn-primary" onclick="openPaymentModal()">
         <i class="fas fa-plus"></i> Record Payment
@@ -88,6 +75,7 @@
         <span class="badge badge-success">{{ $transactions->total() }} Records</span>
     </div>
 
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -166,40 +154,40 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 
     @if($transactions->hasPages())
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-top: 1px solid var(--border);">
-        <span style="font-size: 12px; color: var(--text-secondary);">
-            Showing {{ $transactions->firstItem() ?? 0 }} to {{ $transactions->lastItem() ?? 0 }} of {{ $transactions->total() }} entries
-        </span>
+    <div class="pagination-wrap">
+        <span>Showing {{ $transactions->firstItem() ?? 0 }}–{{ $transactions->lastItem() ?? 0 }} of {{ $transactions->total() }}</span>
         {{ $transactions->appends(request()->query())->links() }}
     </div>
     @endif
 </div>
 
 {{-- Record Payment Modal --}}
-<div id="paymentModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:30px; width:560px; max-width:95%; max-height:90vh; overflow-y:auto;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h3 style="font-size:16px; font-weight:600;">Record Payment</h3>
-            <button onclick="closePaymentModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-secondary);">&times;</button>
+<div id="paymentModal" class="modal-overlay" onclick="if(event.target===this)closePaymentModal()">
+    <div class="modal-box wide">
+        <div class="modal-header">
+            <div class="modal-title">Record Payment</div>
+            <button class="modal-close" onclick="closePaymentModal()">&times;</button>
         </div>
 
         <form id="paymentForm" method="POST" action="{{ route('transactions.store') }}">
             @csrf
+            <div class="modal-body">
             <div class="grid-2" style="gap:15px; margin-bottom:15px;">
-                <div>
-                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Transaction Type <span style="color:var(--danger)">*</span></label>
-                    <select name="transaction_type" id="txnType" class="filter-select" style="width:100%;" onchange="toggleFields()" required>
+                <div class="form-group">
+                    <label class="form-label">Transaction Type <span class="req">*</span></label>
+                    <select name="transaction_type" id="txnType" class="form-control" onchange="toggleFields()" required>
                         <option value="">-- Select --</option>
                         <option value="loan_repayment">Loan Repayment</option>
                         <option value="savings_deposit">Savings Deposit</option>
                         <option value="share_capital">Share Capital</option>
                     </select>
                 </div>
-                <div>
-                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Payment Source <span style="color:var(--danger)">*</span></label>
-                    <select name="source" id="paySource" class="filter-select" style="width:100%;" onchange="toggleSourceFields()" required>
+                <div class="form-group">
+                    <label class="form-label">Payment Source <span class="req">*</span></label>
+                    <select name="source" id="paySource" class="form-control" onchange="toggleSourceFields()" required>
                         <option value="">-- Select --</option>
                         <option value="mpesa">M-Pesa</option>
                         <option value="bank">Bank Transfer</option>
@@ -208,61 +196,62 @@
                 </div>
             </div>
 
-            <div style="margin-bottom:15px;">
-                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Customer <span style="color:var(--danger)">*</span></label>
-                <input type="text" id="customerSearch" placeholder="Search by name, phone or ID..." class="filter-select" style="width:100%;" autocomplete="off" oninput="searchCustomers(this.value)">
+            <div class="form-group">
+                <label class="form-label">Customer <span class="req">*</span></label>
+                <input type="text" id="customerSearch" placeholder="Search by name, phone or ID..." class="form-control" autocomplete="off" oninput="searchCustomers(this.value)">
                 <input type="hidden" name="customer_id" id="customerId">
-                <div id="customerDropdown" style="display:none; position:absolute; background:white; border:1px solid var(--border); border-radius:6px; width:480px; max-height:200px; overflow-y:auto; z-index:3000; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                <div id="customerDropdown" style="display:none; position:absolute; background:white; border:1px solid var(--border); border-radius:6px; left:0; right:0; max-height:200px; overflow-y:auto; z-index:3000; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
                 <div id="selectedCustomer" style="display:none; margin-top:8px; padding:10px; background:#E3F2FD; border-radius:6px; font-size:12px;"></div>
             </div>
 
             {{-- Loan field (shown for repayments) --}}
-            <div id="loanField" style="display:none; margin-bottom:15px;">
-                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Loan <span style="color:var(--danger)">*</span></label>
-                <select name="loan_id" id="loanSelect" class="filter-select" style="width:100%;">
+            <div id="loanField" class="form-group" style="display:none;">
+                <label class="form-label">Loan <span class="req">*</span></label>
+                <select name="loan_id" id="loanSelect" class="form-control">
                     <option value="">-- Select customer first --</option>
                 </select>
             </div>
 
             <div class="grid-2" style="gap:15px; margin-bottom:15px;">
-                <div>
-                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Amount (KSH) <span style="color:var(--danger)">*</span></label>
-                    <input type="number" name="amount" id="payAmount" min="1" step="0.01" placeholder="0.00" class="filter-select" style="width:100%;" required>
+                <div class="form-group">
+                    <label class="form-label">Amount (KSH) <span class="req">*</span></label>
+                    <input type="number" name="amount" id="payAmount" min="1" step="0.01" placeholder="0.00" class="form-control" required>
                 </div>
-                <div>
-                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Payment Date <span style="color:var(--danger)">*</span></label>
-                    <input type="date" name="payment_date" value="{{ today()->toDateString() }}" class="filter-select" style="width:100%;" required>
+                <div class="form-group">
+                    <label class="form-label">Payment Date <span class="req">*</span></label>
+                    <input type="date" name="payment_date" value="{{ today()->toDateString() }}" class="form-control" required>
                 </div>
             </div>
 
             {{-- M-Pesa fields --}}
             <div id="mpesaFields" style="display:none; margin-bottom:15px;">
                 <div class="grid-2" style="gap:15px;">
-                    <div>
-                        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">M-Pesa Receipt No. <span style="color:var(--danger)">*</span></label>
-                        <input type="text" name="mpesa_receipt" placeholder="e.g. QHX1234ABC" class="filter-select" style="width:100%; text-transform:uppercase;">
+                    <div class="form-group">
+                        <label class="form-label">M-Pesa Receipt No. <span class="req">*</span></label>
+                        <input type="text" name="mpesa_receipt" placeholder="e.g. QHX1234ABC" class="form-control" style="text-transform:uppercase;">
                     </div>
-                    <div>
-                        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Phone Number</label>
-                        <input type="text" name="phone_number" placeholder="07XXXXXXXX" class="filter-select" style="width:100%;">
+                    <div class="form-group">
+                        <label class="form-label">Phone Number</label>
+                        <input type="text" name="phone_number" placeholder="07XXXXXXXX" class="form-control">
                     </div>
                 </div>
             </div>
 
             {{-- Bank fields --}}
             <div id="bankFields" style="display:none; margin-bottom:15px;">
-                <div>
-                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Bank Reference <span style="color:var(--danger)">*</span></label>
-                    <input type="text" name="bank_reference" placeholder="Bank transaction reference" class="filter-select" style="width:100%;">
+                <div class="form-group">
+                    <label class="form-label">Bank Reference <span class="req">*</span></label>
+                    <input type="text" name="bank_reference" placeholder="Bank transaction reference" class="form-control">
                 </div>
             </div>
 
-            <div style="margin-bottom:20px;">
-                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Notes</label>
-                <textarea name="notes" rows="2" placeholder="Optional notes..." style="width:100%; padding:10px; border:1px solid var(--border); border-radius:6px; font-size:13px; resize:vertical;"></textarea>
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" rows="2" placeholder="Optional notes..." class="form-control"></textarea>
+            </div>
             </div>
 
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-outline" onclick="closePaymentModal()">Cancel</button>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Record Payment</button>
             </div>
@@ -275,10 +264,10 @@
 @section('scripts')
 <script>
 function openPaymentModal() {
-    document.getElementById('paymentModal').style.display = 'flex';
+    document.getElementById('paymentModal').classList.add('show');
 }
 function closePaymentModal() {
-    document.getElementById('paymentModal').style.display = 'none';
+    document.getElementById('paymentModal').classList.remove('show');
     document.getElementById('paymentForm').reset();
     document.getElementById('selectedCustomer').style.display = 'none';
     document.getElementById('loanField').style.display = 'none';

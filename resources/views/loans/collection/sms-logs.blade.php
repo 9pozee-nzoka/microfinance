@@ -13,7 +13,7 @@
 @section('content')
 
 @if(session('success'))
-<div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#2E7D32;display:flex;align-items:center;gap:10px;">
+<div class="flash-success">
     <i class="fas fa-check-circle"></i> {{ session('success') }}
 </div>
 @endif
@@ -73,6 +73,7 @@
         <span style="font-size:14px;font-weight:600;">{{ $logs->total() }} SMS records</span>
     </div>
     <div style="overflow-x:auto;">
+        <div class="table-wrap">
         <table class="data-table" style="min-width:1000px;">
             <thead>
                 <tr>
@@ -145,6 +146,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     @if($logs->hasPages())
@@ -156,11 +158,11 @@
 </div>
 
 {{-- Error Modal --}}
-<div id="errorModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
-    <div style="background:white;border-radius:12px;padding:24px;width:440px;max-width:95%;">
+<div id="errorModal" class="modal-overlay" onclick="if(event.target===this)closeModal('errorModal')">
+    <div class="modal-box" style="max-width:440px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
             <h3 style="font-size:14px;font-weight:600;color:var(--danger);"><i class="fas fa-exclamation-circle"></i> Failure Reason</h3>
-            <button onclick="document.getElementById('errorModal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;">&times;</button>
+            <button onclick="document.getElementById('errorModal').classList.remove('show')" style="background:none;border:none;font-size:20px;cursor:pointer;">&times;</button>
         </div>
         <div id="errorText" style="font-size:13px;color:var(--text-primary);background:#FFEBEE;border-radius:8px;padding:12px;word-break:break-all;"></div>
     </div>
@@ -190,7 +192,7 @@ function cancelSms(id, btn) {
 
 function showError(msg) {
     document.getElementById('errorText').textContent = msg;
-    document.getElementById('errorModal').style.display = 'flex';
+    document.getElementById('errorModal').classList.add('show');
 }
 </script>
 @endsection

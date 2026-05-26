@@ -3,7 +3,7 @@
 @section('page-title', 'Loan Collections')
 
 @section('content')
-<div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+<div class="page-actions">
     <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
     <span style="font-size:12px; color:var(--text-secondary);">{{ $dateFrom->format('d M Y') }} — {{ $dateTo->format('d M Y') }}</span>
 </div>
@@ -49,6 +49,7 @@
     <div class="card">
         <div style="font-size:13px; font-weight:600; margin-bottom:14px;">Daily Collections</div>
         <div style="max-height:200px; overflow-y:auto;">
+            <div class="table-wrap">
             <table class="data-table">
                 <thead><tr><th>Date</th><th>Payments</th><th>Amount</th></tr></thead>
                 <tbody>
@@ -61,6 +62,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>
@@ -70,16 +72,16 @@
     <form method="GET" action="{{ route('reports.portfolio.collections') }}">
         <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Date From</label>
-                <input type="date" name="date_from" value="{{ request('date_from', $dateFrom->toDateString()) }}" class="filter-select" style="width:150px;">
+                <label class="form-label">Date From</label>
+                <input type="date" name="date_from" value="{{ request('date_from', $dateFrom->toDateString()) }}" class="filter-select">
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Date To</label>
-                <input type="date" name="date_to" value="{{ request('date_to', $dateTo->toDateString()) }}" class="filter-select" style="width:150px;">
+                <label class="form-label">Date To</label>
+                <input type="date" name="date_to" value="{{ request('date_to', $dateTo->toDateString()) }}" class="filter-select">
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Branch</label>
-                <select name="branch" class="filter-select" style="width:160px;">
+                <label class="form-label">Branch</label>
+                <select name="branch" class="filter-select">
                     <option value="">All Branches</option>
                     @foreach($branches as $b)
                         <option value="{{ $b->id }}" {{ request('branch') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
@@ -87,8 +89,8 @@
                 </select>
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Method</label>
-                <select name="method" class="filter-select" style="width:150px;">
+                <label class="form-label">Method</label>
+                <select name="method" class="filter-select">
                     <option value="">All Methods</option>
                     @foreach(['mpesa' => 'M-Pesa', 'bank_transfer' => 'Bank', 'cash' => 'Cash'] as $v => $l)
                         <option value="{{ $v }}" {{ request('method') === $v ? 'selected' : '' }}>{{ $l }}</option>
@@ -107,7 +109,8 @@
     <div class="card-header" style="margin-bottom:14px;">
         <span style="font-size:14px; font-weight:600;">Repayments — {{ $repayments->total() }} records</span>
     </div>
-    <div style="overflow-x:auto;">
+    <div class="table-wrap">
+        <div class="table-wrap">
         <table class="data-table" style="min-width:1000px;">
             <thead>
                 <tr><th>#</th><th>Customer</th><th>Loan No.</th><th>Amount</th><th>Principal</th><th>Interest</th><th>Penalty</th><th>Method</th><th>Reference</th><th>Received By</th><th>Date</th></tr>
@@ -135,9 +138,10 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
     @if($repayments->hasPages())
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 4px 4px; border-top:1px solid var(--border); margin-top:8px;">
+    <div class="pagination-wrap">
         <span style="font-size:12px; color:var(--text-secondary);">Showing {{ $repayments->firstItem() }}–{{ $repayments->lastItem() }} of {{ $repayments->total() }}</span>
         {{ $repayments->links() }}
     </div>

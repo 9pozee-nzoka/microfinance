@@ -3,7 +3,7 @@
 @section('page-title', 'Customer Register')
 
 @section('content')
-<div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+<div class="page-actions">
     <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
 </div>
 
@@ -25,8 +25,8 @@
     <form method="GET" action="{{ route('reports.customers.register') }}">
         <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Status</label>
-                <select name="status" class="filter-select" style="width:140px;">
+                <label class="form-label">Status</label>
+                <select name="status" class="filter-select">
                     <option value="">All Status</option>
                     @foreach(['active','pending','rejected','dormant','suspended'] as $s)
                         <option value="{{ $s }}" {{ request('status') === $s ? 'selected' : '' }}>{{ ucfirst($s) }}</option>
@@ -34,8 +34,8 @@
                 </select>
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Branch</label>
-                <select name="branch" class="filter-select" style="width:160px;">
+                <label class="form-label">Branch</label>
+                <select name="branch" class="filter-select">
                     <option value="">All Branches</option>
                     @foreach($branches as $b)
                         <option value="{{ $b->id }}" {{ request('branch') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
@@ -43,8 +43,8 @@
                 </select>
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Employment</label>
-                <select name="employment_type" class="filter-select" style="width:160px;">
+                <label class="form-label">Employment</label>
+                <select name="employment_type" class="filter-select">
                     <option value="">All</option>
                     @foreach(['salaried','self_employed','business','farmer','other'] as $e)
                         <option value="{{ $e }}" {{ request('employment_type') === $e ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$e)) }}</option>
@@ -52,12 +52,12 @@
                 </select>
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Joined From</label>
-                <input type="date" name="date_from" value="{{ request('date_from') }}" class="filter-select" style="width:150px;">
+                <label class="form-label">Joined From</label>
+                <input type="date" name="date_from" value="{{ request('date_from') }}" class="filter-select">
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Joined To</label>
-                <input type="date" name="date_to" value="{{ request('date_to') }}" class="filter-select" style="width:150px;">
+                <label class="form-label">Joined To</label>
+                <input type="date" name="date_to" value="{{ request('date_to') }}" class="filter-select">
             </div>
             <div style="display:flex; gap:8px; padding-bottom:1px;">
                 <button type="submit" class="btn btn-primary" style="height:38px; padding:0 18px;"><i class="fas fa-search"></i> Filter</button>
@@ -74,7 +74,8 @@
     <div class="card-header" style="margin-bottom:14px;">
         <span style="font-size:14px; font-weight:600;">Customers — {{ $customers->total() }} records</span>
     </div>
-    <div style="overflow-x:auto;">
+    <div class="table-wrap">
+        <div class="table-wrap">
         <table class="data-table" style="min-width:1000px;">
             <thead>
                 <tr><th>#</th><th>Customer No.</th><th>Full Name</th><th>Phone</th><th>ID No.</th><th>Branch</th><th>Officer</th><th>Employment</th><th>Savings</th><th>Credit Score</th><th>Status</th><th>Joined</th></tr>
@@ -103,9 +104,10 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
     @if($customers->hasPages())
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 4px 4px; border-top:1px solid var(--border); margin-top:8px;">
+    <div class="pagination-wrap">
         <span style="font-size:12px; color:var(--text-secondary);">Showing {{ $customers->firstItem() }}–{{ $customers->lastItem() }} of {{ $customers->total() }}</span>
         {{ $customers->appends(request()->query())->links() }}
     </div>

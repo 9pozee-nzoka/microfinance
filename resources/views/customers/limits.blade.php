@@ -8,7 +8,7 @@
 
 {{-- Flash messages --}}
 @if(session('success'))
-<div style="background:#E8F5E9; border:1px solid #A5D6A7; border-radius:8px; padding:12px 16px; margin-bottom:16px; color:#2E7D32; display:flex; align-items:center; gap:10px;">
+<div class="flash-success">
     <i class="fas fa-check-circle"></i> {{ session('success') }}
 </div>
 @endif
@@ -23,19 +23,21 @@
 
     {{-- Filter bar --}}
     <form method="GET" action="{{ route('customers.limits') }}" style="margin-bottom:20px;">
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
-            <div class="search-box" style="width: 260px;">
-                <i class="fas fa-search"></i>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by name or phone">
+        <div class="filter-row">
+            <div style="flex:1 1 200px;">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by name or phone">
+                </div>
             </div>
-            <select name="tier" class="filter-select" style="width: 200px;">
+            <select name="tier" class="filter-select" style="flex:1 1 160px;">
                 <option value="">All Tiers</option>
                 <option value="platinum" {{ request('tier') === 'platinum' ? 'selected' : '' }}>Platinum (500K+)</option>
                 <option value="gold"     {{ request('tier') === 'gold'     ? 'selected' : '' }}>Gold (200K–499K)</option>
                 <option value="silver"   {{ request('tier') === 'silver'   ? 'selected' : '' }}>Silver (50K–199K)</option>
                 <option value="bronze"   {{ request('tier') === 'bronze'   ? 'selected' : '' }}>Bronze (&lt;50K)</option>
             </select>
-            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Search</button>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> <span class="btn-label">Search</span></button>
             <a href="{{ route('customers.limits') }}" class="btn btn-outline"><i class="fas fa-undo"></i></a>
         </div>
     </form>
@@ -59,6 +61,7 @@
         </div>
     </div>
 
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -132,11 +135,12 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 </div>
 
 {{-- Adjust Limit Modal --}}
-<div id="adjustModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:30px; width:440px; max-width:95%;">
+<div id="adjustModal" class="modal-overlay" onclick="if(event.target===this)closeModal('adjustModal')">
+    <div class="modal-box">
         <h3 style="font-size:16px; font-weight:600; margin-bottom:6px;">Adjust Credit Limit</h3>
         <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px;">
             Updating limit for <strong id="adjustCustomerName"></strong>
@@ -169,10 +173,10 @@ function openAdjustModal(id, name, currentLimit) {
     document.getElementById('adjustCustomerName').textContent = name;
     document.getElementById('adjustLimitInput').value = currentLimit;
     document.getElementById('adjustForm').action = `/customers/${id}/adjust-limit`;
-    document.getElementById('adjustModal').style.display = 'flex';
+    document.getElementById('adjustModal').classList.add('show');
 }
 function closeAdjustModal() {
-    document.getElementById('adjustModal').style.display = 'none';
+    document.getElementById('adjustModal').classList.remove('show');
 }
 </script>
 @endsection

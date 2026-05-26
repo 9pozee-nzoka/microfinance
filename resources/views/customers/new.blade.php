@@ -8,12 +8,12 @@
 
 {{-- Flash messages --}}
 @if(session('success'))
-<div style="background:#E8F5E9; border:1px solid #A5D6A7; border-radius:8px; padding:12px 16px; margin-bottom:16px; color:#2E7D32; display:flex; align-items:center; gap:10px;">
+<div class="flash-success">
     <i class="fas fa-check-circle"></i> {{ session('success') }}
 </div>
 @endif
 @if(session('error'))
-<div style="background:#FFEBEE; border:1px solid #FFCDD2; border-radius:8px; padding:12px 16px; margin-bottom:16px; color:#C62828; display:flex; align-items:center; gap:10px;">
+<div class="flash-error">
     <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
 </div>
 @endif
@@ -47,32 +47,35 @@
     </div>
 
     {{-- Filter bar --}}
-    <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 15px;">
-        <form method="GET" action="{{ route('customers.new') }}" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
-            <div class="search-box" style="width: 260px;">
-                <i class="fas fa-search"></i>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by name, phone or ID" id="newCustomerSearch">
+    <div style="margin-bottom:15px;">
+        <form method="GET" action="{{ route('customers.new') }}">
+            <div class="filter-row">
+                <div style="flex:1 1 200px;">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Name, phone or ID" id="newCustomerSearch">
+                    </div>
+                </div>
+                <select name="branch" class="filter-select" style="flex:1 1 150px;">
+                    <option value="">All Branches</option>
+                    @foreach($branches as $branch)
+                        <option value="{{ $branch->id }}" {{ request('branch') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> <span class="btn-label">Search</span></button>
+                <a href="{{ route('customers.new') }}" class="btn btn-outline"><i class="fas fa-undo"></i></a>
             </div>
-            <select name="branch" class="filter-select" style="width: 180px;">
-                <option value="">All Branches</option>
-                @foreach($branches as $branch)
-                    <option value="{{ $branch->id }}" {{ request('branch') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
-                @endforeach
-            </select>
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-search"></i> Search
-            </button>
-            <a href="{{ route('customers.new') }}" class="btn btn-outline"><i class="fas fa-undo"></i></a>
         </form>
     </div>
 
-    <div style="background: #FFF3E0; border: 1px solid #FFE0B2; border-radius: 8px; padding: 12px 15px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-        <i class="fas fa-info-circle" style="color: #E65100;"></i>
-        <span style="font-size: 13px; color: #E65100;">
+    <div style="background:#FFF3E0;border:1px solid #FFE0B2;border-radius:8px;padding:12px 15px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
+        <i class="fas fa-info-circle" style="color:#E65100;flex-shrink:0;"></i>
+        <span style="font-size:13px;color:#E65100;">
             <strong>{{ $customers->total() ?? 0 }}</strong> customers pending KYC verification and approval
         </span>
     </div>
 
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -143,11 +146,12 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 </div>
 
 {{-- Reject Modal --}}
-<div id="rejectModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:30px; width:460px; max-width:95%;">
+<div id="rejectModal" class="modal-overlay" onclick="if(event.target===this)closeModal('rejectModal')">
+    <div class="modal-box">
         <h3 style="font-size:16px; font-weight:600; margin-bottom:6px;">Reject Customer</h3>
         <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px;">
             Rejecting <strong id="rejectCustomerName"></strong>. Please provide a reason.
@@ -178,10 +182,10 @@ function openRejectModal(id, name) {
     document.getElementById('rejectCustomerId').value = id;
     document.getElementById('rejectCustomerName').textContent = name;
     document.getElementById('rejectForm').action = `/customers/${id}/reject`;
-    document.getElementById('rejectModal').style.display = 'flex';
+    document.getElementById('rejectModal').classList.add('show');
 }
 function closeRejectModal() {
-    document.getElementById('rejectModal').style.display = 'none';
+    document.getElementById('rejectModal').classList.remove('show');
 }
 </script>
 @endsection

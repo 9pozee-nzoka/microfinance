@@ -4,19 +4,64 @@
 @section('title', 'Approve New Loans - GetCash Capital')
 @section('page-title', 'Approve New Loans')
 
+@section('styles')
+<style>
+    .modal-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.5); z-index: 2000;
+        align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+        background: white; border-radius: 12px;
+        width: 500px; max-width: 95%; max-height: 90vh;
+        overflow-y: auto; display: flex; flex-direction: column;
+    }
+    .modal-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 20px 24px 0; flex-shrink: 0;
+    }
+    .modal-title { font-size: 16px; font-weight: 600; }
+    .modal-close {
+        background: none; border: none; font-size: 22px;
+        cursor: pointer; color: var(--text-secondary); line-height: 1;
+    }
+    .modal-body { padding: 20px 24px; flex: 1; }
+    .modal-footer {
+        padding: 0 24px 20px;
+        display: flex; gap: 10px; justify-content: flex-end; flex-shrink: 0;
+    }
+    .form-label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+    .form-control {
+        width: 100%; padding: 10px 12px;
+        border: 1px solid var(--border); border-radius: 8px;
+        font-size: 13px; font-family: inherit; outline: none;
+        transition: border-color 0.15s;
+    }
+    .form-control:focus { border-color: var(--primary); }
+    .empty-state { text-align: center; padding: 50px 20px; color: var(--text-secondary); }
+    .empty-state i { font-size: 48px; opacity: 0.2; display: block; margin-bottom: 14px; }
+</style>
+@endsection
+
 @section('content')
 <div class="card">
-    <div class="card-header" style="margin-bottom: 20px;">
-        <div class="search-box" style="width: 400px;">
-            <i class="fas fa-search"></i>
-            <input type="text" placeholder="Search By any Field" id="loanSearch">
+    <div class="card-header" style="margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+        <div style="flex:1 1 200px;">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search by any field" id="loanSearch">
+            </div>
         </div>
-        <div class="search-box" style="width: 250px;">
-            <i class="fas fa-phone"></i>
-            <input type="text" placeholder="Search By Phone NO." id="phoneSearch">
+        <div style="flex:1 1 160px;">
+            <div class="search-box">
+                <i class="fas fa-phone"></i>
+                <input type="text" placeholder="Search by phone" id="phoneSearch">
+            </div>
         </div>
     </div>
 
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -84,28 +129,36 @@
             </tr>
             @empty
             <tr>
-                <td colspan="13" style="text-align: center; padding: 40px; color: var(--text-secondary);">
-                    <i class="fas fa-inbox" style="font-size: 40px; margin-bottom: 10px; display: block;"></i>
-                    No loans pending approval
+                <td colspan="13">
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        No loans pending approval
+                    </div>
                 </td>
             </tr>
             @endforelse
         </tbody>
     </table>
+    </div>
 </div>
 
 {{-- Approval Modal --}}
-<div id="approveModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
-    <div style="background: white; border-radius: 12px; padding: 30px; width: 500px; max-width: 90%;">
-        <h3 style="margin-bottom: 20px;">Approve Loan</h3>
-        <div id="loanDetails" style="margin-bottom: 20px;"></div>
-        <div style="margin-bottom: 20px;">
-            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Approval Notes</label>
-            <textarea id="approvalNotes" rows="3" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; resize: vertical;"></textarea>
+<div id="approveModal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title">Approve Loan</div>
+            <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
         </div>
-        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-            <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="confirmApproval()">Confirm Approval</button>
+        <div class="modal-body">
+            <div id="loanDetails"></div>
+            <div class="form-group">
+                <label class="form-label">Approval Notes</label>
+                <textarea id="approvalNotes" rows="3" class="form-control"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="confirmApproval()">Confirm Approval</button>
         </div>
     </div>
 </div>
@@ -117,22 +170,27 @@
 
     function approveLoan(id) {
         currentLoanId = id;
-        document.getElementById('approveModal').style.display = 'flex';
+        document.getElementById('approveModal').classList.add('show');
     }
 
     function closeModal() {
-        document.getElementById('approveModal').style.display = 'none';
+        document.getElementById('approveModal').classList.remove('show');
         currentLoanId = null;
     }
 
     function confirmApproval() {
         if (!currentLoanId) return;
-        
-        fetch(`/api/loans/${currentLoanId}/approve`, {
-            method: 'POST',
+
+        const btn = document.querySelector('#approveModal .btn-primary');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Approving…';
+
+        fetch(`/loans/${currentLoanId}/approve`, {
+            method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
             },
             body: JSON.stringify({
                 notes: document.getElementById('approvalNotes').value
@@ -141,28 +199,40 @@
         .then(r => r.json())
         .then(data => {
             if (data.success) {
+                closeModal();
                 location.reload();
             } else {
-                alert(data.message || 'Approval failed');
+                alert(data.message || 'Approval failed. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = 'Confirm Approval';
             }
+        })
+        .catch(() => {
+            alert('Network error. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = 'Confirm Approval';
         });
     }
 
     function rejectLoan(id) {
-        if (!confirm('Are you sure you want to reject this loan?')) return;
-        
-        fetch(`/api/loans/${id}/reject`, {
-            method: 'POST',
+        const reason = prompt('Enter rejection reason:');
+        if (!reason || !reason.trim()) return;
+
+        fetch(`/loans/${id}/reject`, {
+            method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
             },
-            body: JSON.stringify({ reason: 'Rejected by officer' })
+            body: JSON.stringify({ reason: reason.trim() })
         })
         .then(r => r.json())
         .then(data => {
             if (data.success) location.reload();
-        });
+            else alert(data.message || 'Rejection failed.');
+        })
+        .catch(() => alert('Network error. Please try again.'));
     }
 </script>
 @endsection

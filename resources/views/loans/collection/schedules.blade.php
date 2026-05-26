@@ -26,24 +26,22 @@
 @section('content')
 
 @if(session('success'))
-<div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#2E7D32;display:flex;align-items:center;gap:10px;">
+<div class="flash-success">
     <i class="fas fa-check-circle"></i> {{ session('success') }}
 </div>
 @endif
 @if(session('error'))
-<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#C62828;display:flex;align-items:center;gap:10px;">
+<div class="flash-error">
     <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
 </div>
 @endif
 
 {{-- Header --}}
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-    <div>
-        <p style="font-size:13px;color:var(--text-secondary);">
-            Automated SMS rules that run against your loan portfolio. Active schedules run daily via the scheduler.
-        </p>
-    </div>
-    <button class="btn btn-primary" onclick="openCreateModal()">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+    <p style="font-size:13px;color:var(--text-secondary);flex:1;min-width:200px;">
+        Automated SMS rules that run against your loan portfolio. Active schedules run daily via the scheduler.
+    </p>
+    <button class="btn btn-primary" onclick="openCreateModal()" style="flex-shrink:0;">
         <i class="fas fa-plus"></i> New Schedule
     </button>
 </div>
@@ -68,7 +66,7 @@
     <button class="btn btn-primary" onclick="openCreateModal()"><i class="fas fa-plus"></i> Create Schedule</button>
 </div>
 @else
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin-bottom:24px;">
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:24px;">
     @foreach($schedules as $schedule)
     @php
         $statusColor = match($schedule->status) { 'active' => '#4CAF50', 'paused' => '#FF9800', default => '#9E9E9E' };
@@ -177,8 +175,8 @@
 @endif
 
 {{-- ── Create / Edit Modal ── --}}
-<div id="scheduleModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
-    <div style="background:white;border-radius:12px;padding:28px;width:600px;max-width:95%;max-height:92vh;overflow-y:auto;">
+<div id="scheduleModal" class="modal-overlay" onclick="if(event.target===this)closeModal('scheduleModal')">
+    <div class="modal-box" style="max-width:600px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
             <h3 id="modalTitle" style="font-size:15px;font-weight:600;">New SMS Schedule</h3>
             <button onclick="closeModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);">&times;</button>
@@ -188,7 +186,7 @@
             @csrf
             <span id="methodField"></span>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+            <div class="grid-2" style="gap:14px;margin-bottom:14px;">
                 <div style="grid-column:span 2;">
                     <label class="form-label">Schedule Name <span style="color:var(--danger)">*</span></label>
                     <input type="text" name="name" id="fName" class="form-control" placeholder="e.g. 3-Day Before Due Reminder" required>
@@ -199,7 +197,7 @@
                 </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+            <div class="grid-2" style="gap:14px;margin-bottom:14px;">
                 <div>
                     <label class="form-label">Trigger Type <span style="color:var(--danger)">*</span></label>
                     <select name="trigger_type" id="fTriggerType" class="form-control" onchange="toggleTriggerDays()" required>
@@ -215,7 +213,7 @@
                 </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+            <div class="grid-2" style="gap:14px;margin-bottom:14px;">
                 <div>
                     <label class="form-label">Target Audience <span style="color:var(--danger)">*</span></label>
                     <select name="target" id="fTarget" class="form-control" onchange="toggleTargetFields()" required>
@@ -293,7 +291,7 @@ function openCreateModal() {
     document.getElementById('methodField').innerHTML = '';
     document.getElementById('submitBtn').innerHTML = '<i class="fas fa-save"></i> Create Schedule';
     clearForm();
-    document.getElementById('scheduleModal').style.display = 'flex';
+    document.getElementById('scheduleModal').classList.add('show');
 }
 
 function openEditModal(id, data) {
@@ -316,10 +314,10 @@ function openEditModal(id, data) {
     toggleTriggerDays();
     toggleTargetFields();
     countTplChars(document.getElementById('fTemplate'));
-    document.getElementById('scheduleModal').style.display = 'flex';
+    document.getElementById('scheduleModal').classList.add('show');
 }
 
-function closeModal() { document.getElementById('scheduleModal').style.display = 'none'; }
+function closeModal() { document.getElementById('scheduleModal').classList.remove('show'); }
 
 function clearForm() {
     ['fName','fDesc','fTriggerDays','fTemplate'].forEach(id => document.getElementById(id).value = '');

@@ -18,12 +18,12 @@
 
 {{-- Flash --}}
 @if(session('success'))
-<div style="background:#E8F5E9; border:1px solid #A5D6A7; border-radius:8px; padding:12px 16px; margin-bottom:16px; color:#2E7D32; display:flex; align-items:center; gap:10px;">
+<div class="flash-success">
     <i class="fas fa-check-circle"></i> {{ session('success') }}
 </div>
 @endif
 @if(session('error'))
-<div style="background:#FFEBEE; border:1px solid #FFCDD2; border-radius:8px; padding:12px 16px; margin-bottom:16px; color:#C62828; display:flex; align-items:center; gap:10px;">
+<div class="flash-error">
     <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
 </div>
 @endif
@@ -144,7 +144,7 @@
 {{-- ── Repayment Schedule ── --}}
 <div class="card" style="margin-bottom:20px;">
     <div class="section-title"><i class="fas fa-calendar-alt" style="color:var(--primary); margin-right:6px;"></i>Repayment Schedule</div>
-    <div style="overflow-x:auto;">
+    <div class="table-wrap">
         <table class="data-table">
             <thead>
                 <tr>
@@ -191,6 +191,7 @@
 {{-- ── Payment History ── --}}
 <div class="card" style="margin-bottom:20px;">
     <div class="section-title"><i class="fas fa-history" style="color:var(--primary); margin-right:6px;"></i>Payment History</div>
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -229,6 +230,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 </div>
 
 {{-- ── SMS History ── --}}
@@ -278,6 +280,7 @@
 @if($loan->guarantors->count())
 <div class="card">
     <div class="section-title"><i class="fas fa-handshake" style="color:var(--primary); margin-right:6px;"></i>Guarantors</div>
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr><th>#</th><th>Name</th><th>Phone</th><th>Guaranteed Amount</th><th>Status</th></tr>
@@ -302,21 +305,26 @@
             @endforeach
         </tbody>
     </table>
+    </div>
 </div>
 @endif
 
 {{-- ── Approve Modal ── --}}
-<div id="approveModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:30px; width:480px; max-width:95%;">
-        <h3 style="font-size:16px; font-weight:600; margin-bottom:16px;">Approve Loan {{ $loan->loan_number }}</h3>
+<div id="approveModal" class="modal-overlay" onclick="if(event.target===this)closeModal('approveModal')">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title">Approve Loan {{ $loan->loan_number }}</div>
+            <button class="modal-close" onclick="closeModal('approveModal')">&times;</button>
+        </div>
         <form method="POST" action="{{ route('loans.approve-action', $loan) }}">
             @csrf @method('PATCH')
-            <div style="margin-bottom:16px;">
-                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Approval Notes</label>
-                <textarea name="notes" rows="3" placeholder="Optional notes…"
-                          style="width:100%; padding:10px; border:1px solid var(--border); border-radius:6px; font-size:13px; resize:vertical;"></textarea>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Approval Notes</label>
+                    <textarea name="notes" rows="3" placeholder="Optional notes…" class="form-control"></textarea>
+                </div>
             </div>
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-outline" onclick="closeModal('approveModal')">Cancel</button>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Confirm Approval</button>
             </div>
@@ -325,17 +333,21 @@
 </div>
 
 {{-- ── Reject Modal ── --}}
-<div id="rejectModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:30px; width:480px; max-width:95%;">
-        <h3 style="font-size:16px; font-weight:600; margin-bottom:16px;">Reject Loan {{ $loan->loan_number }}</h3>
+<div id="rejectModal" class="modal-overlay" onclick="if(event.target===this)closeModal('rejectModal')">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title">Reject Loan {{ $loan->loan_number }}</div>
+            <button class="modal-close" onclick="closeModal('rejectModal')">&times;</button>
+        </div>
         <form method="POST" action="{{ route('loans.reject', $loan) }}">
             @csrf @method('PATCH')
-            <div style="margin-bottom:16px;">
-                <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Rejection Reason <span style="color:var(--danger)">*</span></label>
-                <textarea name="reason" rows="3" required placeholder="State the reason for rejection…"
-                          style="width:100%; padding:10px; border:1px solid var(--border); border-radius:6px; font-size:13px; resize:vertical;"></textarea>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Rejection Reason <span class="req">*</span></label>
+                    <textarea name="reason" rows="3" required placeholder="State the reason for rejection…" class="form-control"></textarea>
+                </div>
             </div>
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-outline" onclick="closeModal('rejectModal')">Cancel</button>
                 <button type="submit" class="btn" style="background:var(--danger); color:white;"><i class="fas fa-times"></i> Confirm Rejection</button>
             </div>
@@ -344,11 +356,11 @@
 </div>
 
 {{-- ── Disburse Modal ── --}}
-<div id="disburseModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:30px; width:520px; max-width:95%;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h3 style="font-size:16px; font-weight:600;">Disburse Loan {{ $loan->loan_number }}</h3>
-            <button onclick="closeModal('disburseModal')" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-secondary);">&times;</button>
+<div id="disburseModal" class="modal-overlay" onclick="if(event.target===this)closeModal('disburseModal')">
+    <div class="modal-box wide">
+        <div class="modal-header">
+            <div class="modal-title">Disburse Loan {{ $loan->loan_number }}</div>
+            <button class="modal-close" onclick="closeModal('disburseModal')">&times;</button>
         </div>
 
         {{-- Loan summary --}}
@@ -437,13 +449,11 @@
 </div>
 
 {{-- ── STK Push Modal ── --}}
-<div id="stkModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:30px; width:480px; max-width:95%;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h3 style="font-size:16px; font-weight:600; color:var(--text-primary);">
-                <i class="fas fa-mobile-alt" style="color:var(--primary);"></i> Request M-Pesa Payment
-            </h3>
-            <button onclick="closeModal('stkModal')" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-secondary);">&times;</button>
+<div id="stkModal" class="modal-overlay" onclick="if(event.target===this)closeModal('stkModal')">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-mobile-alt" style="color:var(--primary);"></i> Request M-Pesa Payment</div>
+            <button class="modal-close" onclick="closeModal('stkModal')">&times;</button>
         </div>
 
         <div style="background:#E3F2FD; border:1px solid #90CAF9; border-radius:8px; padding:12px 14px; margin-bottom:18px; font-size:12px; color:#1565C0;">
@@ -507,13 +517,11 @@
 </div>
 
 {{-- ── SMS Modal ── --}}
-<div id="smsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; border-radius:12px; padding:30px; width:500px; max-width:95%; max-height:92vh; overflow-y:auto;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h3 style="font-size:16px; font-weight:600; color:var(--text-primary);">
-                <i class="fas fa-sms" style="color:#7B1FA2;"></i> Send SMS
-            </h3>
-            <button onclick="closeModal('smsModal')" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-secondary); line-height:1;">&times;</button>
+<div id="smsModal" class="modal-overlay" onclick="if(event.target===this)closeModal('smsModal')">
+    <div class="modal-box wide">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-sms" style="color:#7B1FA2;"></i> Send SMS</div>
+            <button class="modal-close" onclick="closeModal('smsModal')">&times;</button>
         </div>
 
         {{-- Recipient info --}}
@@ -590,15 +598,15 @@
 
 @section('scripts')
 <script>
-function openApproveModal()  { document.getElementById('approveModal').style.display  = 'flex'; }
-function openRejectModal()   { document.getElementById('rejectModal').style.display   = 'flex'; }
-function openDisburseModal() { document.getElementById('disburseModal').style.display = 'flex'; }
-function openStkModal()      { document.getElementById('stkModal').style.display      = 'flex'; }
+function openApproveModal()  { document.getElementById('approveModal').classList.add('show'); }
+function openRejectModal()   { document.getElementById('rejectModal').classList.add('show'); }
+function openDisburseModal() { document.getElementById('disburseModal').classList.add('show'); }
+function openStkModal()      { document.getElementById('stkModal').classList.add('show'); }
 function openSmsModal()      {
     loadSmsTemplate();
-    document.getElementById('smsModal').style.display = 'flex';
+    document.getElementById('smsModal').classList.add('show');
 }
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
 // ── Disburse tab switching ───────────────────────────────────
 function switchDisburseTab(tab) {
@@ -780,12 +788,7 @@ function insertSmsTag(tag) {
     updateSmsCount(ta);
 }
 
-// Close modals on backdrop click
-['approveModal','rejectModal','disburseModal','smsModal'].forEach(id => {
-    document.getElementById(id)?.addEventListener('click', function(e) {
-        if (e.target === this) this.style.display = 'none';
-    });
-});
+// Close modals on backdrop click (handled by onclick on overlay itself now)
 
 // Pre-load template on page load if overdue
 document.addEventListener('DOMContentLoaded', () => {

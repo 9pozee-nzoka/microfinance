@@ -116,42 +116,35 @@
 
     {{-- ── Filters ── --}}
     <form method="GET" action="{{ route('customers.index') }}">
-        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 16px; background: #FAFBFC; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 20px;">
-
-            <div style="position: relative; flex: 1; min-width: 200px; max-width: 280px;">
-                <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 13px;"></i>
+        <div class="filter-row" style="padding:14px 16px; background:#FAFBFC; border-radius:10px; border:1px solid var(--border); margin-bottom:20px;">
+            <div style="position:relative; flex:1 1 200px;">
+                <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:13px;"></i>
                 <input type="text" name="search" value="{{ request('search') }}"
                        placeholder="Name, phone, ID, customer no…"
-                       class="filter-input" style="width: 100%; padding-left: 36px;">
+                       class="filter-input" style="width:100%; padding-left:36px;">
             </div>
-
-            <select name="status" class="filter-input" style="min-width: 150px;">
+            <select name="status" class="filter-input" style="flex:1 1 130px;">
                 <option value="">All Status</option>
-                @foreach(['active' => 'Active', 'pending' => 'Pending', 'suspended' => 'Suspended', 'rejected' => 'Rejected', 'dormant' => 'Dormant'] as $val => $label)
-                    <option value="{{ $val }}" {{ request('status') === $val ? 'selected' : '' }}>{{ $label }}</option>
+                @foreach(['active'=>'Active','pending'=>'Pending','suspended'=>'Suspended','rejected'=>'Rejected','dormant'=>'Dormant'] as $val=>$label)
+                    <option value="{{ $val }}" {{ request('status')===$val?'selected':'' }}>{{ $label }}</option>
                 @endforeach
             </select>
-
-            <select name="branch" class="filter-input" style="min-width: 160px;">
+            <select name="branch" class="filter-input" style="flex:1 1 140px;">
                 <option value="">All Branches</option>
                 @foreach($branches as $branch)
-                    <option value="{{ $branch->id }}" {{ request('branch') == $branch->id ? 'selected' : '' }}>
-                        {{ $branch->name }}
-                    </option>
+                    <option value="{{ $branch->id }}" {{ request('branch')==$branch->id?'selected':'' }}>{{ $branch->name }}</option>
                 @endforeach
             </select>
-
-            <select name="employment_type" class="filter-input" style="min-width: 160px;">
+            <select name="employment_type" class="filter-input" style="flex:1 1 140px;">
                 <option value="">All Employment</option>
-                @foreach(['salaried' => 'Salaried', 'self_employed' => 'Self Employed', 'business' => 'Business', 'farmer' => 'Farmer', 'other' => 'Other'] as $val => $label)
-                    <option value="{{ $val }}" {{ request('employment_type') === $val ? 'selected' : '' }}>{{ $label }}</option>
+                @foreach(['salaried'=>'Salaried','self_employed'=>'Self Employed','business'=>'Business','farmer'=>'Farmer','other'=>'Other'] as $val=>$label)
+                    <option value="{{ $val }}" {{ request('employment_type')===$val?'selected':'' }}>{{ $label }}</option>
                 @endforeach
             </select>
-
-            <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 18px;">
-                <i class="fas fa-search"></i> Filter
+            <button type="submit" class="btn btn-primary" style="height:38px; padding:0 18px; flex-shrink:0;">
+                <i class="fas fa-search"></i> <span class="btn-label">Filter</span>
             </button>
-            <a href="{{ route('customers.index') }}" class="btn btn-outline" style="height: 38px; padding: 0 14px;" title="Reset">
+            <a href="{{ route('customers.index') }}" class="btn btn-outline" style="height:38px; padding:0 14px; flex-shrink:0;" title="Reset">
                 <i class="fas fa-undo"></i>
             </a>
         </div>
@@ -159,6 +152,7 @@
 
     {{-- ── Table ── --}}
     <div style="overflow-x: auto;">
+        <div class="table-wrap">
         <table class="data-table" style="min-width: 1000px;">
             <thead>
                 <tr>
@@ -348,16 +342,13 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     {{-- ── Pagination ── --}}
     @if($customers->hasPages())
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 4px 4px; border-top: 1px solid var(--border); margin-top: 8px;">
-        <span style="font-size: 12px; color: var(--text-secondary);">
-            Showing <strong>{{ $customers->firstItem() }}</strong> –
-            <strong>{{ $customers->lastItem() }}</strong>
-            of <strong>{{ $customers->total() }}</strong> customers
-        </span>
+    <div class="pagination-wrap">
+        <span>Showing <strong>{{ $customers->firstItem() }}</strong>–<strong>{{ $customers->lastItem() }}</strong> of <strong>{{ $customers->total() }}</strong></span>
         {{ $customers->links() }}
     </div>
     @endif

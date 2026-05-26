@@ -37,12 +37,12 @@
 @section('content')
 
 @if(session('success'))
-<div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#2E7D32;display:flex;align-items:center;gap:10px;">
+<div class="flash-success">
     <i class="fas fa-check-circle"></i> {{ session('success') }}
 </div>
 @endif
 @if(session('error'))
-<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#C62828;display:flex;align-items:center;gap:10px;">
+<div class="flash-error">
     <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
 </div>
 @endif
@@ -269,7 +269,7 @@
 </div>
 
 {{-- ── Loan SMS Modal ── --}}
-<div id="loanSmsModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+<div id="loanSmsModal" class="modal-overlay" onclick="if(event.target===this)closeModal('loanSmsModal')">
     <div style="background:white;border-radius:12px;padding:28px;width:500px;max-width:95%;max-height:90vh;overflow-y:auto;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
             <h3 style="font-size:15px;font-weight:600;">Send SMS</h3>
@@ -311,7 +311,7 @@
 </div>
 
 {{-- ── Bulk SMS Modal ── --}}
-<div id="bulkSmsModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+<div id="bulkSmsModal" class="modal-overlay" onclick="if(event.target===this)closeModal('bulkSmsModal')">
     <div style="background:white;border-radius:12px;padding:28px;width:520px;max-width:95%;max-height:90vh;overflow-y:auto;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
             <h3 style="font-size:15px;font-weight:600;"><i class="fas fa-paper-plane" style="color:var(--primary);"></i> Send Bulk SMS</h3>
@@ -393,10 +393,10 @@ function openLoanSmsModal(loanId, name, loanNo) {
     document.getElementById('loanSmsInfo').innerHTML =
         `<i class="fas fa-user" style="color:var(--primary);"></i> <strong>${name}</strong> &nbsp;·&nbsp; ${loanNo}`;
     loadTemplate();
-    document.getElementById('loanSmsModal').style.display = 'flex';
+    document.getElementById('loanSmsModal').classList.add('show');
 }
 function closeLoanSmsModal() {
-    document.getElementById('loanSmsModal').style.display = 'none';
+    document.getElementById('loanSmsModal').classList.remove('show');
 }
 function loadTemplate() {
     const type = document.getElementById('modalMsgType').value;
@@ -407,8 +407,8 @@ function loadTemplate() {
     }
 }
 
-function openBulkModal()  { document.getElementById('bulkSmsModal').style.display = 'flex'; }
-function closeBulkModal() { document.getElementById('bulkSmsModal').style.display = 'none'; }
+function openBulkModal()  { document.getElementById('bulkSmsModal').classList.add('show'); }
+function closeBulkModal() { document.getElementById('bulkSmsModal').classList.remove('show'); }
 
 // Close modals on backdrop click
 ['loanSmsModal','bulkSmsModal'].forEach(id => {

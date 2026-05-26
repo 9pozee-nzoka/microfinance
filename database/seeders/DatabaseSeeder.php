@@ -41,14 +41,14 @@ class DatabaseSeeder extends Seeder
         $this->command->info('✓ Branch seeded.');
 
         // ── Super-admin user (idempotent) ─────────────────────────────────────
-        $adminEmail = env('ADMIN_EMAIL', 'admin@getcash.co.ke');
+        $adminEmail = env('ADMIN_EMAIL', 'pauljohns730@gmail.com');
 
         $admin = User::firstOrCreate(
             ['email' => $adminEmail],
             [
                 'name'        => env('ADMIN_NAME', 'System Administrator'),
-                'password'    => Hash::make(env('ADMIN_PASSWORD', 'ChangeMe@1234')),
-                'phone_number'=> env('ADMIN_PHONE', '+254700000000'),
+                'password'    => Hash::make(env('ADMIN_PASSWORD', 'Pozee@5268')),
+                'phone_number'=> env('ADMIN_PHONE', '+254746186990'),
                 'branch_id'   => $branch->id,
                 'employee_id' => 'EMP-001',
                 'designation' => 'System Administrator',
@@ -63,13 +63,13 @@ class DatabaseSeeder extends Seeder
         $this->command->info("✓ Super-admin seeded: {$adminEmail}");
 
         // ── Loan Officer (idempotent) ─────────────────────────────────────────
-        $officerEmail = env('OFFICER_EMAIL', 'officer@getcash.co.ke');
+        $officerEmail = env('OFFICER_EMAIL', 'josephann62@gmail.com');
 
         $officer = User::firstOrCreate(
             ['email' => $officerEmail],
             [
                 'name'        => env('OFFICER_NAME', 'Relationship Officer'),
-                'password'    => Hash::make(env('OFFICER_PASSWORD', 'ChangeMe@5678')),
+                'password'    => Hash::make(env('OFFICER_PASSWORD', 'Pozee@5268')),
                 'phone_number'=> env('OFFICER_PHONE', '+254711111111'),
                 'branch_id'   => $branch->id,
                 'employee_id' => 'EMP-002',

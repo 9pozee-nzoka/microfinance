@@ -118,6 +118,7 @@
     <div class="card-title" style="margin-bottom: 16px;">Repayment Schedule</div>
 
     <div style="overflow-x: auto;">
+        <div class="table-wrap">
         <table class="data-table">
             <thead>
                 <tr>
@@ -170,6 +171,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 
@@ -183,6 +185,7 @@
         No payments recorded yet
     </div>
     @else
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -213,6 +216,7 @@
             @endforeach
         </tbody>
     </table>
+    </div>
     @endif
 </div>
 

@@ -29,69 +29,63 @@
 {{-- Filter Bar --}}
 <div class="card" style="margin-bottom: 20px;">
     <form method="GET" action="{{ route('transactions.processed') }}">
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
-            <div>
+        <div class="filter-row">
+            <div style="flex: 1 1 140px;">
                 <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Search By</label>
-                <select name="search_by" class="filter-select" style="width: 160px;">
-                    <option value="any" {{ request('search_by', 'any') === 'any' ? 'selected' : '' }}>Any Field</option>
-                    <option value="mpesa" {{ request('search_by') === 'mpesa' ? 'selected' : '' }}>M-Pesa Code</option>
-                    <option value="phone" {{ request('search_by') === 'phone' ? 'selected' : '' }}>Phone Number</option>
-                    <option value="id_number" {{ request('search_by') === 'id_number' ? 'selected' : '' }}>ID Number</option>
-                    <option value="txn_number" {{ request('search_by') === 'txn_number' ? 'selected' : '' }}>Transaction No.</option>
+                <select name="search_by" class="filter-select" style="width:100%;">
+                    <option value="any"        {{ request('search_by','any') === 'any'        ? 'selected':'' }}>Any Field</option>
+                    <option value="mpesa"      {{ request('search_by') === 'mpesa'      ? 'selected':'' }}>M-Pesa Code</option>
+                    <option value="phone"      {{ request('search_by') === 'phone'      ? 'selected':'' }}>Phone</option>
+                    <option value="id_number"  {{ request('search_by') === 'id_number'  ? 'selected':'' }}>ID Number</option>
+                    <option value="txn_number" {{ request('search_by') === 'txn_number' ? 'selected':'' }}>Txn No.</option>
                 </select>
             </div>
-            <div>
+            <div style="flex: 1 1 180px;">
                 <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Search Value</label>
-                <div class="search-box" style="width: 220px;">
+                <div class="search-box">
                     <i class="fas fa-search"></i>
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Enter search value...">
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Enter value…">
                 </div>
             </div>
-            <div>
-                <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Transaction Type</label>
-                <select name="type" class="filter-select">
+            <div style="flex: 1 1 150px;">
+                <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Type</label>
+                <select name="type" class="filter-select" style="width:100%;">
                     <option value="">All Types</option>
-                    <option value="loan_repayment" {{ request('type') === 'loan_repayment' ? 'selected' : '' }}>Loan Repayment</option>
-                    <option value="savings_deposit" {{ request('type') === 'savings_deposit' ? 'selected' : '' }}>Savings Deposit</option>
-                    <option value="share_capital" {{ request('type') === 'share_capital' ? 'selected' : '' }}>Share Capital</option>
-                    <option value="loan_disbursement" {{ request('type') === 'loan_disbursement' ? 'selected' : '' }}>Loan Disbursement</option>
-                    <option value="penalty" {{ request('type') === 'penalty' ? 'selected' : '' }}>Penalty</option>
-                    <option value="refund" {{ request('type') === 'refund' ? 'selected' : '' }}>Refund</option>
+                    <option value="loan_repayment"    {{ request('type') === 'loan_repayment'    ? 'selected':'' }}>Loan Repayment</option>
+                    <option value="savings_deposit"   {{ request('type') === 'savings_deposit'   ? 'selected':'' }}>Savings Deposit</option>
+                    <option value="share_capital"     {{ request('type') === 'share_capital'     ? 'selected':'' }}>Share Capital</option>
+                    <option value="loan_disbursement" {{ request('type') === 'loan_disbursement' ? 'selected':'' }}>Disbursement</option>
+                    <option value="penalty"           {{ request('type') === 'penalty'           ? 'selected':'' }}>Penalty</option>
+                    <option value="refund"            {{ request('type') === 'refund'            ? 'selected':'' }}>Refund</option>
                 </select>
             </div>
-            <div>
+            <div style="flex: 1 1 120px;">
                 <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Source</label>
-                <select name="source" class="filter-select">
-                    <option value="">All Sources</option>
-                    <option value="mpesa" {{ request('source') === 'mpesa' ? 'selected' : '' }}>M-Pesa</option>
-                    <option value="bank" {{ request('source') === 'bank' ? 'selected' : '' }}>Bank</option>
-                    <option value="cash" {{ request('source') === 'cash' ? 'selected' : '' }}>Cash</option>
-                    <option value="internal" {{ request('source') === 'internal' ? 'selected' : '' }}>Internal</option>
+                <select name="source" class="filter-select" style="width:100%;">
+                    <option value="">All</option>
+                    <option value="mpesa"    {{ request('source') === 'mpesa'    ? 'selected':'' }}>M-Pesa</option>
+                    <option value="bank"     {{ request('source') === 'bank'     ? 'selected':'' }}>Bank</option>
+                    <option value="cash"     {{ request('source') === 'cash'     ? 'selected':'' }}>Cash</option>
+                    <option value="internal" {{ request('source') === 'internal' ? 'selected':'' }}>Internal</option>
                 </select>
             </div>
-            <div>
+            <div style="flex: 1 1 120px;">
                 <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Status</label>
-                <select name="status" class="filter-select">
-                    <option value="">All Status</option>
-                    <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
-                    <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                    <option value="reversed" {{ request('status') === 'reversed' ? 'selected' : '' }}>Reversed</option>
-                    <option value="failed" {{ request('status') === 'failed' ? 'selected' : '' }}>Failed</option>
+                <select name="status" class="filter-select" style="width:100%;">
+                    <option value="">All</option>
+                    <option value="completed" {{ request('status') === 'completed' ? 'selected':'' }}>Completed</option>
+                    <option value="pending"   {{ request('status') === 'pending'   ? 'selected':'' }}>Pending</option>
+                    <option value="reversed"  {{ request('status') === 'reversed'  ? 'selected':'' }}>Reversed</option>
+                    <option value="failed"    {{ request('status') === 'failed'    ? 'selected':'' }}>Failed</option>
                 </select>
             </div>
-            <div>
-                <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Date From</label>
-                <input type="date" name="date_from" value="{{ request('date_from') }}" class="filter-select" style="width: 150px;">
-            </div>
-            <div>
-                <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Date To</label>
-                <input type="date" name="date_to" value="{{ request('date_to') }}" class="filter-select" style="width: 150px;">
-            </div>
-            <div style="display: flex; gap: 8px; margin-top: 18px;">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
-                <a href="{{ route('transactions.processed') }}" class="btn btn-outline"><i class="fas fa-undo"></i> Reset</a>
-                <button type="button" class="btn btn-outline" onclick="exportTransactions()">
-                    <i class="fas fa-download"></i> Export
+            <input type="date" name="date_from" value="{{ request('date_from') }}" class="filter-select" style="flex: 1 1 130px;">
+            <input type="date" name="date_to"   value="{{ request('date_to') }}"   class="filter-select" style="flex: 1 1 130px;">
+            <div style="display: flex; gap: 8px; flex-shrink: 0; align-items: flex-end;">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> <span class="btn-label">Filter</span></button>
+                <a href="{{ route('transactions.processed') }}" class="btn btn-outline"><i class="fas fa-undo"></i></a>
+                <button type="button" class="btn btn-outline" onclick="exportTransactions()" title="Export CSV">
+                    <i class="fas fa-download"></i>
                 </button>
             </div>
         </div>
@@ -105,6 +99,7 @@
         <span class="badge badge-primary">{{ $transactions->total() }} Records</span>
     </div>
 
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -208,12 +203,11 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 
     @if($transactions->hasPages())
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-top: 1px solid var(--border);">
-        <span style="font-size: 12px; color: var(--text-secondary);">
-            Showing {{ $transactions->firstItem() ?? 0 }} to {{ $transactions->lastItem() ?? 0 }} of {{ $transactions->total() }} entries
-        </span>
+    <div class="pagination-wrap">
+        <span>Showing {{ $transactions->firstItem() ?? 0 }}–{{ $transactions->lastItem() ?? 0 }} of {{ $transactions->total() }}</span>
         {{ $transactions->appends(request()->query())->links() }}
     </div>
     @endif

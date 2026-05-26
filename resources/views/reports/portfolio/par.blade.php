@@ -3,7 +3,7 @@
 @section('page-title', 'Portfolio at Risk (PAR)')
 
 @section('content')
-<div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+<div class="page-actions">
     <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
     <span style="font-size:12px; color:var(--text-secondary);">As at {{ now()->format('d M Y, h:i A') }}</span>
 </div>
@@ -27,7 +27,8 @@
 {{-- PAR Buckets --}}
 <div class="card" style="margin-bottom:20px;">
     <div style="font-size:14px; font-weight:600; margin-bottom:16px;">PAR Aging Buckets</div>
-    <div style="overflow-x:auto;">
+    <div class="table-wrap">
+        <div class="table-wrap">
         <table class="data-table">
             <thead>
                 <tr><th>Bucket</th><th>No. of Loans</th><th>Outstanding Balance</th><th>Arrears Amount</th><th>% of Portfolio</th></tr>
@@ -52,6 +53,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 
@@ -60,16 +62,16 @@
     <form method="GET" action="{{ route('reports.portfolio.par') }}">
         <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Min Days in Arrears</label>
-                <select name="par_days" class="filter-select" style="width:160px;">
+                <label class="form-label">Min Days in Arrears</label>
+                <select name="par_days" class="filter-select">
                     @foreach([1 => 'PAR 1+', 30 => 'PAR 30+', 60 => 'PAR 60+', 90 => 'PAR 90+'] as $d => $label)
                         <option value="{{ $d }}" {{ request('par_days', 1) == $d ? 'selected' : '' }}>{{ $label }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Branch</label>
-                <select name="branch" class="filter-select" style="width:160px;">
+                <label class="form-label">Branch</label>
+                <select name="branch" class="filter-select">
                     <option value="">All Branches</option>
                     @foreach($branches as $b)
                         <option value="{{ $b->id }}" {{ request('branch') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
@@ -77,8 +79,8 @@
                 </select>
             </div>
             <div>
-                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:4px;">Product</label>
-                <select name="product" class="filter-select" style="width:180px;">
+                <label class="form-label">Product</label>
+                <select name="product" class="filter-select">
                     <option value="">All Products</option>
                     @foreach($products as $p)
                         <option value="{{ $p->id }}" {{ request('product') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
@@ -98,7 +100,8 @@
     <div class="card-header" style="margin-bottom:14px;">
         <span style="font-size:14px; font-weight:600;">Loans in Arrears — {{ $loans->total() }} records</span>
     </div>
-    <div style="overflow-x:auto;">
+    <div class="table-wrap">
+        <div class="table-wrap">
         <table class="data-table" style="min-width:1000px;">
             <thead>
                 <tr><th>#</th><th>Loan No.</th><th>Customer</th><th>Product</th><th>Outstanding</th><th>Arrears</th><th>Days in Arrears</th><th>Risk</th><th>Branch</th><th>Officer</th></tr>
@@ -131,9 +134,10 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
     @if($loans->hasPages())
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 4px 4px; border-top:1px solid var(--border); margin-top:8px;">
+    <div class="pagination-wrap">
         <span style="font-size:12px; color:var(--text-secondary);">Showing {{ $loans->firstItem() }}–{{ $loans->lastItem() }} of {{ $loans->total() }}</span>
         {{ $loans->links() }}
     </div>

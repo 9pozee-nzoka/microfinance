@@ -50,7 +50,7 @@
         <div class="card-header">
             <span class="badge badge-primary">Portfolio</span>
         </div>
-        <div class="grid-2" style="gap: 15px;">
+        <div class="grid-2" style="gap: 15px; grid-template-columns: repeat(2,1fr);">
             <div>
                 <div class="metric-value" style="font-size: 32px; color: var(--primary);">{{ $totalCustomers }}</div>
                 <div class="metric-label">Total Customers</div>
@@ -75,7 +75,7 @@
         <div class="card-header">
             <span class="badge badge-primary">Performance</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 30px;">
+        <div class="circle-card-inner">
             <div class="circle-progress">
                 <svg width="120" height="120" viewBox="0 0 120 120">
                     <circle class="circle-bg" cx="60" cy="60" r="52"/>
@@ -110,7 +110,7 @@
         <div class="card-header">
             <span class="badge badge-success">Collection</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 30px;">
+        <div class="circle-card-inner">
             <div class="circle-progress">
                 <svg width="120" height="120" viewBox="0 0 120 120">
                     <circle class="circle-bg" cx="60" cy="60" r="52"/>
@@ -150,7 +150,7 @@
         <div class="card-header">
             <span class="badge badge-danger">Risk</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 30px;">
+        <div class="circle-card-inner">
             <div class="circle-progress">
                 <svg width="120" height="120" viewBox="0 0 120 120">
                     <circle class="circle-bg" cx="60" cy="60" r="52"/>
@@ -209,6 +209,7 @@
         <span class="card-title">Today's Transactions</span>
         <a href="{{ route('transactions.processed') }}" class="btn btn-outline" style="font-size: 12px;">View All</a>
     </div>
+    <div class="table-wrap">
     <table class="data-table">
         <thead>
             <tr>
@@ -234,13 +235,14 @@
             </tr>
             @empty
             <tr>
-                <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-secondary);">
-                    No transactions today
+                <td colspan="6">
+                    <div class="empty-state">No transactions today</div>
                 </td>
             </tr>
             @endforelse
         </tbody>
     </table>
+    </div>
 </div>
 @endsection
 

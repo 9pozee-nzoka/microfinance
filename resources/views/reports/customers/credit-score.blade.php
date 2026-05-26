@@ -3,7 +3,7 @@
 @section('page-title', 'Credit Score Distribution')
 
 @section('content')
-<div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+<div class="page-actions">
     <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
     <span style="font-size:12px; color:var(--text-secondary);">As at {{ now()->format('d M Y, h:i A') }}</span>
 </div>
@@ -54,7 +54,8 @@
     <div style="font-size:14px; font-weight:700; color:var(--text-primary); margin-bottom:16px;">
         <i class="fas fa-trophy" style="color:#FF9800;"></i> Top 20 by Credit Score
     </div>
-    <div style="overflow-x:auto;">
+    <div class="table-wrap">
+        <div class="table-wrap">
         <table class="data-table">
             <thead>
                 <tr><th>#</th><th>Customer</th><th>Phone</th><th>Branch</th><th>Credit Score</th><th>Credit Limit</th><th>Savings</th><th>Status</th></tr>
@@ -89,6 +90,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 @endsection
