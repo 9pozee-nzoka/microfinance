@@ -2,8 +2,8 @@
 
     <div class="sidebar-header">
         <a href="{{ route('dashboard') }}" class="brand">
-            <div class="brand-icon">G</div>
-            <span>GetCash Capital</span>
+            <div class="brand-icon">M</div>
+            <span>Mweela Cash Capital</span>
         </a>
     </div>
 

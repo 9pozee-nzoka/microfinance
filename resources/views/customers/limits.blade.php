@@ -1,7 +1,7 @@
 {{-- resources/views/customers/limits.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Limit Management - GetCash Capital')
+@section('title', 'Limit Management - Mweela Cash Capital')
 @section('page-title', 'Limit Management')
 
 @section('content')

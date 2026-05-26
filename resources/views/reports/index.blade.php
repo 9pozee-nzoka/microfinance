@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Reports - GetCash Capital')
+@section('title', 'Reports - Mweela Cash Capital')
 @section('page-title', 'Reports')
 
 @section('styles')

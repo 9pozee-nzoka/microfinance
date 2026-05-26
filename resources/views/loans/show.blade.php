@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Loan ' . $loan->loan_number . ' - GetCash Capital')
+@section('title', 'Loan ' . $loan->loan_number . ' - Mweela Cash Capital')
 @section('page-title', 'Loan Detail')
 
 @section('styles')
@@ -756,11 +756,11 @@ function pollStkStatus(txnId, btn, result) {
 
 // ── SMS helpers ──────────────────────────────────────────────────
 const smsTemplates = {
-    payment_reminder: 'Dear {{ $loan->customer->full_name }}, your loan {{ $loan->loan_number }} payment of KSH {{ number_format($loan->weekly_installment, 0) }} is due on {{ $loan->next_due_date?->format("d M Y") ?? "N/A" }}. Please pay on time to avoid penalties. GetCash Capital.',
-    overdue_notice:   'Dear {{ $loan->customer->full_name }}, your loan {{ $loan->loan_number }} is {{ $loan->days_in_arrears }} days overdue. Outstanding balance: KSH {{ number_format($loan->outstanding_balance, 0) }}. Please pay immediately to avoid further charges. GetCash Capital.',
-    payment_received: 'Dear {{ $loan->customer->full_name }}, we have received your payment for loan {{ $loan->loan_number }}. Outstanding balance: KSH {{ number_format($loan->outstanding_balance, 0) }}. Thank you. GetCash Capital.',
-    loan_approved:    'Dear {{ $loan->customer->full_name }}, your loan application {{ $loan->loan_number }} of KSH {{ number_format($loan->principal_amount, 0) }} has been approved. Disbursement will follow shortly. GetCash Capital.',
-    loan_disbursed:   'Dear {{ $loan->customer->full_name }}, your loan {{ $loan->loan_number }} of KSH {{ number_format($loan->principal_amount, 0) }} has been disbursed. First repayment of KSH {{ number_format($loan->weekly_installment, 0) }} is due on {{ $loan->first_due_date?->format("d M Y") ?? "N/A" }}. GetCash Capital.',
+    payment_reminder: 'Dear {{ $loan->customer->full_name }}, your loan {{ $loan->loan_number }} payment of KSH {{ number_format($loan->weekly_installment, 0) }} is due on {{ $loan->next_due_date?->format("d M Y") ?? "N/A" }}. Please pay on time to avoid penalties. Mweela Cash Capital.',
+    overdue_notice:   'Dear {{ $loan->customer->full_name }}, your loan {{ $loan->loan_number }} is {{ $loan->days_in_arrears }} days overdue. Outstanding balance: KSH {{ number_format($loan->outstanding_balance, 0) }}. Please pay immediately to avoid further charges. Mweela Cash Capital.',
+    payment_received: 'Dear {{ $loan->customer->full_name }}, we have received your payment for loan {{ $loan->loan_number }}. Outstanding balance: KSH {{ number_format($loan->outstanding_balance, 0) }}. Thank you. Mweela Cash Capital.',
+    loan_approved:    'Dear {{ $loan->customer->full_name }}, your loan application {{ $loan->loan_number }} of KSH {{ number_format($loan->principal_amount, 0) }} has been approved. Disbursement will follow shortly. Mweela Cash Capital.',
+    loan_disbursed:   'Dear {{ $loan->customer->full_name }}, your loan {{ $loan->loan_number }} of KSH {{ number_format($loan->principal_amount, 0) }} has been disbursed. First repayment of KSH {{ number_format($loan->weekly_installment, 0) }} is due on {{ $loan->first_due_date?->format("d M Y") ?? "N/A" }}. Mweela Cash Capital.',
     custom: '',
 };
 

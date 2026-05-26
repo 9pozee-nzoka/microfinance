@@ -1,7 +1,7 @@
 {{-- resources/views/transactions/suspense.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Suspense Accounts - GetCash Capital')
+@section('title', 'Suspense Accounts - Mweela Cash Capital')
 @section('page-title', 'Suspense Accounts')
 
 @section('content')

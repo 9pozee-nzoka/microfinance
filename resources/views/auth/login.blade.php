@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - GetCash Capital</title>
+    <title>Login - Mweela Cash Capital</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -93,8 +93,8 @@
 <body>
     <div class="login-card">
         <div class="brand">
-            <div class="brand-icon">G</div>
-            <h1>GetCash Capital</h1>
+            <div class="brand-icon">M</div>
+            <h1>Mweela Cash Capital</h1>
             <p style="color: #7F8C8D; font-size: 14px; margin-top: 5px;">SACCO Microfinance System</p>
         </div>
 

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'All Loans - GetCash Capital')
+@section('title', 'All Loans - Mweela Cash Capital')
 @section('page-title', 'All Loans')
 
 @section('content')

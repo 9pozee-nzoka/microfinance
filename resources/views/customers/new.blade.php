@@ -1,7 +1,7 @@
 {{-- resources/views/customers/new.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Newly Registered - GetCash Capital')
+@section('title', 'Newly Registered - Mweela Cash Capital')
 @section('page-title', 'Newly Registered')
 
 @section('content')

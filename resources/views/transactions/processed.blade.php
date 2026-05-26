@@ -1,7 +1,7 @@
 {{-- resources/views/transactions/processed.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Processed Transactions - GetCash Capital')
+@section('title', 'Processed Transactions - Mweela Cash Capital')
 @section('page-title', 'Processed Transactions')
 
 @section('content')

@@ -33,7 +33,7 @@ class DatabaseSeeder extends Seeder
                 'name'     => env('BRANCH_NAME', 'Head Office'),
                 'location' => env('BRANCH_LOCATION', 'Nairobi'),
                 'phone'    => env('BRANCH_PHONE', '+254700000001'),
-                'email'    => env('BRANCH_EMAIL', 'headoffice@getcash.co.ke'),
+                'email'    => env('BRANCH_EMAIL', 'headoffice@mweelacash.co.ke'),
                 'status'   => 'active',
             ]
         );

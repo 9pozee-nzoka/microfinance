@@ -2,7 +2,7 @@
 set -e
 
 echo "══════════════════════════════════════════"
-echo "  GetCash Capital — Deploy Entrypoint"
+echo "  Mweela Cash Capital — Deploy Entrypoint"
 echo "══════════════════════════════════════════"
 
 # ── 0. Wait for PHP-FPM to be ready ───────────────────────────────────────────

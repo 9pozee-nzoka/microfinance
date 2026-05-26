@@ -208,7 +208,7 @@ class CustomerController extends Controller
 
                 $user = User::create([
                     'name'         => $customer->full_name,
-                    'email'        => $customer->email ?? strtolower(str_replace(' ', '.', $customer->full_name)) . '.' . $customer->id . '@portal.getcash.co.ke',
+                    'email'        => $customer->email ?? strtolower(str_replace(' ', '.', $customer->full_name)) . '.' . $customer->id . '@portal.mweelacash.co.ke',
                     'password'     => Hash::make($tempPassword),
                     'phone_number' => $customer->phone_number,
                     'branch_id'    => $customer->branch_id,

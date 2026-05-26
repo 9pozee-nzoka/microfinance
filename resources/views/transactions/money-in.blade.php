@@ -1,7 +1,7 @@
 {{-- resources/views/transactions/money-in.blade.php --}}
 @extends('layouts.app')
 
-@section('title', "Today's Money In - GetCash Capital")
+@section('title', "Today's Money In - Mweela Cash Capital")
 @section('page-title', 'Money In')
 
 @section('content')

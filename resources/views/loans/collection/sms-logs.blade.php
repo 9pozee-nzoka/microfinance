@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SMS Logs - GetCash Capital')
+@section('title', 'SMS Logs - Mweela Cash Capital')
 @section('page-title', 'SMS Logs')
 
 @section('styles')

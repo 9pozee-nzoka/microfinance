@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Manage Customers - GetCash Capital')
+@section('title', 'Manage Customers - Mweela Cash Capital')
 @section('page-title', 'Manage Customers')
 
 @section('styles')

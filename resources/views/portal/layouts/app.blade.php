@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'My Account') — GetCash Capital</title>
+    <title>@yield('title', 'My Account') — Mweela Cash Capital</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -415,9 +415,9 @@
 <aside class="portal-sidebar">
     <div class="sidebar-brand">
         <a href="{{ route('portal.dashboard') }}" class="logo">
-            <div class="logo-icon">G</div>
+            <div class="logo-icon">M</div>
             <div>
-                <div class="logo-text">GetCash Capital</div>
+                <div class="logo-text">Mweela Cash Capital</div>
                 <div class="logo-sub">Customer Portal</div>
             </div>
         </a>

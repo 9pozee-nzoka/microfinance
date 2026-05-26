@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Overdue Loans - GetCash Capital')
+@section('title', 'Overdue Loans - Mweela Cash Capital')
 @section('page-title', 'Overdue Loans')
 
 @section('styles')
@@ -228,7 +228,7 @@
                 </label>
                 <textarea name="message" rows="4" oninput="countChars(this,'bulkCharCount')"
                           style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;resize:vertical;"
-                          placeholder="Dear customer, your loan is overdue. Please pay immediately to avoid further penalties. GetCash Capital." required></textarea>
+                          placeholder="Dear customer, your loan is overdue. Please pay immediately to avoid further penalties. Mweela Cash Capital." required></textarea>
             </div>
             <div style="margin-bottom:20px;">
                 <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Schedule (optional)</label>
@@ -250,8 +250,8 @@
 @section('scripts')
 <script>
 const templates = {
-    overdue_notice:   'Dear {name}, your loan {loan_number} is {days_overdue} days overdue. Outstanding: KSH {outstanding}. Please pay immediately. GetCash Capital.',
-    payment_reminder: 'Dear {name}, your loan {loan_number} payment of KSH {amount_due} is due on {due_date}. Please pay on time. GetCash Capital.',
+    overdue_notice:   'Dear {name}, your loan {loan_number} is {days_overdue} days overdue. Outstanding: KSH {outstanding}. Please pay immediately. Mweela Cash Capital.',
+    payment_reminder: 'Dear {name}, your loan {loan_number} payment of KSH {amount_due} is due on {due_date}. Please pay on time. Mweela Cash Capital.',
     custom: '',
 };
 

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', $customer->full_name . ' - GetCash Capital')
+@section('title', $customer->full_name . ' - Mweela Cash Capital')
 @section('page-title', 'Customer Profile')
 
 @section('styles')

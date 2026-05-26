@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Loan Collection - GetCash Capital')
+@section('title', 'Loan Collection - Mweela Cash Capital')
 @section('page-title', 'Loan Collection')
 
 @section('styles')
@@ -372,9 +372,9 @@
 @section('scripts')
 <script>
 const templates = {
-    payment_reminder: 'Dear {name}, your loan {loan_number} payment of KSH {amount_due} is due on {due_date}. Please pay on time to avoid penalties. GetCash Capital.',
-    overdue_notice:   'Dear {name}, your loan {loan_number} is {days_overdue} days overdue. Outstanding: KSH {outstanding}. Please pay immediately to avoid further charges. GetCash Capital.',
-    payment_received: 'Dear {name}, we have received your payment for loan {loan_number}. Outstanding balance: KSH {outstanding}. Thank you. GetCash Capital.',
+    payment_reminder: 'Dear {name}, your loan {loan_number} payment of KSH {amount_due} is due on {due_date}. Please pay on time to avoid penalties. Mweela Cash Capital.',
+    overdue_notice:   'Dear {name}, your loan {loan_number} is {days_overdue} days overdue. Outstanding: KSH {outstanding}. Please pay immediately to avoid further charges. Mweela Cash Capital.',
+    payment_received: 'Dear {name}, we have received your payment for loan {loan_number}. Outstanding balance: KSH {outstanding}. Thank you. Mweela Cash Capital.',
     custom: '',
 };
 

@@ -1,7 +1,7 @@
 {{-- resources/views/customers/credit-history.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Credit Score History - GetCash Capital')
+@section('title', 'Credit Score History - Mweela Cash Capital')
 @section('page-title', 'Credit Score History')
 
 @section('content')

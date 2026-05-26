@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SMS Schedules - GetCash Capital')
+@section('title', 'SMS Schedules - Mweela Cash Capital')
 @section('page-title', 'SMS Schedules')
 
 @section('styles')
@@ -251,7 +251,7 @@
                 </label>
                 <textarea name="message_template" id="fTemplate" rows="4" oninput="countTplChars(this)"
                           class="form-control" style="resize:vertical;"
-                          placeholder="Dear {name}, your loan {loan_number} payment of KSH {amount_due} is due on {due_date}. GetCash Capital." required></textarea>
+                          placeholder="Dear {name}, your loan {loan_number} payment of KSH {amount_due} is due on {due_date}. Mweela Cash Capital." required></textarea>
                 <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:3px;">
                     @foreach(['{name}','{loan_number}','{amount_due}','{due_date}','{outstanding}','{days_overdue}'] as $tag)
                     <span class="placeholder-tag" onclick="insertTag('{{ $tag }}')">{{ $tag }}</span>

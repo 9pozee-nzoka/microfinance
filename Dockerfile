@@ -40,7 +40,7 @@ RUN composer dump-autoload --optimize --no-dev
 # ─────────────────────────────────────────────────────────────────────────────
 FROM php:8.4-fpm-alpine
 
-LABEL maintainer="GetCash Capital <dev@getcash.co.ke>"
+LABEL maintainer="Mweela Cash Capital <dev@mweelacash.co.ke>"
 
 # ── System packages ───────────────────────────────────────────────────────────
 RUN apk add --no-cache \

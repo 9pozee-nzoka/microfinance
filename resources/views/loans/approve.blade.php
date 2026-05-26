@@ -1,7 +1,7 @@
 {{-- resources/views/loans/approve.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Approve New Loans - GetCash Capital')
+@section('title', 'Approve New Loans - Mweela Cash Capital')
 @section('page-title', 'Approve New Loans')
 
 @section('styles')

@@ -1,7 +1,7 @@
 {{-- resources/views/customers/rejected.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Rejected Customers - GetCash Capital')
+@section('title', 'Rejected Customers - Mweela Cash Capital')
 @section('page-title', 'Rejected Customers')
 
 @section('content')

@@ -1,7 +1,7 @@
 services:
   # ── Web Service ─────────────────────────────────────────────────────────────
   - type: web
-    name: getcash-capital
+    name: mweela-cash-capital
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
@@ -14,7 +14,7 @@ services:
 
     envVars:
       - key: APP_NAME
-        value: "GetCash Capital"
+        value: "Mweela Cash Capital"
 
       - key: APP_ENV
         value: production
@@ -27,7 +27,7 @@ services:
         # know your custom domain.
         fromService:
           type: web
-          name: getcash-capital
+          name: mweela-cash-capital
           property: host
 
       - key: APP_KEY
@@ -42,27 +42,27 @@ services:
 
       - key: DB_HOST
         fromDatabase:
-          name: getcash-db
+          name: mweela-cash-db
           property: host
 
       - key: DB_PORT
         fromDatabase:
-          name: getcash-db
+          name: mweela-cash-db
           property: port
 
       - key: DB_DATABASE
         fromDatabase:
-          name: getcash-db
+          name: mweela-cash-db
           property: database
 
       - key: DB_USERNAME
         fromDatabase:
-          name: getcash-db
+          name: mweela-cash-db
           property: user
 
       - key: DB_PASSWORD
         fromDatabase:
-          name: getcash-db
+          name: mweela-cash-db
           property: password
 
       # ── Session / Cache / Queue ─────────────────────────────────────────────
@@ -93,10 +93,10 @@ services:
         value: log              # swap to smtp/ses/mailgun in production
 
       - key: MAIL_FROM_ADDRESS
-        value: "noreply@getcash.co.ke"
+        value: "noreply@mweelacash.co.ke"
 
       - key: MAIL_FROM_NAME
-        value: "GetCash Capital"
+        value: "Mweela Cash Capital"
 
       # ── Seed credentials (set in Render dashboard — never commit real values) ──
       - key: ADMIN_EMAIL
@@ -173,8 +173,8 @@ services:
 
   # ── PostgreSQL Database ──────────────────────────────────────────────────────
 databases:
-  - name: getcash-db
+  - name: mweela-cash-db
     plan: starter              # free tier: 1 GB storage, 97 MB RAM
     databaseName: microfinance
-    user: getcash
+    user: mweelacash
     region: oregon             # choose closest to your users

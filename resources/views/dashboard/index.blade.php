@@ -1,7 +1,7 @@
 {{-- resources/views/dashboard/index.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Dashboard - GetCash Capital')
+@section('title', 'Dashboard - Mweela Cash Capital')
 @section('page-title', 'Dashboard')
 
 @section('content')
