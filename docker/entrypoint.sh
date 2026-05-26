@@ -15,9 +15,10 @@ php artisan config:clear --no-interaction 2>/dev/null || true
 php artisan route:clear  --no-interaction 2>/dev/null || true
 php artisan view:clear   --no-interaction 2>/dev/null || true
 
-# ── 2. Run migrations ─────────────────────────────────────────────────────────
-echo "[2/8] Running migrations..."
-php artisan migrate --force --no-interaction
+# ── 2. Fresh migrations + seed ────────────────────────────────────────────────
+echo "[2/8] Running fresh migrations and seeding..."
+php artisan migrate:fresh --seed --force --no-interaction
+echo "     ✓ Migrations and seed complete."
 
 # ── 3. Flush DB-backed cache (table now exists) ───────────────────────────────
 echo "[3/8] Flushing application cache..."
@@ -29,32 +30,8 @@ php artisan config:cache --no-interaction
 php artisan route:cache  --no-interaction
 php artisan view:cache   --no-interaction
 
-# ── 5. Seed database ──────────────────────────────────────────────────────────
-echo "[5/8] Checking seed state..."
-
-# Build the DSN from individual env vars (Render injects these separately)
-DB_HOST="${DB_HOST:-127.0.0.1}"
-DB_PORT="${DB_PORT:-5432}"
-DB_DATABASE="${DB_DATABASE:-microfinance}"
-DB_USERNAME="${DB_USERNAME:-postgres}"
-DB_PASSWORD="${DB_PASSWORD:-}"
-
-ROLE_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql \
-    -h "$DB_HOST" \
-    -p "$DB_PORT" \
-    -U "$DB_USERNAME" \
-    -d "$DB_DATABASE" \
-    -t -c "SELECT COUNT(*) FROM roles;" 2>/dev/null | tr -d '[:space:]') || ROLE_COUNT=""
-
-echo "     Roles found in DB: '${ROLE_COUNT}'"
-
-if [ -z "$ROLE_COUNT" ] || [ "$ROLE_COUNT" = "0" ]; then
-    echo "     ► Seeding database..."
-    php artisan db:seed --force --no-interaction
-    echo "     ✓ Seed complete."
-else
-    echo "     ✓ Already seeded (${ROLE_COUNT} roles). Skipping."
-fi
+# ── 5. (Seed handled in step 2) ───────────────────────────────────────────────
+echo "[5/8] Seed already applied in step 2. Skipping."
 
 # ── 6. Storage link ───────────────────────────────────────────────────────────
 echo "[6/8] Linking storage..."
