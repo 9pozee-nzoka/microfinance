@@ -38,6 +38,10 @@
                class="nav-item {{ request()->routeIs('customers.index') ? 'active' : '' }}">
                 <i class="fas fa-user-cog"></i><span>Manage Customers</span>
             </a>
+            <a href="{{ route('customers.create') }}"
+               class="nav-item {{ request()->routeIs('customers.create') ? 'active' : '' }}">
+                <i class="fas fa-user-edit"></i><span>Member Registration</span>
+            </a>
             <a href="{{ route('customers.new') }}"
                class="nav-item {{ request()->routeIs('customers.new') ? 'active' : '' }}">
                 <i class="fas fa-user-plus"></i><span>Newly Registered</span>

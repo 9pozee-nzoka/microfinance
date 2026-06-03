@@ -71,18 +71,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{customer}/recalculate-score', [CustomerController::class, 'recalculateScore'])->name('recalculate-score');
     });
 
-    // Loan Management
-    Route::prefix('loans')->name('loans.')->group(function () {
-        Route::get('/approve-new',          [LoanController::class, 'approveNew'])->name('approve');
-        Route::get('/create',               [LoanController::class, 'create'])->name('create');
-        Route::post('/',                    [LoanController::class, 'store'])->name('store');
-        Route::get('/',                     [LoanController::class, 'index'])->name('index');
-        Route::get('/{loan}',               [LoanController::class, 'show'])->name('show');
-        Route::patch('/{loan}/approve',     [LoanController::class, 'approve'])->name('approve-action');
-        Route::patch('/{loan}/reject',      [LoanController::class, 'rejectLoan'])->name('reject');
-        Route::patch('/{loan}/disburse',    [LoanController::class, 'disburse'])->name('disburse');
-    });
-
     // Loan Collections & SMS
     Route::prefix('loans/collection')->name('collection.')->group(function () {
         Route::get('/',                                    [CollectionController::class, 'index'])->name('index');
@@ -97,6 +85,18 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/schedules/{schedule}',             [CollectionController::class, 'destroySchedule'])->name('schedules.destroy');
         Route::post('/schedules/{schedule}/run',           [CollectionController::class, 'runSchedule'])->name('schedules.run');
         Route::patch('/schedules/{schedule}/toggle',       [CollectionController::class, 'toggleSchedule'])->name('schedules.toggle');
+    });
+
+    // Loan Management
+    Route::prefix('loans')->name('loans.')->group(function () {
+        Route::get('/approve-new',          [LoanController::class, 'approveNew'])->name('approve');
+        Route::get('/create',               [LoanController::class, 'create'])->name('create');
+        Route::post('/',                    [LoanController::class, 'store'])->name('store');
+        Route::get('/',                     [LoanController::class, 'index'])->name('index');
+        Route::get('/{loan}',               [LoanController::class, 'show'])->name('show');
+        Route::patch('/{loan}/approve',     [LoanController::class, 'approve'])->name('approve-action');
+        Route::patch('/{loan}/reject',      [LoanController::class, 'rejectLoan'])->name('reject');
+        Route::patch('/{loan}/disburse',    [LoanController::class, 'disburse'])->name('disburse');
     });
 
     // Transactions

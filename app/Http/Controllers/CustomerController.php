@@ -329,7 +329,8 @@ class CustomerController extends Controller
         $customer->load(['repayments', 'loans', 'creditScores']);
 
         // Savings history (max 300): based on savings balance vs avg
-        $avgSavings = Customer::avg('savings_balance') ?: 1;
+        $avgSavings = Customer::avg('savings_balance');
+        $avgSavings = (is_numeric($avgSavings) && $avgSavings > 0) ? $avgSavings : 1;
         $savingsScore = min(300, round(($customer->savings_balance / $avgSavings) * 150));
 
         // Repayment history (max 400): ratio of on-time payments
