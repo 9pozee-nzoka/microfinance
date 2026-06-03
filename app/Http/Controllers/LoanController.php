@@ -253,4 +253,45 @@ class LoanController extends Controller
 
         return back()->with('success', "Loan {$loan->loan_number} disbursed successfully.");
     }
+
+    // ── Record Processing Fee Payment ────────────────────────────
+    public function recordProcessingFee(Request $request, Loan $loan)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:0|max:' . $loan->processing_fee,
+            'payment_method' => 'required|in:mpesa,bank_transfer,cash',
+            'reference' => 'nullable|string|max:255',
+        ]);
+
+        $loan->update([
+            'processing_fee_paid' => $request->amount,
+            'processing_fee_paid_at' => now(),
+            'processing_fee_paid_by' => auth()->id(),
+        ]);
+
+        // Create transaction record
+        \App\Models\Transaction::create([
+            'transaction_number' => 'TXN-' . date('YmdHis') . '-' . str_pad(\App\Models\Transaction::count() + 1, 4, '0', STR_PAD_LEFT),
+            'customer_id'        => $loan->customer_id,
+            'loan_id'            => $loan->id,
+            'transaction_type'   => 'processing_fee',
+            'direction'          => 'credit',
+            'amount'             => $request->amount,
+            'balance_after'      => 0,
+            'source'             => $request->payment_method,
+            'external_reference' => $request->reference,
+            'status'             => 'completed',
+            'is_reconciled'      => true,
+            'reconciled_at'      => now(),
+            'narration'          => "Processing fee payment for {$loan->loan_number}",
+            'created_by'         => auth()->id(),
+            'branch_id'          => $loan->branch_id,
+        ]);
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Processing fee recorded.']);
+        }
+
+        return back()->with('success', "Processing fee of KSH " . number_format($request->amount, 0) . " recorded for loan {$loan->loan_number}.");
+    }
 }

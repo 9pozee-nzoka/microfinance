@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\CreditScore;
 use App\Models\Customer;
+use App\Models\CustomerTempPassword;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,8 @@ class CustomerController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('full_name', 'like', "%{$s}%")
+                  ->orWhere('first_name', 'like', "%{$s}%")
+                  ->orWhere('last_name', 'like', "%{$s}%")
                   ->orWhere('phone_number', 'like', "%{$s}%")
                   ->orWhere('id_number', 'like', "%{$s}%")
                   ->orWhere('customer_number', 'like', "%{$s}%");
@@ -32,6 +35,7 @@ class CustomerController extends Controller
         if ($request->filled('status'))          $query->where('status', $request->status);
         if ($request->filled('branch'))          $query->where('branch_id', $request->branch);
         if ($request->filled('employment_type')) $query->where('employment_type', $request->employment_type);
+        if ($request->filled('customer_type'))   $query->where('customer_type', $request->customer_type);
 
         $customers       = $query->latest()->paginate(20)->withQueryString();
         $totalCustomers  = Customer::count();
@@ -59,17 +63,27 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'full_name'                 => 'required|string|max:255',
+            'first_name'                => 'required|string|max:255',
+            'middle_name'               => 'nullable|string|max:255',
+            'last_name'                 => 'required|string|max:255',
             'phone_number'              => 'required|string|max:20|unique:customers,phone_number',
             'email'                     => 'nullable|email|max:255|unique:customers,email',
             'id_number'                 => 'required|string|max:20|unique:customers,id_number',
             'date_of_birth'             => 'required|date|before:' . now()->subYears(18)->toDateString(),
             'gender'                    => 'required|in:male,female,other',
+            'marital_status'            => 'nullable|in:single,married,divorced,widowed',
+            'education_level'           => 'nullable|in:none,primary,secondary,diploma,degree,masters,phd',
             'nationality'               => 'nullable|string|max:100',
+            'kra_pin_number'            => 'nullable|string|max:50',
             'address'                   => 'nullable|string|max:500',
             'county'                    => 'nullable|string|max:100',
             'sub_county'                => 'nullable|string|max:100',
             'ward'                      => 'nullable|string|max:100',
+            'residential_county'        => 'nullable|string|max:100',
+            'residential_sub_county'    => 'nullable|string|max:100',
+            'residential_ward'          => 'nullable|string|max:100',
+            'residential_estate'        => 'nullable|string|max:100',
+            'residential_house_number'  => 'nullable|string|max:50',
             'employment_type'           => 'required|in:salaried,self_employed,business,farmer,other',
             'monthly_income'            => 'required|numeric|min:0',
             'employer_name'             => 'nullable|string|max:255',
@@ -82,6 +96,8 @@ class CustomerController extends Controller
             'branch_id'                 => 'required|exists:branches,id',
             'relationship_officer_id'   => 'required|exists:users,id',
             'share_capital'             => 'nullable|numeric|min:0',
+            'customer_type'             => 'nullable|in:permanent,non_permanent',
+            'qualified_amount'          => 'nullable|numeric|min:0',
             'id_front'                  => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'id_back'                   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'passport_photo'            => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
@@ -96,7 +112,11 @@ class CustomerController extends Controller
             }
         }
 
+        // Build full_name from parts
+        $fullName = trim($validated['first_name'] . ' ' . ($validated['middle_name'] ?? '') . ' ' . $validated['last_name']);
+
         $customer = Customer::create(array_merge($validated, $paths, [
+            'full_name'     => $fullName,
             'share_capital' => $request->share_capital ?? 0,
             'status'        => 'pending',
         ]));
@@ -126,17 +146,27 @@ class CustomerController extends Controller
     public function update(Request $request, Customer $customer)
     {
         $validated = $request->validate([
-            'full_name'                 => 'required|string|max:255',
+            'first_name'                => 'required|string|max:255',
+            'middle_name'               => 'nullable|string|max:255',
+            'last_name'                 => 'required|string|max:255',
             'phone_number'              => 'required|string|max:20|unique:customers,phone_number,' . $customer->id,
             'email'                     => 'nullable|email|max:255|unique:customers,email,' . $customer->id,
             'id_number'                 => 'required|string|max:20|unique:customers,id_number,' . $customer->id,
             'date_of_birth'             => 'required|date|before:' . now()->subYears(18)->toDateString(),
             'gender'                    => 'required|in:male,female,other',
+            'marital_status'            => 'nullable|in:single,married,divorced,widowed',
+            'education_level'           => 'nullable|in:none,primary,secondary,diploma,degree,masters,phd',
             'nationality'               => 'nullable|string|max:100',
+            'kra_pin_number'            => 'nullable|string|max:50',
             'address'                   => 'nullable|string|max:500',
             'county'                    => 'nullable|string|max:100',
             'sub_county'                => 'nullable|string|max:100',
             'ward'                      => 'nullable|string|max:100',
+            'residential_county'        => 'nullable|string|max:100',
+            'residential_sub_county'    => 'nullable|string|max:100',
+            'residential_ward'          => 'nullable|string|max:100',
+            'residential_estate'        => 'nullable|string|max:100',
+            'residential_house_number'  => 'nullable|string|max:50',
             'employment_type'           => 'required|in:salaried,self_employed,business,farmer,other',
             'monthly_income'            => 'required|numeric|min:0',
             'employer_name'             => 'nullable|string|max:255',
@@ -149,7 +179,11 @@ class CustomerController extends Controller
             'branch_id'                 => 'required|exists:branches,id',
             'relationship_officer_id'   => 'required|exists:users,id',
             'status'                    => 'required|in:pending,active,suspended,dormant',
+            'customer_type'             => 'nullable|in:permanent,non_permanent',
+            'qualified_amount'          => 'nullable|numeric|min:0',
         ]);
+
+        $validated['full_name'] = trim($validated['first_name'] . ' ' . ($validated['middle_name'] ?? '') . ' ' . $validated['last_name']);
 
         $customer->update($validated);
 
@@ -167,6 +201,8 @@ class CustomerController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('full_name', 'like', "%{$s}%")
+                  ->orWhere('first_name', 'like', "%{$s}%")
+                  ->orWhere('last_name', 'like', "%{$s}%")
                   ->orWhere('phone_number', 'like', "%{$s}%")
                   ->orWhere('id_number', 'like', "%{$s}%");
             });
@@ -220,7 +256,14 @@ class CustomerController extends Controller
 
                 $customer->update(['user_id' => $user->id]);
 
-                // Store temp password in session so staff can share it
+                // Save temp password for later retrieval
+                CustomerTempPassword::create([
+                    'customer_id'    => $customer->id,
+                    'user_id'        => $user->id,
+                    'temp_password'  => $tempPassword,
+                ]);
+
+                // Also flash in session for immediate display
                 session()->flash('portal_credentials', [
                     'email'    => $user->email,
                     'password' => $tempPassword,
@@ -329,9 +372,10 @@ class CustomerController extends Controller
         $customer->load(['repayments', 'loans', 'creditScores']);
 
         // Savings history (max 300): based on savings balance vs avg
-        $avgSavings = Customer::avg('savings_balance');
-        $avgSavings = (is_numeric($avgSavings) && $avgSavings > 0) ? $avgSavings : 1;
-        $savingsScore = min(300, round(($customer->savings_balance / $avgSavings) * 150));
+        $avgSavings = (float) (Customer::avg('savings_balance') ?? 0);
+        $savingsScore = $avgSavings > 0
+            ? min(300, round((($customer->savings_balance ?? 0) / $avgSavings) * 150))
+            : 0;
 
         // Repayment history (max 400): ratio of on-time payments
         $totalRepayments = $customer->repayments()->count();

@@ -61,12 +61,12 @@
         </div>
 
         {{-- Loan Management --}}
-        <button class="nav-item has-submenu {{ request()->routeIs('loans.*') || request()->routeIs('collection.*') ? 'active expanded' : '' }}">
+        <button class="nav-item has-submenu {{ request()->routeIs('loans.*') || request()->routeIs('collection.*') || request()->routeIs('loan-products.*') ? 'active expanded' : '' }}">
             <i class="fas fa-hand-holding-usd"></i>
             <span>Loan Management</span>
             <i class="fas fa-chevron-right chevron"></i>
         </button>
-        <div class="submenu {{ request()->routeIs('loans.*') || request()->routeIs('collection.*') ? 'show' : '' }}">
+        <div class="submenu {{ request()->routeIs('loans.*') || request()->routeIs('collection.*') || request()->routeIs('loan-products.*') ? 'show' : '' }}">
             <a href="{{ route('loans.approve') }}"
                class="nav-item {{ request()->routeIs('loans.approve') ? 'active' : '' }}">
                 <i class="fas fa-check-circle"></i><span>Approve New Loans</span>
@@ -74,6 +74,10 @@
             <a href="{{ route('loans.index') }}"
                class="nav-item {{ request()->routeIs('loans.index') ? 'active' : '' }}">
                 <i class="fas fa-list"></i><span>All Loans</span>
+            </a>
+            <a href="{{ route('loan-products.index') }}"
+               class="nav-item {{ request()->routeIs('loan-products.*') ? 'active' : '' }}">
+                <i class="fas fa-box"></i><span>Loan Products</span>
             </a>
             <a href="{{ route('collection.index') }}"
                class="nav-item {{ request()->routeIs('collection.index') ? 'active' : '' }}">
@@ -111,6 +115,23 @@
             <a href="{{ route('transactions.processed') }}"
                class="nav-item {{ request()->routeIs('transactions.processed') ? 'active' : '' }}">
                 <i class="fas fa-check-double"></i><span>Processed</span>
+            </a>
+        </div>
+
+        {{-- Staff Management --}}
+        <button class="nav-item has-submenu {{ request()->routeIs('staff.*') ? 'active expanded' : '' }}">
+            <i class="fas fa-user-tie"></i>
+            <span>Staff Management</span>
+            <i class="fas fa-chevron-right chevron"></i>
+        </button>
+        <div class="submenu {{ request()->routeIs('staff.*') ? 'show' : '' }}">
+            <a href="{{ route('staff.index') }}"
+               class="nav-item {{ request()->routeIs('staff.index') ? 'active' : '' }}">
+                <i class="fas fa-users-cog"></i><span>Staff Overview</span>
+            </a>
+            <a href="{{ route('staff.create') }}"
+               class="nav-item {{ request()->routeIs('staff.create') ? 'active' : '' }}">
+                <i class="fas fa-user-plus"></i><span>Add Staff</span>
             </a>
         </div>
 

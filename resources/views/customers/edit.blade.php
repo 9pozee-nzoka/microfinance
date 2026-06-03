@@ -28,47 +28,53 @@
         <div class="section-heading"><i class="fas fa-user"></i> Personal Information</div>
         <div class="grid-3">
             <div class="form-group">
-                <label class="form-label">Full Name <span class="req">*</span></label>
-                <input type="text" name="full_name" value="{{ old('full_name', $customer->full_name) }}"
-                       class="form-control {{ $errors->has('full_name') ? 'is-invalid' : '' }}" required>
-                @error('full_name')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                <label class="form-label">First Name <span class="req">*</span></label>
+                <input type="text" name="first_name" value="{{ old('first_name', $customer->first_name) }}" class="form-control" required>
             </div>
             <div class="form-group">
-                <label class="form-label">Phone Number <span class="req">*</span></label>
-                <input type="text" name="phone_number" value="{{ old('phone_number', $customer->phone_number) }}"
-                       class="form-control {{ $errors->has('phone_number') ? 'is-invalid' : '' }}" required>
-                @error('phone_number')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                <label class="form-label">Middle Name</label>
+                <input type="text" name="middle_name" value="{{ old('middle_name', $customer->middle_name) }}" class="form-control">
             </div>
             <div class="form-group">
-                <label class="form-label">Email Address</label>
-                <input type="email" name="email" value="{{ old('email', $customer->email) }}"
-                       class="form-control {{ $errors->has('email') ? 'is-invalid' : '' }}">
-                @error('email')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                <label class="form-label">Last Name <span class="req">*</span></label>
+                <input type="text" name="last_name" value="{{ old('last_name', $customer->last_name) }}" class="form-control" required>
             </div>
         </div>
         <div class="grid-3">
             <div class="form-group">
-                <label class="form-label">National ID Number <span class="req">*</span></label>
-                <input type="text" name="id_number" value="{{ old('id_number', $customer->id_number) }}"
-                       class="form-control {{ $errors->has('id_number') ? 'is-invalid' : '' }}" required>
-                @error('id_number')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                <label class="form-label">Phone Number <span class="req">*</span></label>
+                <input type="text" name="phone_number" value="{{ old('phone_number', $customer->phone_number) }}" class="form-control" required>
             </div>
             <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" name="email" value="{{ old('email', $customer->email) }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">National ID Number <span class="req">*</span></label>
+                <input type="text" name="id_number" value="{{ old('id_number', $customer->id_number) }}" class="form-control" required>
+            </div>
+        </div>
+        <div class="grid-3">
+            <div class="form-group">
                 <label class="form-label">Date of Birth <span class="req">*</span></label>
-                <input type="date" name="date_of_birth" value="{{ old('date_of_birth', $customer->date_of_birth?->toDateString()) }}"
-                       class="form-control {{ $errors->has('date_of_birth') ? 'is-invalid' : '' }}"
-                       max="{{ now()->subYears(18)->toDateString() }}" required>
-                @error('date_of_birth')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                <input type="date" name="date_of_birth" value="{{ old('date_of_birth', $customer->date_of_birth?->toDateString()) }}" class="form-control" max="{{ now()->subYears(18)->toDateString() }}" required>
             </div>
             <div class="form-group">
                 <label class="form-label">Gender <span class="req">*</span></label>
-                <select name="gender" class="form-control {{ $errors->has('gender') ? 'is-invalid' : '' }}" required>
-                    <option value="">-- Select --</option>
+                <select name="gender" class="form-control" required>
                     @foreach(['male' => 'Male', 'female' => 'Female', 'other' => 'Other'] as $val => $label)
                         <option value="{{ $val }}" {{ old('gender', $customer->gender) === $val ? 'selected' : '' }}>{{ $label }}</option>
                     @endforeach
                 </select>
-                @error('gender')<span class="invalid-feedback">{{ $message }}</span>@enderror
+            </div>
+            <div class="form-group">
+                <label class="form-label">Marital Status</label>
+                <select name="marital_status" class="form-control">
+                    <option value="">-- Select --</option>
+                    @foreach(['single','married','divorced','widowed'] as $ms)
+                        <option value="{{ $ms }}" {{ old('marital_status', $customer->marital_status) === $ms ? 'selected' : '' }}>{{ ucfirst($ms) }}</option>
+                    @endforeach
+                </select>
             </div>
         </div>
         <div class="grid-3">
@@ -76,22 +82,64 @@
                 <label class="form-label">Nationality</label>
                 <input type="text" name="nationality" value="{{ old('nationality', $customer->nationality) }}" class="form-control">
             </div>
-            <div class="form-group" style="grid-column:span 2;">
+            <div class="form-group">
+                <label class="form-label">Education Level</label>
+                <select name="education_level" class="form-control">
+                    <option value="">-- Select --</option>
+                    @foreach(['none','primary','secondary','diploma','degree','masters','phd'] as $edu)
+                        <option value="{{ $edu }}" {{ old('education_level', $customer->education_level) === $edu ? 'selected' : '' }}>{{ ucfirst($edu) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">KRA PIN Number</label>
+                <input type="text" name="kra_pin_number" value="{{ old('kra_pin_number', $customer->kra_pin_number) }}" class="form-control">
+            </div>
+        </div>
+    </div>
+
+    {{-- ── Residential ── --}}
+    <div class="form-section">
+        <div class="section-heading"><i class="fas fa-home"></i> Residential Details</div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">County</label>
+                <input type="text" name="residential_county" value="{{ old('residential_county', $customer->residential_county) }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Sub-County</label>
+                <input type="text" name="residential_sub_county" value="{{ old('residential_sub_county', $customer->residential_sub_county) }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ward</label>
+                <input type="text" name="residential_ward" value="{{ old('residential_ward', $customer->residential_ward) }}" class="form-control">
+            </div>
+        </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Estate / Village</label>
+                <input type="text" name="residential_estate" value="{{ old('residential_estate', $customer->residential_estate) }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">House Number</label>
+                <input type="text" name="residential_house_number" value="{{ old('residential_house_number', $customer->residential_house_number) }}" class="form-control">
+            </div>
+            <div class="form-group">
                 <label class="form-label">Physical Address</label>
                 <input type="text" name="address" value="{{ old('address', $customer->address) }}" class="form-control">
             </div>
         </div>
         <div class="grid-3">
             <div class="form-group">
-                <label class="form-label">County</label>
+                <label class="form-label">County (Legacy)</label>
                 <input type="text" name="county" value="{{ old('county', $customer->county) }}" class="form-control">
             </div>
             <div class="form-group">
-                <label class="form-label">Sub-County</label>
+                <label class="form-label">Sub-County (Legacy)</label>
                 <input type="text" name="sub_county" value="{{ old('sub_county', $customer->sub_county) }}" class="form-control">
             </div>
             <div class="form-group">
-                <label class="form-label">Ward</label>
+                <label class="form-label">Ward (Legacy)</label>
                 <input type="text" name="ward" value="{{ old('ward', $customer->ward) }}" class="form-control">
             </div>
         </div>
@@ -103,22 +151,15 @@
         <div class="grid-3">
             <div class="form-group">
                 <label class="form-label">Employment Type <span class="req">*</span></label>
-                <select name="employment_type" id="employmentType"
-                        class="form-control {{ $errors->has('employment_type') ? 'is-invalid' : '' }}"
-                        onchange="toggleEmploymentFields()" required>
-                    <option value="">-- Select --</option>
+                <select name="employment_type" id="employmentType" class="form-control" onchange="toggleEmploymentFields()" required>
                     @foreach(['salaried' => 'Salaried', 'self_employed' => 'Self Employed', 'business' => 'Business Owner', 'farmer' => 'Farmer', 'other' => 'Other'] as $val => $label)
                         <option value="{{ $val }}" {{ old('employment_type', $customer->employment_type) === $val ? 'selected' : '' }}>{{ $label }}</option>
                     @endforeach
                 </select>
-                @error('employment_type')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
             <div class="form-group">
                 <label class="form-label">Monthly Income (KSH) <span class="req">*</span></label>
-                <input type="number" name="monthly_income" value="{{ old('monthly_income', $customer->monthly_income) }}"
-                       class="form-control {{ $errors->has('monthly_income') ? 'is-invalid' : '' }}"
-                       min="0" step="0.01" required>
-                @error('monthly_income')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                <input type="number" name="monthly_income" value="{{ old('monthly_income', $customer->monthly_income) }}" class="form-control" min="0" step="0.01" required>
             </div>
             <div class="form-group" id="employerField">
                 <label class="form-label">Employer Name</label>
@@ -143,28 +184,21 @@
         <div class="grid-2">
             <div class="form-group">
                 <label class="form-label">Full Name <span class="req">*</span></label>
-                <input type="text" name="next_of_kin_name" value="{{ old('next_of_kin_name', $customer->next_of_kin_name) }}"
-                       class="form-control {{ $errors->has('next_of_kin_name') ? 'is-invalid' : '' }}" required>
-                @error('next_of_kin_name')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                <input type="text" name="next_of_kin_name" value="{{ old('next_of_kin_name', $customer->next_of_kin_name) }}" class="form-control" required>
             </div>
             <div class="form-group">
                 <label class="form-label">Phone Number <span class="req">*</span></label>
-                <input type="text" name="next_of_kin_phone" value="{{ old('next_of_kin_phone', $customer->next_of_kin_phone) }}"
-                       class="form-control {{ $errors->has('next_of_kin_phone') ? 'is-invalid' : '' }}" required>
-                @error('next_of_kin_phone')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                <input type="text" name="next_of_kin_phone" value="{{ old('next_of_kin_phone', $customer->next_of_kin_phone) }}" class="form-control" required>
             </div>
         </div>
         <div class="grid-2">
             <div class="form-group">
                 <label class="form-label">Relationship <span class="req">*</span></label>
-                <select name="next_of_kin_relationship"
-                        class="form-control {{ $errors->has('next_of_kin_relationship') ? 'is-invalid' : '' }}" required>
-                    <option value="">-- Select --</option>
+                <select name="next_of_kin_relationship" class="form-control" required>
                     @foreach(['Spouse','Parent','Sibling','Child','Relative','Friend','Other'] as $rel)
                         <option value="{{ $rel }}" {{ old('next_of_kin_relationship', $customer->next_of_kin_relationship) === $rel ? 'selected' : '' }}>{{ $rel }}</option>
                     @endforeach
                 </select>
-                @error('next_of_kin_relationship')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
             <div class="form-group">
                 <label class="form-label">Address</label>
@@ -179,27 +213,19 @@
         <div class="grid-3">
             <div class="form-group">
                 <label class="form-label">Branch <span class="req">*</span></label>
-                <select name="branch_id" class="form-control {{ $errors->has('branch_id') ? 'is-invalid' : '' }}" required>
-                    <option value="">-- Select Branch --</option>
+                <select name="branch_id" class="form-control" required>
                     @foreach($branches as $branch)
-                        <option value="{{ $branch->id }}" {{ old('branch_id', $customer->branch_id) == $branch->id ? 'selected' : '' }}>
-                            {{ $branch->name }}
-                        </option>
+                        <option value="{{ $branch->id }}" {{ old('branch_id', $customer->branch_id) == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
                     @endforeach
                 </select>
-                @error('branch_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
             <div class="form-group">
                 <label class="form-label">Relationship Officer <span class="req">*</span></label>
-                <select name="relationship_officer_id" class="form-control {{ $errors->has('relationship_officer_id') ? 'is-invalid' : '' }}" required>
-                    <option value="">-- Select Officer --</option>
+                <select name="relationship_officer_id" class="form-control" required>
                     @foreach($officers as $officer)
-                        <option value="{{ $officer->id }}" {{ old('relationship_officer_id', $customer->relationship_officer_id) == $officer->id ? 'selected' : '' }}>
-                            {{ $officer->name }}
-                        </option>
+                        <option value="{{ $officer->id }}" {{ old('relationship_officer_id', $customer->relationship_officer_id) == $officer->id ? 'selected' : '' }}>{{ $officer->name }}</option>
                     @endforeach
                 </select>
-                @error('relationship_officer_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
             <div class="form-group">
                 <label class="form-label">Status</label>
@@ -208,6 +234,20 @@
                         <option value="{{ $val }}" {{ old('status', $customer->status) === $val ? 'selected' : '' }}>{{ $label }}</option>
                     @endforeach
                 </select>
+            </div>
+        </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Customer Type</label>
+                <select name="customer_type" class="form-control">
+                    <option value="">-- Select --</option>
+                    <option value="permanent" {{ old('customer_type', $customer->customer_type)==='permanent'?'selected':'' }}>Permanent</option>
+                    <option value="non_permanent" {{ old('customer_type', $customer->customer_type)==='non_permanent'?'selected':'' }}>Non-Permanent</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Qualified Amount (KSH)</label>
+                <input type="number" name="qualified_amount" value="{{ old('qualified_amount', $customer->qualified_amount) }}" class="form-control" min="0" step="0.01">
             </div>
         </div>
     </div>

@@ -1,0 +1,206 @@
+@extends('layouts.app')
+
+@section('title', 'Add Loan Product - Mweela Cash Capital')
+@section('page-title', 'Add Loan Product')
+
+@section('content')
+
+<div style="margin-bottom:20px;">
+    <a href="{{ route('loan-products.index') }}" class="btn btn-outline" style="font-size:13px;">
+        <i class="fas fa-arrow-left"></i> Back to Products
+    </a>
+</div>
+
+@if($errors->any())
+<div class="flash-error">
+    <div style="font-weight:600; margin-bottom:6px;"><i class="fas fa-exclamation-circle"></i> Please fix the following errors:</div>
+    <ul style="margin:0; padding-left:18px; font-size:13px;">
+        @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
+    </ul>
+</div>
+@endif
+
+<form method="POST" action="{{ route('loan-products.store') }}" id="productForm">
+    @csrf
+    <div class="form-section">
+        <div class="section-heading"><i class="fas fa-tag"></i> Product Details</div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Name <span class="req">*</span></label>
+                <input type="text" name="name" value="{{ old('name') }}" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Code <span class="req">*</span></label>
+                <input type="text" name="code" value="{{ old('code') }}" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Status <span class="req">*</span></label>
+                <select name="status" class="form-control" required>
+                    <option value="active" {{ old('status')==='active'?'selected':'' }}>Active</option>
+                    <option value="inactive" {{ old('status')==='inactive'?'selected':'' }}>Inactive</option>
+                </select>
+            </div>
+        </div>
+        <div class="grid-1">
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="2">{{ old('description') }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <div class="section-heading"><i class="fas fa-percentage"></i> Interest & Terms</div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Interest Method <span class="req">*</span></label>
+                <select name="interest_method" class="form-control" required>
+                    <option value="flat" {{ old('interest_method')==='flat'?'selected':'' }}>Flat</option>
+                    <option value="reducing_balance" {{ old('interest_method')==='reducing_balance'?'selected':'' }}>Reducing Balance</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Interest Rate (%) <span class="req">*</span></label>
+                <input type="number" name="interest_rate" value="{{ old('interest_rate', 20) }}" step="0.01" min="0" max="100" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Min Term (weeks) <span class="req">*</span></label>
+                <input type="number" name="min_term_weeks" value="{{ old('min_term_weeks', 4) }}" min="1" class="form-control" required>
+            </div>
+        </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Max Term (weeks) <span class="req">*</span></label>
+                <input type="number" name="max_term_weeks" value="{{ old('max_term_weeks', 6) }}" min="1" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Min Amount (KSH) <span class="req">*</span></label>
+                <input type="number" name="min_amount" value="{{ old('min_amount', 3000) }}" min="0" step="0.01" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Max Amount (KSH) <span class="req">*</span></label>
+                <input type="number" name="max_amount" value="{{ old('max_amount', 10000) }}" min="0" step="0.01" class="form-control" required>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <div class="section-heading"><i class="fas fa-coins"></i> Fees & Requirements</div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Processing Fee Rate (%)</label>
+                <input type="number" name="processing_fee_rate" value="{{ old('processing_fee_rate', 2) }}" step="0.01" min="0" max="100" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Insurance Fee Rate (%)</label>
+                <input type="number" name="insurance_fee_rate" value="{{ old('insurance_fee_rate', 1) }}" step="0.01" min="0" max="100" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Late Penalty Rate (%)</label>
+                <input type="number" name="late_penalty_rate" value="{{ old('late_penalty_rate', 1) }}" step="0.01" min="0" max="100" class="form-control">
+            </div>
+        </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Grace Period (days)</label>
+                <input type="number" name="grace_period_days" value="{{ old('grace_period_days', 3) }}" min="0" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Min Guarantors</label>
+                <input type="number" name="min_guarantors" value="{{ old('min_guarantors', 1) }}" min="0" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Min Savings Multiplier</label>
+                <input type="number" name="min_savings_multiplier" value="{{ old('min_savings_multiplier', 0.2) }}" step="0.01" min="0" class="form-control">
+            </div>
+        </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Requires Collateral</label>
+                <select name="requires_collateral" class="form-control">
+                    <option value="0" {{ old('requires_collateral')==='0'?'selected':'' }}>No</option>
+                    <option value="1" {{ old('requires_collateral')==='1'?'selected':'' }}>Yes</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Collateral Type</label>
+                <select name="collateral_type" class="form-control">
+                    <option value="none" {{ old('collateral_type')==='none'?'selected':'' }}>None</option>
+                    <option value="land" {{ old('collateral_type')==='land'?'selected':'' }}>Land</option>
+                    <option value="vehicle" {{ old('collateral_type')==='vehicle'?'selected':'' }}>Vehicle</option>
+                    <option value="equipment" {{ old('collateral_type')==='equipment'?'selected':'' }}>Equipment</option>
+                    <option value="goods" {{ old('collateral_type')==='goods'?'selected':'' }}>Goods</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Min Membership (months)</label>
+                <input type="number" name="min_membership_months" value="{{ old('min_membership_months', 0) }}" min="0" class="form-control">
+            </div>
+        </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Min Credit Score</label>
+                <input type="number" name="min_credit_score" value="{{ old('min_credit_score', 0) }}" min="0" class="form-control">
+            </div>
+        </div>
+    </div>
+
+    {{-- Rates Table --}}
+    <div class="form-section">
+        <div class="section-heading"><i class="fas fa-table"></i> Principal / Term Rates</div>
+        <div id="ratesContainer">
+            @if(old('rates'))
+                @foreach(old('rates') as $i => $rate)
+                <div class="grid-3 rate-row" style="margin-bottom:10px;">
+                    <div class="form-group">
+                        <input type="number" name="rates[{{ $i }}][principal_amount]" value="{{ $rate['principal_amount'] ?? '' }}" placeholder="Principal (KSH)" class="form-control" step="0.01" min="1">
+                    </div>
+                    <div class="form-group">
+                        <input type="number" name="rates[{{ $i }}][term_weeks]" value="{{ $rate['term_weeks'] ?? '' }}" placeholder="Term (weeks)" class="form-control" min="1">
+                    </div>
+                    <div class="form-group" style="display:flex; gap:8px;">
+                        <input type="number" name="rates[{{ $i }}][interest_rate]" value="{{ $rate['interest_rate'] ?? '' }}" placeholder="Interest Rate (%)" class="form-control" step="0.01" min="0">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('.rate-row').remove()" style="white-space:nowrap;"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                @endforeach
+            @else
+                <p style="color:var(--text-secondary); font-size:13px;">No rates added yet. Click "Add Rate" to define principal/term combinations.</p>
+            @endif
+        </div>
+        <button type="button" class="btn btn-outline" onclick="addRateRow()" style="margin-top:10px;"><i class="fas fa-plus"></i> Add Rate</button>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:12px; padding-bottom:30px;">
+        <a href="{{ route('loan-products.index') }}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Product</button>
+    </div>
+</form>
+@endsection
+
+@section('scripts')
+<script>
+let rateIndex = {{ count(old('rates') ?? []) }};
+function addRateRow() {
+    const container = document.getElementById('ratesContainer');
+    if (container.querySelector('p')) container.querySelector('p').remove();
+    const div = document.createElement('div');
+    div.className = 'grid-3 rate-row';
+    div.style.marginBottom = '10px';
+    div.innerHTML = `
+        <div class="form-group">
+            <input type="number" name="rates[${rateIndex}][principal_amount]" placeholder="Principal (KSH)" class="form-control" step="0.01" min="1">
+        </div>
+        <div class="form-group">
+            <input type="number" name="rates[${rateIndex}][term_weeks]" placeholder="Term (weeks)" class="form-control" min="1">
+        </div>
+        <div class="form-group" style="display:flex; gap:8px;">
+            <input type="number" name="rates[${rateIndex}][interest_rate]" placeholder="Interest Rate (%)" class="form-control" step="0.01" min="0">
+            <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('.rate-row').remove()" style="white-space:nowrap;"><i class="fas fa-trash"></i></button>
+        </div>
+    `;
+    container.appendChild(div);
+    rateIndex++;
+}
+</script>
+@endsection

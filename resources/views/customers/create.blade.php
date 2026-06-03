@@ -34,12 +34,28 @@
         </div>
         <div class="grid-3">
             <div class="form-group">
-                <label class="form-label">Full Name <span class="req">*</span></label>
-                <input type="text" name="full_name" value="{{ old('full_name') }}"
-                       class="form-control {{ $errors->has('full_name') ? 'is-invalid' : '' }}"
-                       placeholder="e.g. John Kamau Mwangi" required>
-                @error('full_name')<span class="invalid-feedback">{{ $message }}</span>@enderror
+                <label class="form-label">First Name <span class="req">*</span></label>
+                <input type="text" name="first_name" value="{{ old('first_name') }}"
+                       class="form-control {{ $errors->has('first_name') ? 'is-invalid' : '' }}"
+                       placeholder="e.g. John" required>
+                @error('first_name')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
+            <div class="form-group">
+                <label class="form-label">Middle Name</label>
+                <input type="text" name="middle_name" value="{{ old('middle_name') }}"
+                       class="form-control {{ $errors->has('middle_name') ? 'is-invalid' : '' }}"
+                       placeholder="e.g. Kamau">
+                @error('middle_name')<span class="invalid-feedback">{{ $message }}</span>@enderror
+            </div>
+            <div class="form-group">
+                <label class="form-label">Last Name <span class="req">*</span></label>
+                <input type="text" name="last_name" value="{{ old('last_name') }}"
+                       class="form-control {{ $errors->has('last_name') ? 'is-invalid' : '' }}"
+                       placeholder="e.g. Mwangi" required>
+                @error('last_name')<span class="invalid-feedback">{{ $message }}</span>@enderror
+            </div>
+        </div>
+        <div class="grid-3">
             <div class="form-group">
                 <label class="form-label">Phone Number <span class="req">*</span></label>
                 <input type="text" name="phone_number" value="{{ old('phone_number') }}"
@@ -54,8 +70,6 @@
                        placeholder="john@example.com">
                 @error('email')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
-        </div>
-        <div class="grid-3">
             <div class="form-group">
                 <label class="form-label">National ID Number <span class="req">*</span></label>
                 <input type="text" name="id_number" value="{{ old('id_number') }}"
@@ -63,6 +77,8 @@
                        placeholder="e.g. 12345678" required>
                 @error('id_number')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
+        </div>
+        <div class="grid-3">
             <div class="form-group">
                 <label class="form-label">Date of Birth <span class="req">*</span></label>
                 <input type="date" name="date_of_birth" value="{{ old('date_of_birth') }}"
@@ -80,6 +96,16 @@
                 </select>
                 @error('gender')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
+            <div class="form-group">
+                <label class="form-label">Marital Status</label>
+                <select name="marital_status" class="form-control">
+                    <option value="">-- Select --</option>
+                    <option value="single" {{ old('marital_status')==='single'?'selected':'' }}>Single</option>
+                    <option value="married" {{ old('marital_status')==='married'?'selected':'' }}>Married</option>
+                    <option value="divorced" {{ old('marital_status')==='divorced'?'selected':'' }}>Divorced</option>
+                    <option value="widowed" {{ old('marital_status')==='widowed'?'selected':'' }}>Widowed</option>
+                </select>
+            </div>
         </div>
         <div class="grid-3">
             <div class="form-group">
@@ -87,7 +113,61 @@
                 <input type="text" name="nationality" value="{{ old('nationality', 'Kenyan') }}"
                        class="form-control" placeholder="Kenyan">
             </div>
-            <div class="form-group" style="grid-column: span 2;">
+            <div class="form-group">
+                <label class="form-label">Education Level</label>
+                <select name="education_level" class="form-control">
+                    <option value="">-- Select --</option>
+                    <option value="none" {{ old('education_level')==='none'?'selected':'' }}>None</option>
+                    <option value="primary" {{ old('education_level')==='primary'?'selected':'' }}>Primary</option>
+                    <option value="secondary" {{ old('education_level')==='secondary'?'selected':'' }}>Secondary</option>
+                    <option value="diploma" {{ old('education_level')==='diploma'?'selected':'' }}>Diploma</option>
+                    <option value="degree" {{ old('education_level')==='degree'?'selected':'' }}>Degree</option>
+                    <option value="masters" {{ old('education_level')==='masters'?'selected':'' }}>Masters</option>
+                    <option value="phd" {{ old('education_level')==='phd'?'selected':'' }}>PhD</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">KRA PIN Number</label>
+                <input type="text" name="kra_pin_number" value="{{ old('kra_pin_number') }}"
+                       class="form-control" placeholder="e.g. A001234567B">
+            </div>
+        </div>
+    </div>
+
+    {{-- ── Section 2: Residential Details ── --}}
+    <div class="form-section">
+        <div class="section-heading">
+            <i class="fas fa-home"></i> Residential Details
+        </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">County</label>
+                <input type="text" name="residential_county" value="{{ old('residential_county') }}"
+                       class="form-control" placeholder="e.g. Nairobi">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Sub-County</label>
+                <input type="text" name="residential_sub_county" value="{{ old('residential_sub_county') }}"
+                       class="form-control" placeholder="e.g. Westlands">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ward</label>
+                <input type="text" name="residential_ward" value="{{ old('residential_ward') }}"
+                       class="form-control" placeholder="e.g. Parklands">
+            </div>
+        </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Estate / Village</label>
+                <input type="text" name="residential_estate" value="{{ old('residential_estate') }}"
+                       class="form-control" placeholder="e.g. Kibera">
+            </div>
+            <div class="form-group">
+                <label class="form-label">House Number</label>
+                <input type="text" name="residential_house_number" value="{{ old('residential_house_number') }}"
+                       class="form-control" placeholder="e.g. Hse 12">
+            </div>
+            <div class="form-group">
                 <label class="form-label">Physical Address</label>
                 <input type="text" name="address" value="{{ old('address') }}"
                        class="form-control" placeholder="Street / Estate / Village">
@@ -95,24 +175,24 @@
         </div>
         <div class="grid-3">
             <div class="form-group">
-                <label class="form-label">County</label>
+                <label class="form-label">County (Legacy)</label>
                 <input type="text" name="county" value="{{ old('county') }}"
                        class="form-control" placeholder="e.g. Nairobi">
             </div>
             <div class="form-group">
-                <label class="form-label">Sub-County</label>
+                <label class="form-label">Sub-County (Legacy)</label>
                 <input type="text" name="sub_county" value="{{ old('sub_county') }}"
                        class="form-control" placeholder="e.g. Westlands">
             </div>
             <div class="form-group">
-                <label class="form-label">Ward</label>
+                <label class="form-label">Ward (Legacy)</label>
                 <input type="text" name="ward" value="{{ old('ward') }}"
                        class="form-control" placeholder="e.g. Parklands">
             </div>
         </div>
     </div>
 
-    {{-- ── Section 2: Employment / Business ── --}}
+    {{-- ── Section 3: Employment / Business ── --}}
     <div class="form-section">
         <div class="section-heading">
             <i class="fas fa-briefcase"></i> Employment / Business
@@ -159,7 +239,7 @@
         </div>
     </div>
 
-    {{-- ── Section 3: Next of Kin ── --}}
+    {{-- ── Section 4: Next of Kin ── --}}
     <div class="form-section">
         <div class="section-heading">
             <i class="fas fa-users"></i> Next of Kin
@@ -200,7 +280,7 @@
         </div>
     </div>
 
-    {{-- ── Section 4: SACCO Membership ── --}}
+    {{-- ── Section 5: SACCO Membership ── --}}
     <div class="form-section">
         <div class="section-heading">
             <i class="fas fa-building"></i> SACCO Membership
@@ -238,9 +318,24 @@
                 <span class="form-hint">Minimum share capital contribution</span>
             </div>
         </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Customer Type</label>
+                <select name="customer_type" class="form-control">
+                    <option value="">-- Select --</option>
+                    <option value="permanent" {{ old('customer_type')==='permanent'?'selected':'' }}>Permanent</option>
+                    <option value="non_permanent" {{ old('customer_type')==='non_permanent'?'selected':'' }}>Non-Permanent</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Qualified Amount (KSH)</label>
+                <input type="number" name="qualified_amount" value="{{ old('qualified_amount') }}"
+                       class="form-control" placeholder="0.00" min="0" step="0.01">
+            </div>
+        </div>
     </div>
 
-    {{-- ── Section 5: KYC Documents ── --}}
+    {{-- ── Section 6: KYC Documents ── --}}
     <div class="form-section">
         <div class="section-heading">
             <i class="fas fa-id-card"></i> KYC Documents

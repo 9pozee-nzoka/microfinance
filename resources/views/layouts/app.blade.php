@@ -537,6 +537,44 @@
         .empty-state p { font-size: 15px; margin-bottom: 6px; }
         .empty-state small { font-size: 12px; opacity: 0.7; }
 
+        /* ── Tabs ──────────────────────────────────────────────────────────── */
+        .tab-nav {
+            display: flex; gap: 4px; margin-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 10px 18px; border: none; background: none;
+            font-size: 13px; font-weight: 500; cursor: pointer;
+            color: var(--text-secondary); border-bottom: 2px solid transparent;
+            margin-bottom: -2px; transition: color 0.15s, border-color 0.15s;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .tab-btn:hover { color: var(--primary); }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* ── Detail / info grid ────────────────────────────────────────────── */
+        .section-title {
+            font-size: 12px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--text-secondary);
+            margin-bottom: 14px; display: flex; align-items: center; gap: 6px;
+        }
+        .info-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
+        }
+        .detail-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+        .detail-value { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+
+        /* ── Action group ──────────────────────────────────────────────────── */
+        .action-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+        @media (max-width: 768px) {
+            .info-grid { grid-template-columns: 1fr; }
+            .tab-btn { padding: 8px 12px; font-size: 12px; }
+        }
+
         /* ── Scroll container ──────────────────────────────────────────────── */
         .scroll-container { max-height: 320px; overflow-y: auto; }
 

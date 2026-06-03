@@ -14,7 +14,7 @@ class Loan extends Model
 
     protected $fillable = [
         'loan_number', 'customer_id', 'product_id', 'branch_id', 'relationship_officer_id',
-        'principal_amount', 'interest_amount', 'processing_fee', 'insurance_fee',
+        'principal_amount', 'interest_amount', 'processing_fee', 'processing_fee_paid', 'processing_fee_paid_at', 'processing_fee_paid_by', 'insurance_fee',
         'total_repayable', 'term_weeks', 'weekly_installment',
         'purpose', 'purpose_description',
         'collateral_description', 'collateral_value',
@@ -33,6 +33,7 @@ class Loan extends Model
         'principal_amount' => 'decimal:2',
         'interest_amount' => 'decimal:2',
         'processing_fee' => 'decimal:2',
+        'processing_fee_paid' => 'decimal:2',
         'insurance_fee' => 'decimal:2',
         'total_repayable' => 'decimal:2',
         'weekly_installment' => 'decimal:2',
@@ -51,6 +52,7 @@ class Loan extends Model
         'reviewed_at' => 'datetime',
         'approved_at' => 'datetime',
         'disbursed_at' => 'datetime',
+        'processing_fee_paid_at' => 'datetime',
     ];
 
     // Relationships

@@ -37,14 +37,27 @@ class LoanProduct extends Model
         return $this->hasMany(Loan::class, 'product_id');
     }
 
+    public function rates(): HasMany
+    {
+        return $this->hasMany(LoanProductRate::class, 'loan_product_id');
+    }
+
     public function calculateInterest(float $principal, int $weeks): float
     {
+        // Check for specific rate first
+        $specificRate = $this->rates()
+            ->where('principal_amount', $principal)
+            ->where('term_weeks', $weeks)
+            ->first();
+
+        $rate = $specificRate ? (float) $specificRate->interest_rate : (float) $this->interest_rate;
+
         if ($this->interest_method === 'flat') {
-            return ($principal * ($this->interest_rate / 100) * ($weeks / 52));
+            return ($principal * ($rate / 100) * ($weeks / 52));
         }
         
         // Reducing balance (simplified)
-        $weeklyRate = ($this->interest_rate / 100) / 52;
+        $weeklyRate = ($rate / 100) / 52;
         $installment = $principal * ($weeklyRate / (1 - pow(1 + $weeklyRate, -$weeks)));
         return ($installment * $weeks) - $principal;
     }
