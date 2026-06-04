@@ -27,6 +27,14 @@ class RoleMiddleware
             return $next($request);
         }
 
+        // Laravel passes middleware params as a single string when using pipe separator
+        // e.g., role:branch_manager|admin|super_admin becomes ['branch_manager|admin|super_admin']
+        $flattenedRoles = [];
+        foreach ($roles as $role) {
+            $flattenedRoles = array_merge($flattenedRoles, array_map('trim', explode('|', $role)));
+        }
+        $roles = $flattenedRoles;
+
         // Check if user has any of the required roles
         if (!$user->hasAnyRole($roles)) {
             // Log unauthorized access attempt
