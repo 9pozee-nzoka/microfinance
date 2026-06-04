@@ -244,10 +244,10 @@ class CustomerController extends Controller
                 }
 
                 // Ensure email is unique
-                $originalEmail = $email;
+                $baseEmail = explode('@', $email)[0];
                 $counter = 1;
                 while (User::where('email', $email)->exists()) {
-                    $email = str_replace('@portal.mweelacash.co.ke', $counter . '@portal.mweelacash.co.ke', $originalEmail);
+                    $email = $baseEmail . '.' . $counter . '@portal.mweelacash.co.ke';
                     $counter++;
                 }
 
