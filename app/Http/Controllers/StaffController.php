@@ -59,10 +59,17 @@ class StaffController extends Controller
     public function create()
     {
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
-        $roles = Role::where('guard_name', 'web')
-            ->whereNotIn('name', ['customer', 'super_admin'])
-            ->orderBy('name')
-            ->get();
+
+        // Get roles based on current user's permissions
+        $user = auth()->user();
+        $roleQuery = Role::where('guard_name', 'web')->whereNotIn('name', ['customer']);
+
+        // Only super_admin can create other super_admins
+        if (!$user->hasRole('super_admin')) {
+            $roleQuery->where('name', '!=', 'super_admin');
+        }
+
+        $roles = $roleQuery->orderBy('name')->get();
 
         return view('staff.create', compact('branches', 'roles'));
     }
@@ -77,10 +84,15 @@ class StaffController extends Controller
             'employee_id' => 'nullable|string|max:50|unique:users,employee_id',
             'designation' => 'required|string|max:100',
             'branch_id'   => 'required|exists:branches,id',
-            'role'        => 'required|exists:roles,name',
+            'role'        => 'required|exists:roles,name|not_in:customer',
             'status'      => 'required|in:active,inactive,suspended',
             'send_sms'    => 'nullable|boolean',
         ]);
+
+        // Prevent non-super_admin from creating super_admin
+        if ($validated['role'] === 'super_admin' && !auth()->user()->hasRole('super_admin')) {
+            return back()->with('error', 'Only super administrators can create other super administrators.');
+        }
 
         $tempPassword = Str::random(12);
 

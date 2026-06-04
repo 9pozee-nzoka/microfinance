@@ -76,9 +76,6 @@ class CustomerController extends Controller
             'nationality'               => 'nullable|string|max:100',
             'kra_pin_number'            => 'nullable|string|max:50',
             'address'                   => 'nullable|string|max:500',
-            'county'                    => 'nullable|string|max:100',
-            'sub_county'                => 'nullable|string|max:100',
-            'ward'                      => 'nullable|string|max:100',
             'residential_county'        => 'nullable|string|max:100',
             'residential_sub_county'    => 'nullable|string|max:100',
             'residential_ward'          => 'nullable|string|max:100',
@@ -95,12 +92,9 @@ class CustomerController extends Controller
             'next_of_kin_address'       => 'nullable|string|max:500',
             'branch_id'                 => 'required|exists:branches,id',
             'relationship_officer_id'   => 'required|exists:users,id',
-            'share_capital'             => 'nullable|numeric|min:0',
-            'customer_type'             => 'nullable|in:permanent,non_permanent',
-            'qualified_amount'          => 'nullable|numeric|min:0',
-            'id_front'                  => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'id_back'                   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'passport_photo'            => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
+            'id_front'                  => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'id_back'                   => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'passport_photo'            => 'required|file|mimes:jpg,jpeg,png|max:2048',
             'kra_pin'                   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
@@ -117,7 +111,7 @@ class CustomerController extends Controller
 
         $customer = Customer::create(array_merge($validated, $paths, [
             'full_name'     => $fullName,
-            'share_capital' => $request->share_capital ?? 0,
+            'share_capital' => 0,
             'status'        => 'pending',
         ]));
 
@@ -242,9 +236,24 @@ class CustomerController extends Controller
 
                 $tempPassword = Str::random(10);
 
+                // Generate a unique email if customer doesn't have one
+                $email = $customer->email;
+                if (empty($email)) {
+                    $baseEmail = strtolower(str_replace(' ', '.', preg_replace('/[^a-zA-Z0-9\s]/', '', $customer->full_name)));
+                    $email = $baseEmail . '.' . $customer->id . '@portal.mweelacash.co.ke';
+                }
+
+                // Ensure email is unique
+                $originalEmail = $email;
+                $counter = 1;
+                while (User::where('email', $email)->exists()) {
+                    $email = str_replace('@portal.mweelacash.co.ke', $counter . '@portal.mweelacash.co.ke', $originalEmail);
+                    $counter++;
+                }
+
                 $user = User::create([
                     'name'         => $customer->full_name,
-                    'email'        => $customer->email ?? strtolower(str_replace(' ', '.', $customer->full_name)) . '.' . $customer->id . '@portal.mweelacash.co.ke',
+                    'email'        => $email,
                     'password'     => Hash::make($tempPassword),
                     'phone_number' => $customer->phone_number,
                     'branch_id'    => $customer->branch_id,

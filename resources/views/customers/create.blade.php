@@ -173,23 +173,6 @@
                        class="form-control" placeholder="Street / Estate / Village">
             </div>
         </div>
-        <div class="grid-3">
-            <div class="form-group">
-                <label class="form-label">County (Legacy)</label>
-                <input type="text" name="county" value="{{ old('county') }}"
-                       class="form-control" placeholder="e.g. Nairobi">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Sub-County (Legacy)</label>
-                <input type="text" name="sub_county" value="{{ old('sub_county') }}"
-                       class="form-control" placeholder="e.g. Westlands">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Ward (Legacy)</label>
-                <input type="text" name="ward" value="{{ old('ward') }}"
-                       class="form-control" placeholder="e.g. Parklands">
-            </div>
-        </div>
     </div>
 
     {{-- ── Section 3: Employment / Business ── --}}
@@ -280,12 +263,12 @@
         </div>
     </div>
 
-    {{-- ── Section 5: SACCO Membership ── --}}
+    {{-- ── Section 5: Branch Assignment ── --}}
     <div class="form-section">
         <div class="section-heading">
-            <i class="fas fa-building"></i> SACCO Membership
+            <i class="fas fa-building"></i> Branch Assignment
         </div>
-        <div class="grid-3">
+        <div class="grid-2">
             <div class="form-group">
                 <label class="form-label">Branch <span class="req">*</span></label>
                 <select name="branch_id" class="form-control {{ $errors->has('branch_id') ? 'is-invalid' : '' }}" required>
@@ -311,27 +294,6 @@
                 </select>
                 @error('relationship_officer_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
-            <div class="form-group">
-                <label class="form-label">Initial Share Capital (KSH)</label>
-                <input type="number" name="share_capital" value="{{ old('share_capital', 0) }}"
-                       class="form-control" placeholder="0.00" min="0" step="0.01">
-                <span class="form-hint">Minimum share capital contribution</span>
-            </div>
-        </div>
-        <div class="grid-3">
-            <div class="form-group">
-                <label class="form-label">Customer Type</label>
-                <select name="customer_type" class="form-control">
-                    <option value="">-- Select --</option>
-                    <option value="permanent" {{ old('customer_type')==='permanent'?'selected':'' }}>Permanent</option>
-                    <option value="non_permanent" {{ old('customer_type')==='non_permanent'?'selected':'' }}>Non-Permanent</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Qualified Amount (KSH)</label>
-                <input type="number" name="qualified_amount" value="{{ old('qualified_amount') }}"
-                       class="form-control" placeholder="0.00" min="0" step="0.01">
-            </div>
         </div>
     </div>
 
@@ -342,7 +304,7 @@
         </div>
         <div class="grid-2" style="gap: 20px;">
             <div class="form-group">
-                <label class="form-label">National ID — Front</label>
+                <label class="form-label">National ID — Front <span class="req">*</span></label>
                 <div class="upload-box" id="idFrontBox">
                     <input type="file" name="id_front" accept="image/*,.pdf" onchange="previewFile(this,'idFrontBox','idFrontPreview')">
                     <i class="fas fa-id-card"></i>
@@ -352,9 +314,10 @@
                 <div id="idFrontPreview" style="display:none; margin-top:8px; font-size:12px; color:var(--success);">
                     <i class="fas fa-check-circle"></i> <span></span>
                 </div>
+                @error('id_front')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
             <div class="form-group">
-                <label class="form-label">National ID — Back</label>
+                <label class="form-label">National ID — Back <span class="req">*</span></label>
                 <div class="upload-box" id="idBackBox">
                     <input type="file" name="id_back" accept="image/*,.pdf" onchange="previewFile(this,'idBackBox','idBackPreview')">
                     <i class="fas fa-id-card"></i>
@@ -364,9 +327,10 @@
                 <div id="idBackPreview" style="display:none; margin-top:8px; font-size:12px; color:var(--success);">
                     <i class="fas fa-check-circle"></i> <span></span>
                 </div>
+                @error('id_back')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
             <div class="form-group">
-                <label class="form-label">Passport Photo</label>
+                <label class="form-label">Passport Photo <span class="req">*</span></label>
                 <div class="upload-box" id="photoBox">
                     <input type="file" name="passport_photo" accept="image/*" onchange="previewFile(this,'photoBox','photoPreview')">
                     <i class="fas fa-camera"></i>
@@ -376,9 +340,10 @@
                 <div id="photoPreview" style="display:none; margin-top:8px; font-size:12px; color:var(--success);">
                     <i class="fas fa-check-circle"></i> <span></span>
                 </div>
+                @error('passport_photo')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
             <div class="form-group">
-                <label class="form-label">KRA PIN Certificate</label>
+                <label class="form-label">KRA PIN Certificate <small>(optional)</small></label>
                 <div class="upload-box" id="kraBox">
                     <input type="file" name="kra_pin" accept="image/*,.pdf" onchange="previewFile(this,'kraBox','kraPreview')">
                     <i class="fas fa-file-alt"></i>
@@ -388,6 +353,7 @@
                 <div id="kraPreview" style="display:none; margin-top:8px; font-size:12px; color:var(--success);">
                     <i class="fas fa-check-circle"></i> <span></span>
                 </div>
+                @error('kra_pin')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
         </div>
     </div>
