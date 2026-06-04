@@ -20,14 +20,15 @@
     <nav class="nav-section">
         <div class="nav-label">Navigation</div>
 
-        {{-- Dashboard --}}
+        {{-- Dashboard — All staff --}}
         <a href="{{ route('dashboard') }}"
            class="nav-item {{ request()->routeIs('dashboard*') ? 'active' : '' }}">
             <i class="fas fa-chart-line"></i>
             <span>Dashboard</span>
         </a>
 
-        {{-- Customer Management --}}
+        {{-- Customer Management — Loan Officers, Branch Managers, Admins --}}
+        @hasanyrole('loan_officer|branch_manager|admin|super_admin')
         <button class="nav-item has-submenu {{ request()->routeIs('customers.*') ? 'active expanded' : '' }}">
             <i class="fas fa-users"></i>
             <span>Customer Management</span>
@@ -59,26 +60,43 @@
                 <i class="fas fa-sliders-h"></i><span>Limit Management</span>
             </a>
         </div>
+        @endhasanyrole
 
-        {{-- Loan Management --}}
+        {{-- Loan Management — Multiple roles with different access --}}
+        @hasanyrole('loan_officer|credit_committee|cashier|branch_manager|admin|super_admin')
         <button class="nav-item has-submenu {{ request()->routeIs('loans.*') || request()->routeIs('collection.*') || request()->routeIs('loan-products.*') ? 'active expanded' : '' }}">
             <i class="fas fa-hand-holding-usd"></i>
             <span>Loan Management</span>
             <i class="fas fa-chevron-right chevron"></i>
         </button>
         <div class="submenu {{ request()->routeIs('loans.*') || request()->routeIs('collection.*') || request()->routeIs('loan-products.*') ? 'show' : '' }}">
+
+            {{-- Loan Approval — Credit Committee, Admins --}}
+            @hasanyrole('credit_committee|admin|super_admin')
             <a href="{{ route('loans.approve') }}"
                class="nav-item {{ request()->routeIs('loans.approve') ? 'active' : '' }}">
                 <i class="fas fa-check-circle"></i><span>Approve New Loans</span>
             </a>
+            @endhasanyrole
+
+            {{-- All Loans — Loan Officers, Branch Managers, Admins --}}
+            @hasanyrole('loan_officer|branch_manager|admin|super_admin')
             <a href="{{ route('loans.index') }}"
                class="nav-item {{ request()->routeIs('loans.index') ? 'active' : '' }}">
                 <i class="fas fa-list"></i><span>All Loans</span>
             </a>
+            @endhasanyrole
+
+            {{-- Loan Products — Admins only --}}
+            @hasanyrole('admin|super_admin')
             <a href="{{ route('loan-products.index') }}"
                class="nav-item {{ request()->routeIs('loan-products.*') ? 'active' : '' }}">
                 <i class="fas fa-box"></i><span>Loan Products</span>
             </a>
+            @endhasanyrole
+
+            {{-- Collections — Loan Officers, Branch Managers, Admins --}}
+            @hasanyrole('loan_officer|branch_manager|admin|super_admin')
             <a href="{{ route('collection.index') }}"
                class="nav-item {{ request()->routeIs('collection.index') ? 'active' : '' }}">
                 <i class="fas fa-bell"></i><span>Loan Collection</span>
@@ -95,9 +113,12 @@
                class="nav-item {{ request()->routeIs('collection.sms-logs') ? 'active' : '' }}">
                 <i class="fas fa-sms"></i><span>SMS Logs</span>
             </a>
+            @endhasanyrole
         </div>
+        @endhasanyrole
 
-        {{-- Transactions --}}
+        {{-- Transactions — Cashiers, Admins --}}
+        @hasanyrole('cashier|admin|super_admin')
         <button class="nav-item has-submenu {{ request()->routeIs('transactions.*') ? 'active expanded' : '' }}">
             <i class="fas fa-dollar-sign"></i>
             <span>Transactions</span>
@@ -117,8 +138,19 @@
                 <i class="fas fa-check-double"></i><span>Processed</span>
             </a>
         </div>
+        @endhasanyrole
 
-        {{-- Staff Management --}}
+        {{-- M-Pesa — Cashiers, Admins --}}
+        @hasanyrole('cashier|admin|super_admin')
+        <a href="{{ route('mpesa.index') }}"
+           class="nav-item {{ request()->routeIs('mpesa.*') ? 'active' : '' }}">
+            <i class="fas fa-mobile-alt"></i>
+            <span>M-Pesa</span>
+        </a>
+        @endhasanyrole
+
+        {{-- Staff Management — Admins only --}}
+        @hasanyrole('admin|super_admin')
         <button class="nav-item has-submenu {{ request()->routeIs('staff.*') ? 'active expanded' : '' }}">
             <i class="fas fa-user-tie"></i>
             <span>Staff Management</span>
@@ -134,20 +166,25 @@
                 <i class="fas fa-user-plus"></i><span>Add Staff</span>
             </a>
         </div>
+        @endhasanyrole
 
-        {{-- Branch Management --}}
+        {{-- Branch Management — Admins only --}}
+        @hasanyrole('admin|super_admin')
         <a href="{{ route('branches.index') }}"
            class="nav-item {{ request()->routeIs('branches.*') ? 'active' : '' }}">
             <i class="fas fa-building"></i>
             <span>Branch Management</span>
         </a>
+        @endhasanyrole
 
-        {{-- Reports --}}
+        {{-- Reports — Auditors, Branch Managers, Admins --}}
+        @hasanyrole('auditor|branch_manager|admin|super_admin')
         <a href="{{ route('reports.index') }}"
            class="nav-item {{ request()->routeIs('reports.*') ? 'active' : '' }}">
             <i class="fas fa-chart-pie"></i>
             <span>Report Management</span>
         </a>
+        @endhasanyrole
 
     </nav>
 

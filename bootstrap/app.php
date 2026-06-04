@@ -14,6 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'customer.portal' => \App\Http\Middleware\CustomerPortalMiddleware::class,
+            'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'staff' => \App\Http\Middleware\StaffMiddleware::class,
         ]);
 
         // Exclude M-Pesa Safaricom callback URLs from CSRF
