@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ProcessSmsScheduleJob implements ShouldQueue
@@ -29,8 +30,27 @@ class ProcessSmsScheduleJob implements ShouldQueue
         $loans    = $this->resolveTargetLoans($schedule);
 
         $logs = [];
+        $skippedBlacklist = 0;
         foreach ($loans as $loan) {
             if (!$loan->customer || !$loan->customer->phone_number) continue;
+
+            // Skip known blacklisted numbers to avoid wasting API calls
+            if ($at->isBlacklisted($loan->customer->phone_number)) {
+                SmsLog::create([
+                    'customer_id'    => $loan->customer_id,
+                    'loan_id'        => $loan->id,
+                    'phone_number'   => $loan->customer->phone_number,
+                    'message'        => $schedule->resolveMessage($loan),
+                    'message_type'   => $this->mapTriggerToType($schedule->trigger_type),
+                    'status'         => 'blacklisted',
+                    'failure_reason' => 'Number is cached as blacklisted on Africa\'s Talking.',
+                    'is_bulk'        => true,
+                    'bulk_batch_id'  => $batchId,
+                    'created_by'     => $schedule->created_by,
+                ]);
+                $skippedBlacklist++;
+                continue;
+            }
 
             $log = SmsLog::create([
                 'customer_id'    => $loan->customer_id,
@@ -48,6 +68,14 @@ class ProcessSmsScheduleJob implements ShouldQueue
         }
 
         $sent = $at->sendBulk($logs);
+
+        if ($skippedBlacklist > 0) {
+            Log::info('SMS schedule skipped blacklisted numbers', [
+                'schedule_id' => $schedule->id,
+                'schedule_name' => $schedule->name,
+                'skipped' => $skippedBlacklist,
+            ]);
+        }
 
         $schedule->update([
             'last_run_at' => now(),

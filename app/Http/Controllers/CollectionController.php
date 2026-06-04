@@ -117,13 +117,14 @@ class CollectionController extends Controller
         $logs = $query->latest()->paginate(25)->withQueryString();
 
         // Stats
-        $sentCount    = SmsLog::where('status', 'sent')->count();
-        $failedCount  = SmsLog::where('status', 'failed')->count();
-        $pendingCount = SmsLog::where('status', 'pending')->count();
-        $totalCost    = SmsLog::where('status', 'sent')->sum('at_cost');
+        $sentCount        = SmsLog::where('status', 'sent')->count();
+        $failedCount      = SmsLog::where('status', 'failed')->count();
+        $pendingCount     = SmsLog::where('status', 'pending')->count();
+        $blacklistedCount = SmsLog::where('status', 'blacklisted')->count();
+        $totalCost        = SmsLog::where('status', 'sent')->sum('at_cost');
 
         return view('loans.collection.sms-logs', compact(
-            'logs', 'sentCount', 'failedCount', 'pendingCount', 'totalCost'
+            'logs', 'sentCount', 'failedCount', 'pendingCount', 'blacklistedCount', 'totalCost'
         ));
     }
 

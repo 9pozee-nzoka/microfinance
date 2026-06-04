@@ -10,6 +10,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerPortalController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\BranchController;
 use App\Http\Controllers\LoanProductAdminController;
 use App\Models\Customer;
 use App\Models\Loan;
@@ -113,7 +114,22 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/',              [StaffController::class, 'index'])->name('index');
         Route::get('/create',        [StaffController::class, 'create'])->name('create');
         Route::post('/',             [StaffController::class, 'store'])->name('store');
+        Route::post('/{user}/reset-password', [StaffController::class, 'resetPassword'])->name('reset-password');
         Route::get('/{user}/performance', [StaffController::class, 'performance'])->name('performance');
+    });
+
+    // Profile / Change Password (for all authenticated users)
+    Route::get('/profile/change-password', [StaffController::class, 'showChangePassword'])->name('profile.change-password');
+    Route::post('/profile/change-password', [StaffController::class, 'updatePassword'])->name('profile.update-password');
+
+    // Branch Management
+    Route::prefix('branches')->name('branches.')->group(function () {
+        Route::get('/',              [BranchController::class, 'index'])->name('index');
+        Route::get('/create',        [BranchController::class, 'create'])->name('create');
+        Route::post('/',             [BranchController::class, 'store'])->name('store');
+        Route::get('/{branch}/edit', [BranchController::class, 'edit'])->name('edit');
+        Route::put('/{branch}',      [BranchController::class, 'update'])->name('update');
+        Route::delete('/{branch}',   [BranchController::class, 'destroy'])->name('destroy');
     });
 
     // Transactions

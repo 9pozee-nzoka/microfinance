@@ -19,7 +19,7 @@
 @endif
 
 {{-- Stats --}}
-<div class="grid-4" style="margin-bottom:20px;">
+<div class="grid-5" style="margin-bottom:20px;display:grid;grid-template-columns:repeat(5,1fr);gap:16px;">
     <div class="card" style="border-left:4px solid var(--success);padding:16px 20px;">
         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Sent</div>
         <div style="font-size:26px;font-weight:700;color:var(--success);">{{ number_format($sentCount) }}</div>
@@ -31,6 +31,10 @@
     <div class="card" style="border-left:4px solid var(--danger);padding:16px 20px;">
         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Failed</div>
         <div style="font-size:26px;font-weight:700;color:var(--danger);">{{ number_format($failedCount) }}</div>
+    </div>
+    <div class="card" style="border-left:4px solid #7B1FA2;padding:16px 20px;">
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Blacklisted</div>
+        <div style="font-size:26px;font-weight:700;color:#7B1FA2;">{{ number_format($blacklistedCount) }}</div>
     </div>
     <div class="card" style="border-left:4px solid #9C27B0;padding:16px 20px;">
         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Total Cost</div>
@@ -49,7 +53,7 @@
             </div>
             <select name="status" class="filter-input" style="min-width:130px;">
                 <option value="">All Status</option>
-                @foreach(['pending','sent','failed','cancelled'] as $s)
+                @foreach(['pending','sent','failed','blacklisted','cancelled'] as $s)
                     <option value="{{ $s }}" {{ request('status') === $s ? 'selected' : '' }}>{{ ucfirst($s) }}</option>
                 @endforeach
             </select>
@@ -86,11 +90,12 @@
                 @forelse($logs as $i => $log)
                 @php
                     $sc = match($log->status) {
-                        'sent'      => ['status-active',   'Sent'],
-                        'failed'    => ['status-rejected', 'Failed'],
-                        'pending'   => ['status-pending',  'Pending'],
-                        'cancelled' => ['status-partially-approved', 'Cancelled'],
-                        default     => ['status-pending',  ucfirst($log->status)],
+                        'sent'        => ['status-active',   'Sent'],
+                        'failed'      => ['status-rejected', 'Failed'],
+                        'pending'     => ['status-pending',  'Pending'],
+                        'blacklisted' => ['status-blacklisted', 'Blacklisted'],
+                        'cancelled'   => ['status-partially-approved', 'Cancelled'],
+                        default       => ['status-pending',  ucfirst($log->status)],
                     };
                 @endphp
                 <tr>

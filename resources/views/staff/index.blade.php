@@ -59,6 +59,7 @@
                 <th>Designation</th>
                 <th>Branch</th>
                 <th>Status</th>
+                <th>Temp Password</th>
                 <th style="text-align:right;">Actions</th>
             </tr>
         </thead>
@@ -76,10 +77,27 @@
                         {{ ucfirst($user->status) }}
                     </span>
                 </td>
+                <td>
+                    @if($user->temp_password)
+                        <code style="background:#f5f5f5;padding:2px 6px;border-radius:4px;font-size:11px;cursor:pointer;" onclick="navigator.clipboard.writeText('{{ $user->temp_password }}');this.style.background='#e8f5e9';" title="Click to copy">
+                            {{ $user->temp_password }}
+                        </code>
+                    @else
+                        <span style="color:var(--text-secondary);font-size:12px;">—</span>
+                    @endif
+                </td>
                 <td style="text-align:right;">
                     <a href="{{ route('staff.performance', $user) }}" class="btn btn-sm btn-outline">
                         <i class="fas fa-chart-line"></i> Performance
                     </a>
+                    @if($user->id !== auth()->id() && !$user->hasRole('super_admin'))
+                    <form method="POST" action="{{ route('staff.reset-password', $user) }}" style="display:inline;" onsubmit="return confirm('Reset password for {{ $user->name }}? A new password will be generated and sent via SMS.');">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline" style="color:var(--warning);border-color:var(--warning);margin-left:4px;" title="Reset Password">
+                            <i class="fas fa-key"></i> Reset
+                        </button>
+                    </form>
+                    @endif
                 </td>
             </tr>
             @empty

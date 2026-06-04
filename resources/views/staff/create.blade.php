@@ -79,6 +79,12 @@
                 </select>
             </div>
         </div>
+        <div class="grid-1" style="margin-top:10px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+                <input type="checkbox" name="send_sms" value="1" {{ old('send_sms') ? 'checked' : 'checked' }} style="width:16px;height:16px;">
+                <span><i class="fas fa-sms"></i> Send login credentials via SMS to staff phone number</span>
+            </label>
+        </div>
     </div>
 
     <div style="display:flex; justify-content:flex-end; gap:12px; padding-bottom:30px;">

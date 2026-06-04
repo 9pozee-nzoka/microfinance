@@ -41,6 +41,11 @@ class SmsLog extends Model
         return $query->where('status', 'pending');
     }
 
+    public function scopeBlacklisted($query)
+    {
+        return $query->where('status', 'blacklisted');
+    }
+
     public function scopeDue($query)
     {
         return $query->where('status', 'pending')

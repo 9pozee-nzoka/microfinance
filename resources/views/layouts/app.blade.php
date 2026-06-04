@@ -255,6 +255,7 @@
         .status-rejected { background: #FFEBEE; color: #C62828; }
         .status-pending  { background: #E3F2FD; color: #1565C0; }
         .status-disbursed{ background: #F3E5F5; color: #6A1B9A; }
+        .status-blacklisted { background: #F3E5F5; color: #7B1FA2; border: 1px solid #CE93D8; }
 
         /* ── Buttons ───────────────────────────────────────────────────────── */
         .btn {

@@ -135,6 +135,13 @@
             </a>
         </div>
 
+        {{-- Branch Management --}}
+        <a href="{{ route('branches.index') }}"
+           class="nav-item {{ request()->routeIs('branches.*') ? 'active' : '' }}">
+            <i class="fas fa-building"></i>
+            <span>Branch Management</span>
+        </a>
+
         {{-- Reports --}}
         <a href="{{ route('reports.index') }}"
            class="nav-item {{ request()->routeIs('reports.*') ? 'active' : '' }}">
@@ -145,6 +152,12 @@
     </nav>
 
     <div class="sidebar-footer">
+        <a href="{{ route('profile.change-password') }}"
+           class="nav-item {{ request()->routeIs('profile.change-password') ? 'active' : '' }}"
+           style="padding-left: 0;">
+            <i class="fas fa-lock"></i>
+            <span>Change Password</span>
+        </a>
         <form method="POST" action="{{ route('logout') }}">
             @csrf
             <button type="submit" class="nav-item" style="color: var(--danger); padding-left: 0;">
