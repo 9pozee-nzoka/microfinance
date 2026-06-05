@@ -17,38 +17,88 @@ class LoanController extends Controller
     {
         $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
-        $officers = User::where('status', 'active')->orderBy('name')->get();
         $customer = $request->filled('customer_id')
             ? Customer::where('status', 'active')->findOrFail($request->customer_id)
             : null;
 
-        return view('loans.create', compact('products', 'branches', 'officers', 'customer'));
+        // Determine processing fee and eligibility for pre-selected customer
+        $processingFee    = 700;  // default for first-timers
+        $hasActiveLoan    = false;
+        $activeLoan       = null;
+        $isReturningCustomer = false;
+
+        if ($customer) {
+            // Check for any outstanding (active/disbursed/pending/approved) loan
+            $activeLoan = Loan::where('customer_id', $customer->id)
+                ->whereIn('status', ['pending', 'approved', 'disbursed', 'active'])
+                ->latest()
+                ->first();
+
+            $hasActiveLoan = (bool) $activeLoan;
+
+            // Returning = has at least one completed or written-off loan
+            $isReturningCustomer = Loan::where('customer_id', $customer->id)
+                ->whereIn('status', ['completed', 'written_off'])
+                ->exists();
+
+            $processingFee = $isReturningCustomer ? 500 : 700;
+        }
+
+        return view('loans.create', compact(
+            'products', 'branches', 'customer',
+            'processingFee', 'hasActiveLoan', 'activeLoan', 'isReturningCustomer'
+        ));
     }
 
     // ── Store New Loan ────────────────────────────────────────────
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'customer_id'               => 'required|exists:customers,id',
-            'product_id'                => 'required|exists:loan_products,id',
-            'branch_id'                 => 'required|exists:branches,id',
-            'relationship_officer_id'   => 'required|exists:users,id',
-            'principal_amount'          => 'required|numeric|min:1',
-            'term_weeks'                => 'required|integer|min:1',
-            'purpose'                   => 'required|in:business,education,medical,agriculture,home_improvement,other',
-            'purpose_description'       => 'nullable|string|max:500',
-            'collateral_description'    => 'nullable|string|max:500',
-            'collateral_value'          => 'nullable|string|max:100',
-            'interest_amount'           => 'required|numeric|min:0',
-            'processing_fee'            => 'required|numeric|min:0',
-            'insurance_fee'             => 'required|numeric|min:0',
-            'total_repayable'           => 'required|numeric|min:0',
-            'weekly_installment'        => 'required|numeric|min:0',
-            'application_date'          => 'required|date',
-            'guarantors'                => 'nullable|array',
-            'guarantors.*.customer_id'  => 'nullable|exists:customers,id',
-            'guarantors.*.amount'       => 'nullable|numeric|min:0',
+            'customer_id'                => 'required|exists:customers,id',
+            'product_id'                 => 'required|exists:loan_products,id',
+            'branch_id'                  => 'required|exists:branches,id',
+            'principal_amount'           => 'required|numeric|min:1',
+            'term_weeks'                 => 'required|integer|min:1',
+            'purpose'                    => 'required|in:business,education,medical,agriculture,home_improvement,other',
+            'purpose_description'        => 'nullable|string|max:500',
+            'collateral_description'     => 'nullable|string|max:500',
+            'collateral_value'           => 'nullable|string|max:100',
+            'interest_amount'            => 'required|numeric|min:0',
+            'processing_fee'             => 'required|numeric|min:0',
+            'processing_fee_method'      => 'required|in:cash,mpesa,bank_transfer',
+            'processing_fee_reference'   => 'nullable|string|max:255',
+            'insurance_fee'              => 'nullable|numeric|min:0',
+            'total_repayable'            => 'required|numeric|min:0',
+            'weekly_installment'         => 'required|numeric|min:0',
+            'application_date'           => 'required|date',
+            'guarantors'                 => 'nullable|array',
+            'guarantors.*.customer_id'   => 'nullable|exists:customers,id',
+            'guarantors.*.amount'        => 'nullable|numeric|min:0',
         ]);
+
+        // ── Block if customer has an outstanding loan ─────────────────────
+        $customer = Customer::findOrFail($validated['customer_id']);
+        $activeLoan = Loan::where('customer_id', $customer->id)
+            ->whereIn('status', ['pending', 'approved', 'disbursed', 'active'])
+            ->latest()->first();
+
+        if ($activeLoan) {
+            return back()->withInput()->withErrors([
+                'customer_id' => "This customer already has an outstanding loan ({$activeLoan->loan_number}, status: " . ucfirst($activeLoan->status) . "). Please complete or close it before applying for a new one.",
+            ]);
+        }
+
+        // ── Validate processing fee matches customer type ─────────────────────
+        $isReturning = Loan::where('customer_id', $customer->id)
+            ->whereIn('status', ['completed', 'written_off'])
+            ->exists();
+        $expectedFee = $isReturning ? 500 : 700;
+
+        if ((float) $validated['processing_fee'] < $expectedFee) {
+            return back()->withInput()->withErrors([
+                'processing_fee' => "Processing fee must be at least KSH {$expectedFee} for " . ($isReturning ? 'returning' : 'first-time') . " customers.",
+            ]);
+        }
 
         // Validate product limits
         $product = LoanProduct::findOrFail($validated['product_id']);
@@ -63,27 +113,51 @@ class LoanController extends Controller
             ]);
         }
 
-        $loan = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $request) {
+        $loan = \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
             $loan = Loan::create([
-                'customer_id'             => $validated['customer_id'],
-                'product_id'              => $validated['product_id'],
-                'branch_id'               => $validated['branch_id'],
-                'relationship_officer_id' => $validated['relationship_officer_id'],
-                'principal_amount'        => $validated['principal_amount'],
-                'interest_amount'         => $validated['interest_amount'],
-                'processing_fee'          => $validated['processing_fee'],
-                'insurance_fee'           => $validated['insurance_fee'],
-                'total_repayable'         => $validated['total_repayable'],
-                'term_weeks'              => $validated['term_weeks'],
-                'weekly_installment'      => $validated['weekly_installment'],
-                'purpose'                 => $validated['purpose'],
-                'purpose_description'     => $validated['purpose_description'],
-                'collateral_description'  => $validated['collateral_description'],
-                'collateral_value'        => $validated['collateral_value'],
-                'outstanding_balance'     => $validated['principal_amount'],
-                'application_date'        => $validated['application_date'],
-                'status'                  => 'pending',
+                'customer_id'                => $validated['customer_id'],
+                'product_id'                 => $validated['product_id'],
+                'branch_id'                  => $validated['branch_id'],
+                'relationship_officer_id'    => auth()->id(),
+                'principal_amount'           => $validated['principal_amount'],
+                'interest_amount'            => $validated['interest_amount'],
+                'processing_fee'             => $validated['processing_fee'],
+                'processing_fee_paid'        => $validated['processing_fee'],  // recorded at creation
+                'processing_fee_paid_at'     => now(),
+                'processing_fee_paid_by'     => auth()->id(),
+                'insurance_fee'              => $validated['insurance_fee'] ?? 0,
+                'total_repayable'            => $validated['total_repayable'],
+                'term_weeks'                 => $validated['term_weeks'],
+                'weekly_installment'         => $validated['weekly_installment'],
+                'purpose'                    => $validated['purpose'],
+                'purpose_description'        => $validated['purpose_description'],
+                'collateral_description'     => $validated['collateral_description'],
+                'collateral_value'           => $validated['collateral_value'],
+                'outstanding_balance'        => $validated['principal_amount'],
+                'application_date'           => $validated['application_date'],
+                'status'                     => 'pending',
             ]);
+
+            // Record processing fee as a transaction
+            if ($validated['processing_fee'] > 0) {
+                \App\Models\Transaction::create([
+                    'transaction_number' => 'TXN-' . date('YmdHis') . '-' . str_pad(\App\Models\Transaction::count() + 1, 4, '0', STR_PAD_LEFT),
+                    'customer_id'        => $loan->customer_id,
+                    'loan_id'            => $loan->id,
+                    'transaction_type'   => 'processing_fee',
+                    'direction'          => 'credit',
+                    'amount'             => $validated['processing_fee'],
+                    'balance_after'      => 0,
+                    'source'             => $validated['processing_fee_method'],
+                    'external_reference' => $validated['processing_fee_reference'] ?? null,
+                    'status'             => 'completed',
+                    'is_reconciled'      => true,
+                    'reconciled_at'      => now(),
+                    'narration'          => "Processing fee for {$loan->loan_number} — paid via " . ucfirst(str_replace('_', ' ', $validated['processing_fee_method'])),
+                    'created_by'         => auth()->id(),
+                    'branch_id'          => $loan->branch_id,
+                ]);
+            }
 
             // Save guarantors
             if (!empty($validated['guarantors'])) {
@@ -103,7 +177,7 @@ class LoanController extends Controller
         });
 
         return redirect()->route('loans.show', $loan)
-            ->with('success', "Loan application {$loan->loan_number} submitted successfully. Pending approval.");
+            ->with('success', "Loan application {$loan->loan_number} submitted. Processing fee of KSH " . number_format($validated['processing_fee'], 0) . " recorded.");
     }
 
     // ── Pending Approval queue ───────────────────────────────────
@@ -254,7 +328,57 @@ class LoanController extends Controller
         return back()->with('success', "Loan {$loan->loan_number} disbursed successfully.");
     }
 
-    // ── Record Processing Fee Payment ────────────────────────────
+    // ── Close Loan (Prepayment / Early Settlement) ───────────────
+    // Admin / Branch Manager only — marks loan as completed so customer can apply again
+    public function closeLoan(Request $request, Loan $loan)
+    {
+        $request->validate([
+            'close_reason' => 'required|string|max:500',
+        ]);
+
+        if (!in_array($loan->status, ['disbursed', 'active'])) {
+            return back()->with('error', 'Only active or disbursed loans can be closed early.');
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($loan, $request) {
+            $loan->update([
+                'status'           => 'completed',
+                'outstanding_balance' => 0,
+                'arrears_amount'   => 0,
+                'days_in_arrears'  => 0,
+                'approval_notes'   => ($loan->approval_notes ? $loan->approval_notes . ' | ' : '')
+                    . 'Early closure by ' . auth()->user()->name . ' on ' . now()->format('d M Y H:i')
+                    . ': ' . $request->close_reason,
+            ]);
+
+            // Mark all pending schedule installments as waived
+            $loan->repaymentSchedules()
+                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->update(['status' => 'waived']);
+
+            // Record a closure transaction for audit trail
+            \App\Models\Transaction::create([
+                'transaction_number' => 'TXN-' . date('YmdHis') . '-' . str_pad(
+                    \App\Models\Transaction::count() + 1, 4, '0', STR_PAD_LEFT
+                ),
+                'customer_id'      => $loan->customer_id,
+                'loan_id'          => $loan->id,
+                'transaction_type' => 'adjustment',
+                'direction'        => 'credit',
+                'amount'           => 0,
+                'balance_after'    => 0,
+                'source'           => 'internal',
+                'status'           => 'completed',
+                'is_reconciled'    => true,
+                'reconciled_at'    => now(),
+                'narration'        => "Loan {$loan->loan_number} closed early by {auth()->user()->name}: {$request->close_reason}",
+                'created_by'       => auth()->id(),
+                'branch_id'        => $loan->branch_id,
+            ]);
+        });
+
+        return back()->with('success', "Loan {$loan->loan_number} has been closed. The customer can now apply for a new loan.");
+    }
     public function recordProcessingFee(Request $request, Loan $loan)
     {
         $request->validate([

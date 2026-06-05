@@ -219,14 +219,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="form-group">
-                <label class="form-label">Relationship Officer <span class="req">*</span></label>
-                <select name="relationship_officer_id" class="form-control" required>
-                    @foreach($officers as $officer)
-                        <option value="{{ $officer->id }}" {{ old('relationship_officer_id', $customer->relationship_officer_id) == $officer->id ? 'selected' : '' }}>{{ $officer->name }}</option>
-                    @endforeach
-                </select>
-            </div>
+
             <div class="form-group">
                 <label class="form-label">Status</label>
                 <select name="status" class="form-control">

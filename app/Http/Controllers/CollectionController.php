@@ -22,36 +22,48 @@ class CollectionController extends Controller
 
     public function index()
     {
-        // Loans due today
-        $dueToday = Loan::with(['customer', 'product', 'branch'])
+        $user        = auth()->user();
+        $isOfficer   = $user->hasRole('loan_officer') && !$user->hasAnyRole(['admin', 'super_admin', 'branch_manager']);
+
+        $baseQuery = fn() => Loan::with(['customer', 'product', 'branch'])
             ->whereIn('status', ['disbursed', 'active'])
+            ->when($isOfficer, fn($q) => $q->where('relationship_officer_id', $user->id));
+
+        // Loans due today
+        $dueToday = $baseQuery()
             ->whereDate('next_due_date', today())
             ->orderBy('next_due_date')
             ->get();
 
-        // Overdue loans
-        $overdueLoans = Loan::with(['customer', 'product', 'branch'])
-            ->whereIn('status', ['disbursed', 'active'])
+        // Top overdue loans
+        $overdueLoans = $baseQuery()
             ->where('days_in_arrears', '>', 0)
             ->orderByDesc('days_in_arrears')
             ->limit(10)
             ->get();
 
-        // Stats
-        $totalDueToday     = $dueToday->sum('weekly_installment');
-        $totalOverdue      = Loan::whereIn('status', ['disbursed', 'active'])->where('days_in_arrears', '>', 0)->count();
-        $totalArrearsAmt   = Loan::whereIn('status', ['disbursed', 'active'])->sum('arrears_amount');
-        $smsSentToday      = SmsLog::whereDate('sent_at', today())->where('status', 'sent')->count();
-        $schedulesActive   = SmsSchedule::where('status', 'active')->count();
+        // Stats — scope to officer if needed
+        $statBase = Loan::whereIn('status', ['disbursed', 'active'])
+            ->when($isOfficer, fn($q) => $q->where('relationship_officer_id', $user->id));
 
-        // PAR buckets for widget
-        $par30  = Loan::whereIn('status', ['disbursed', 'active'])->whereBetween('days_in_arrears', [1, 30])->count();
-        $par60  = Loan::whereIn('status', ['disbursed', 'active'])->whereBetween('days_in_arrears', [31, 60])->count();
-        $par90  = Loan::whereIn('status', ['disbursed', 'active'])->whereBetween('days_in_arrears', [61, 90])->count();
-        $par90p = Loan::whereIn('status', ['disbursed', 'active'])->where('days_in_arrears', '>', 90)->count();
+        $totalDueToday   = $dueToday->sum('weekly_installment');
+        $totalOverdue    = (clone $statBase)->where('days_in_arrears', '>', 0)->count();
+        $totalArrearsAmt = (clone $statBase)->sum('arrears_amount');
+        $smsSentToday    = SmsLog::whereDate('sent_at', today())->where('status', 'sent')
+            ->when($isOfficer, fn($q) => $q->where('created_by', $user->id))
+            ->count();
+        $schedulesActive = SmsSchedule::where('status', 'active')->count();
+
+        // PAR buckets
+        $par30  = (clone $statBase)->whereBetween('days_in_arrears', [1, 30])->count();
+        $par60  = (clone $statBase)->whereBetween('days_in_arrears', [31, 60])->count();
+        $par90  = (clone $statBase)->whereBetween('days_in_arrears', [61, 90])->count();
+        $par90p = (clone $statBase)->where('days_in_arrears', '>', 90)->count();
 
         // Recent SMS activity
-        $recentSms = SmsLog::with('customer')->latest()->limit(8)->get();
+        $recentSms = SmsLog::with('customer')
+            ->when($isOfficer, fn($q) => $q->where('created_by', $user->id))
+            ->latest()->limit(8)->get();
 
         return view('loans.collection.index', compact(
             'dueToday', 'overdueLoans',
@@ -68,13 +80,17 @@ class CollectionController extends Controller
 
     public function overdue(Request $request)
     {
+        $user      = auth()->user();
+        $isOfficer = $user->hasRole('loan_officer') && !$user->hasAnyRole(['admin', 'super_admin', 'branch_manager']);
+
         $query = Loan::with(['customer', 'product', 'branch', 'relationshipOfficer'])
             ->whereIn('status', ['disbursed', 'active'])
-            ->where('days_in_arrears', '>', 0);
+            ->where('days_in_arrears', '>', 0)
+            ->when($isOfficer, fn($q) => $q->where('relationship_officer_id', $user->id));
 
-        if ($request->filled('branch'))  $query->where('branch_id', $request->branch);
-        if ($request->filled('product')) $query->where('product_id', $request->product);
-        if ($request->filled('min_days')) $query->where('days_in_arrears', '>=', $request->min_days);
+        if ($request->filled('branch'))    $query->where('branch_id', $request->branch);
+        if ($request->filled('product'))   $query->where('product_id', $request->product);
+        if ($request->filled('min_days'))  $query->where('days_in_arrears', '>=', $request->min_days);
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
@@ -88,7 +104,10 @@ class CollectionController extends Controller
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
         $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
 
-        $totalArrears = Loan::whereIn('status', ['disbursed', 'active'])->where('days_in_arrears', '>', 0)->sum('arrears_amount');
+        $totalArrears = Loan::whereIn('status', ['disbursed', 'active'])
+            ->where('days_in_arrears', '>', 0)
+            ->when($isOfficer, fn($q) => $q->where('relationship_officer_id', $user->id))
+            ->sum('arrears_amount');
 
         return view('loans.collection.overdue', compact('loans', 'branches', 'products', 'totalArrears'));
     }

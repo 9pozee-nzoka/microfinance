@@ -13,7 +13,7 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\LoanProductAdminController;
 use App\Models\Customer;
-use App\Models\Loan;
+use App\Models\LoanProduct;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -29,12 +29,9 @@ Route::post('/login', function () {
     $credentials = request()->only('email', 'password');
     if (auth()->attempt($credentials)) {
         $user = auth()->user();
-
-        // Redirect based on role
         if ($user->hasRole('customer')) {
             return redirect()->route('portal.dashboard');
         }
-
         return redirect()->route('dashboard');
     }
     return back()->withErrors(['email' => 'Invalid credentials']);
@@ -46,194 +43,20 @@ Route::post('/logout', function () {
 })->name('logout');
 
 // ============================================
-// STAFF ROUTES (auth + staff middleware blocks customers)
+// STAFF PORTAL (auth + staff middleware)
 // ============================================
 
 Route::middleware(['auth', 'staff'])->group(function () {
 
-    // ═══════════════════════════════════════════════════════════
-    // DASHBOARD — All staff roles
-    // ═══════════════════════════════════════════════════════════
+    // ── Dashboard — all staff ──────────────────────────────────
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.overview');
 
-    // ═══════════════════════════════════════════════════════════
-    // PROFILE / CHANGE PASSWORD — All staff
-    // ═══════════════════════════════════════════════════════════
+    // ── Profile ────────────────────────────────────────────────
     Route::get('/profile/change-password', [StaffController::class, 'showChangePassword'])->name('profile.change-password');
     Route::post('/profile/change-password', [StaffController::class, 'updatePassword'])->name('profile.update-password');
 
-    // ═══════════════════════════════════════════════════════════
-    // CUSTOMER MANAGEMENT — Loan Officers, Branch Managers, Admins
-    // ═══════════════════════════════════════════════════════════
-    Route::middleware(['role:loan_officer|branch_manager|admin|super_admin'])
-        ->prefix('customers')->name('customers.')
-        ->group(function () {
-            Route::get('/',                [CustomerController::class, 'index'])->name('index');
-            Route::get('/create',          [CustomerController::class, 'create'])->name('create');
-            Route::post('/',               [CustomerController::class, 'store'])->name('store');
-            Route::get('/new',             [CustomerController::class, 'newlyRegistered'])->name('new');
-            Route::get('/rejected',        [CustomerController::class, 'rejected'])->name('rejected');
-            Route::get('/credit-history',  [CustomerController::class, 'creditHistory'])->name('credit-history');
-            Route::get('/limits',          [CustomerController::class, 'limits'])->name('limits');
-
-            Route::get('/{customer}/profile', [CustomerController::class, 'profile'])->name('profile');
-            Route::get('/{customer}/edit',    [CustomerController::class, 'edit'])->name('edit');
-            Route::put('/{customer}',         [CustomerController::class, 'update'])->name('update');
-
-            // Admin/Manager only actions
-            Route::middleware(['role:branch_manager|admin|super_admin'])->group(function () {
-                Route::patch('/{customer}/verify-kyc',    [CustomerController::class, 'verifyKyc'])->name('verify-kyc');
-                Route::patch('/{customer}/activate',      [CustomerController::class, 'activate'])->name('activate');
-                Route::patch('/{customer}/reject',        [CustomerController::class, 'reject'])->name('reject');
-                Route::patch('/{customer}/reactivate',    [CustomerController::class, 'reactivate'])->name('reactivate');
-                Route::delete('/{customer}',              [CustomerController::class, 'destroy'])->name('destroy');
-                Route::patch('/{customer}/adjust-limit',  [CustomerController::class, 'adjustLimit'])->name('adjust-limit');
-                Route::post('/{customer}/recalculate-score', [CustomerController::class, 'recalculateScore'])->name('recalculate-score');
-            });
-        });
-
-    // ═══════════════════════════════════════════════════════════
-    // LOAN MANAGEMENT
-    // ═══════════════════════════════════════════════════════════
-
-    // Loan Creation — Loan Officers, Branch Managers, Admins
-    Route::middleware(['role:loan_officer|branch_manager|admin|super_admin'])
-        ->prefix('loans')->name('loans.')
-        ->group(function () {
-            Route::get('/create',               [LoanController::class, 'create'])->name('create');
-            Route::post('/',                    [LoanController::class, 'store'])->name('store');
-            Route::get('/',                     [LoanController::class, 'index'])->name('index');
-            Route::get('/{loan}',               [LoanController::class, 'show'])->name('show');
-        });
-
-    // Loan Approval — Credit Committee, Admins
-    Route::middleware(['role:credit_committee|admin|super_admin'])
-        ->prefix('loans')->name('loans.')
-        ->group(function () {
-            Route::get('/approve-new',          [LoanController::class, 'approveNew'])->name('approve');
-            Route::patch('/{loan}/approve',     [LoanController::class, 'approve'])->name('approve-action');
-            Route::patch('/{loan}/reject',      [LoanController::class, 'rejectLoan'])->name('reject');
-        });
-
-    // Loan Disbursement — Cashiers, Admins
-    Route::middleware(['role:cashier|admin|super_admin'])
-        ->prefix('loans')->name('loans.')
-        ->group(function () {
-            Route::patch('/{loan}/disburse',    [LoanController::class, 'disburse'])->name('disburse');
-            Route::post('/{loan}/processing-fee', [LoanController::class, 'recordProcessingFee'])->name('processing-fee');
-        });
-
-    // ═══════════════════════════════════════════════════════════
-    // LOAN COLLECTIONS & SMS — Loan Officers, Branch Managers, Admins
-    // ═══════════════════════════════════════════════════════════
-    Route::middleware(['role:loan_officer|branch_manager|admin|super_admin'])
-        ->prefix('loans/collection')->name('collection.')
-        ->group(function () {
-            Route::get('/',                                    [CollectionController::class, 'index'])->name('index');
-            Route::get('/overdue',                             [CollectionController::class, 'overdue'])->name('overdue');
-            Route::get('/sms-logs',                            [CollectionController::class, 'smsLogs'])->name('sms-logs');
-            Route::post('/sms/send',                           [CollectionController::class, 'sendSms'])->name('sms.send');
-            Route::post('/sms/bulk',                           [CollectionController::class, 'sendBulkSms'])->name('sms.bulk');
-            Route::patch('/sms/{smsLog}/cancel',               [CollectionController::class, 'cancelSms'])->name('sms.cancel');
-            Route::get('/schedules',                           [CollectionController::class, 'schedules'])->name('schedules');
-            Route::post('/schedules',                          [CollectionController::class, 'storeSchedule'])->name('schedules.store');
-            Route::put('/schedules/{schedule}',                [CollectionController::class, 'updateSchedule'])->name('schedules.update');
-            Route::delete('/schedules/{schedule}',             [CollectionController::class, 'destroySchedule'])->name('schedules.destroy');
-            Route::post('/schedules/{schedule}/run',           [CollectionController::class, 'runSchedule'])->name('schedules.run');
-            Route::patch('/schedules/{schedule}/toggle',       [CollectionController::class, 'toggleSchedule'])->name('schedules.toggle');
-        });
-
-    // ═══════════════════════════════════════════════════════════
-    // LOAN PRODUCTS — Admins only
-    // ═══════════════════════════════════════════════════════════
-    Route::middleware(['role:admin|super_admin'])
-        ->prefix('loan-products')->name('loan-products.')
-        ->group(function () {
-            Route::get('/',            [LoanProductAdminController::class, 'index'])->name('index');
-            Route::get('/create',      [LoanProductAdminController::class, 'create'])->name('create');
-            Route::post('/',           [LoanProductAdminController::class, 'store'])->name('store');
-            Route::get('/{loanProduct}/edit', [LoanProductAdminController::class, 'edit'])->name('edit');
-            Route::put('/{loanProduct}',      [LoanProductAdminController::class, 'update'])->name('update');
-        });
-
-    // ═══════════════════════════════════════════════════════════
-    // STAFF MANAGEMENT — Admins only
-    // ═══════════════════════════════════════════════════════════
-    Route::middleware(['role:admin|super_admin'])
-        ->prefix('staff')->name('staff.')
-        ->group(function () {
-            Route::get('/',              [StaffController::class, 'index'])->name('index');
-            Route::get('/create',        [StaffController::class, 'create'])->name('create');
-            Route::post('/',             [StaffController::class, 'store'])->name('store');
-            Route::post('/{user}/reset-password', [StaffController::class, 'resetPassword'])->name('reset-password');
-            Route::get('/{user}/performance', [StaffController::class, 'performance'])->name('performance');
-        });
-
-    // ═══════════════════════════════════════════════════════════
-    // BRANCH MANAGEMENT — Admins only
-    // ═══════════════════════════════════════════════════════════
-    Route::middleware(['role:admin|super_admin'])
-        ->prefix('branches')->name('branches.')
-        ->group(function () {
-            Route::get('/',              [BranchController::class, 'index'])->name('index');
-            Route::get('/create',        [BranchController::class, 'create'])->name('create');
-            Route::post('/',             [BranchController::class, 'store'])->name('store');
-            Route::get('/{branch}/edit', [BranchController::class, 'edit'])->name('edit');
-            Route::put('/{branch}',      [BranchController::class, 'update'])->name('update');
-            Route::delete('/{branch}',   [BranchController::class, 'destroy'])->name('destroy');
-        });
-
-    // ═══════════════════════════════════════════════════════════
-    // TRANSACTIONS — Cashiers, Admins
-    // ═══════════════════════════════════════════════════════════
-    Route::middleware(['role:cashier|admin|super_admin'])
-        ->prefix('transactions')->name('transactions.')
-        ->group(function () {
-            Route::get('/money-in', [TransactionController::class, 'moneyIn'])->name('money-in');
-            Route::post('/money-in', [TransactionController::class, 'store'])->name('store');
-            Route::get('/suspense', [TransactionController::class, 'suspense'])->name('suspense');
-            Route::post('/suspense', [TransactionController::class, 'storeSuspense'])->name('suspense.store');
-            Route::patch('/suspense/{suspense}/match', [TransactionController::class, 'matchSuspense'])->name('suspense.match');
-            Route::patch('/suspense/{suspense}/escalate', [TransactionController::class, 'escalateSuspense'])->name('suspense.escalate');
-            Route::get('/processed', [TransactionController::class, 'processed'])->name('processed');
-        });
-
-    // ═══════════════════════════════════════════════════════════
-    // M-PESA STAFF ROUTES — Cashiers, Admins
-    // ═══════════════════════════════════════════════════════════
-    Route::middleware(['role:cashier|admin|super_admin'])
-        ->prefix('mpesa')->name('mpesa.')
-        ->group(function () {
-            Route::get('/',                                          [MpesaController::class, 'index'])->name('index');
-            Route::post('/loans/{loan}/stk-push',                   [MpesaController::class, 'initiateStkPush'])->name('stk.push');
-            Route::post('/loans/{loan}/disburse',                   [MpesaController::class, 'initiateB2c'])->name('b2c.disburse');
-            Route::get('/transactions/{mpesaTxn}/status',           [MpesaController::class, 'stkStatus'])->name('stk.status');
-        });
-
-    // ═══════════════════════════════════════════════════════════
-    // REPORTS — Auditors, Branch Managers, Admins
-    // ═══════════════════════════════════════════════════════════
-    Route::middleware(['role:auditor|branch_manager|admin|super_admin'])
-        ->prefix('reports')->name('reports.')
-        ->group(function () {
-            Route::get('/', [ReportController::class, 'index'])->name('index');
-            Route::get('/portfolio/loan-book',      [ReportController::class, 'loanBook'])->name('portfolio.loan-book');
-            Route::get('/portfolio/par',             [ReportController::class, 'par'])->name('portfolio.par');
-            Route::get('/portfolio/disbursements',   [ReportController::class, 'disbursements'])->name('portfolio.disbursements');
-            Route::get('/portfolio/collections',     [ReportController::class, 'collections'])->name('portfolio.collections');
-            Route::get('/operational/daily',         [ReportController::class, 'dailyActivity'])->name('operational.daily');
-            Route::get('/operational/officers',      [ReportController::class, 'officerPerformance'])->name('operational.officers');
-            Route::get('/operational/branches',      [ReportController::class, 'branchPerformance'])->name('operational.branches');
-            Route::get('/financial/income',          [ReportController::class, 'incomeStatement'])->name('financial.income');
-            Route::get('/financial/ledger',          [ReportController::class, 'transactionLedger'])->name('financial.ledger');
-            Route::get('/customers/register',        [ReportController::class, 'customerRegister'])->name('customers.register');
-            Route::get('/customers/credit-scores',   [ReportController::class, 'creditScoreReport'])->name('customers.credit-scores');
-        });
-
-    // ═══════════════════════════════════════════════════════════
-    // INTERNAL API ENDPOINTS — All staff
-    // ═══════════════════════════════════════════════════════════
+    // ── Internal API — all staff ───────────────────────────────
     Route::prefix('api')->name('api.')->group(function () {
         Route::get('/customers/search', function (Request $request) {
             $q = $request->get('q', '');
@@ -257,20 +80,188 @@ Route::middleware(['auth', 'staff'])->group(function () {
             return response()->json($loans);
         })->name('customers.active-loans');
 
-        Route::get('/loan-products/{product}/rates', function (\App\Models\LoanProduct $product) {
+        // Loan eligibility check — returns fee amount, returning status, active loan info
+        Route::get('/customers/{customer}/loan-eligibility', function (Customer $customer) {
+            $activeLoan = Loan::where('customer_id', $customer->id)
+                ->whereIn('status', ['pending', 'approved', 'disbursed', 'active'])
+                ->latest()->first();
+
+            $isReturning = Loan::where('customer_id', $customer->id)
+                ->whereIn('status', ['completed', 'written_off'])
+                ->exists();
+
+            return response()->json([
+                'has_active_loan'     => (bool) $activeLoan,
+                'active_loan_number'  => $activeLoan?->loan_number,
+                'active_loan_status'  => $activeLoan ? ucfirst($activeLoan->status) : null,
+                'active_loan_balance' => $activeLoan?->outstanding_balance,
+                'is_returning'        => $isReturning,
+                'processing_fee'      => $isReturning ? 500 : 700,
+            ]);
+        })->name('customers.loan-eligibility');
+
+        Route::get('/loan-products/{product}/rates', function (LoanProduct $product) {
             return response()->json($product->rates);
         })->name('loan-products.rates');
     });
+
+    // ── Customer Management ────────────────────────────────────
+    // Loan officers can register / view customers
+    // Admin/Manager can also approve, reject, activate
+    Route::prefix('customers')->name('customers.')->group(function () {
+        Route::middleware(['role:super_admin|admin|branch_manager|loan_officer'])
+            ->group(function () {
+                Route::get('/',                [CustomerController::class, 'index'])->name('index');
+                Route::get('/create',          [CustomerController::class, 'create'])->name('create');
+                Route::post('/',               [CustomerController::class, 'store'])->name('store');
+                Route::get('/new',             [CustomerController::class, 'newlyRegistered'])->name('new');
+                Route::get('/rejected',        [CustomerController::class, 'rejected'])->name('rejected');
+                Route::get('/credit-history',  [CustomerController::class, 'creditHistory'])->name('credit-history');
+                Route::get('/limits',          [CustomerController::class, 'limits'])->name('limits');
+                Route::get('/{customer}/profile', [CustomerController::class, 'profile'])->name('profile');
+                Route::get('/{customer}/edit',    [CustomerController::class, 'edit'])->name('edit');
+                Route::put('/{customer}',         [CustomerController::class, 'update'])->name('update');
+            });
+
+        Route::middleware(['role:super_admin|admin|branch_manager'])->group(function () {
+            Route::patch('/{customer}/verify-kyc',       [CustomerController::class, 'verifyKyc'])->name('verify-kyc');
+            Route::patch('/{customer}/activate',         [CustomerController::class, 'activate'])->name('activate');
+            Route::patch('/{customer}/reject',           [CustomerController::class, 'reject'])->name('reject');
+            Route::patch('/{customer}/reactivate',       [CustomerController::class, 'reactivate'])->name('reactivate');
+            Route::delete('/{customer}',                 [CustomerController::class, 'destroy'])->name('destroy');
+            Route::patch('/{customer}/adjust-limit',     [CustomerController::class, 'adjustLimit'])->name('adjust-limit');
+            Route::post('/{customer}/recalculate-score', [CustomerController::class, 'recalculateScore'])->name('recalculate-score');
+        });
+    });
+
+    // ── Loan Collections & SMS ─────────────────────────────────
+    // MUST be registered BEFORE loans/{loan} to avoid wildcard conflict
+    Route::middleware(['role:super_admin|admin|branch_manager|loan_officer'])
+        ->prefix('loans/collection')->name('collection.')
+        ->group(function () {
+            Route::get('/',                                    [CollectionController::class, 'index'])->name('index');
+            Route::get('/overdue',                             [CollectionController::class, 'overdue'])->name('overdue');
+            Route::get('/sms-logs',                            [CollectionController::class, 'smsLogs'])->name('sms-logs');
+            Route::post('/sms/send',                           [CollectionController::class, 'sendSms'])->name('sms.send');
+            Route::post('/sms/bulk',                           [CollectionController::class, 'sendBulkSms'])->name('sms.bulk');
+            Route::patch('/sms/{smsLog}/cancel',               [CollectionController::class, 'cancelSms'])->name('sms.cancel');
+            Route::get('/schedules',                           [CollectionController::class, 'schedules'])->name('schedules');
+            Route::post('/schedules',                          [CollectionController::class, 'storeSchedule'])->name('schedules.store');
+            Route::put('/schedules/{schedule}',                [CollectionController::class, 'updateSchedule'])->name('schedules.update');
+            Route::delete('/schedules/{schedule}',             [CollectionController::class, 'destroySchedule'])->name('schedules.destroy');
+            Route::post('/schedules/{schedule}/run',           [CollectionController::class, 'runSchedule'])->name('schedules.run');
+            Route::patch('/schedules/{schedule}/toggle',       [CollectionController::class, 'toggleSchedule'])->name('schedules.toggle');
+        });
+
+    // ── Loan Management ────────────────────────────────────────
+    Route::prefix('loans')->name('loans.')->group(function () {
+        // Loan officers can create and view loans
+        Route::middleware(['role:super_admin|admin|branch_manager|loan_officer'])->group(function () {
+            Route::get('/create',  [LoanController::class, 'create'])->name('create');
+            Route::post('/',       [LoanController::class, 'store'])->name('store');
+            Route::get('/',        [LoanController::class, 'index'])->name('index');
+        });
+
+        // Approval — admin / branch manager
+        Route::middleware(['role:super_admin|admin|branch_manager'])->group(function () {
+            Route::get('/approve-new',      [LoanController::class, 'approveNew'])->name('approve');
+            Route::patch('/{loan}/approve', [LoanController::class, 'approve'])->name('approve-action');
+            Route::patch('/{loan}/reject',  [LoanController::class, 'rejectLoan'])->name('reject');
+            Route::patch('/{loan}/disburse',[LoanController::class, 'disburse'])->name('disburse');
+            Route::post('/{loan}/processing-fee', [LoanController::class, 'recordProcessingFee'])->name('processing-fee');
+        });
+
+        // View single loan — all staff that can see loans
+        Route::middleware(['role:super_admin|admin|branch_manager|loan_officer'])->group(function () {
+            // /{loan} MUST come last — wildcard
+            Route::get('/{loan}', [LoanController::class, 'show'])->name('show');
+        });
+    });
+
+    // ── Loan Products — admin only ─────────────────────────────
+    Route::middleware(['role:super_admin|admin'])
+        ->prefix('loan-products')->name('loan-products.')
+        ->group(function () {
+            Route::get('/',                   [LoanProductAdminController::class, 'index'])->name('index');
+            Route::get('/create',             [LoanProductAdminController::class, 'create'])->name('create');
+            Route::post('/',                  [LoanProductAdminController::class, 'store'])->name('store');
+            Route::get('/{loanProduct}/edit', [LoanProductAdminController::class, 'edit'])->name('edit');
+            Route::put('/{loanProduct}',      [LoanProductAdminController::class, 'update'])->name('update');
+        });
+
+    // ── Staff Management — admin only ──────────────────────────
+    Route::middleware(['role:super_admin|admin'])
+        ->prefix('staff')->name('staff.')
+        ->group(function () {
+            Route::get('/',                       [StaffController::class, 'index'])->name('index');
+            Route::get('/create',                 [StaffController::class, 'create'])->name('create');
+            Route::post('/',                      [StaffController::class, 'store'])->name('store');
+            Route::post('/{user}/reset-password', [StaffController::class, 'resetPassword'])->name('reset-password');
+            Route::get('/{user}/performance',     [StaffController::class, 'performance'])->name('performance');
+        });
+
+    // ── Branch Management — admin only ─────────────────────────
+    Route::middleware(['role:super_admin|admin'])
+        ->prefix('branches')->name('branches.')
+        ->group(function () {
+            Route::get('/',              [BranchController::class, 'index'])->name('index');
+            Route::get('/create',        [BranchController::class, 'create'])->name('create');
+            Route::post('/',             [BranchController::class, 'store'])->name('store');
+            Route::get('/{branch}/edit', [BranchController::class, 'edit'])->name('edit');
+            Route::put('/{branch}',      [BranchController::class, 'update'])->name('update');
+            Route::delete('/{branch}',   [BranchController::class, 'destroy'])->name('destroy');
+        });
+
+    // ── Transactions — admin / branch manager ──────────────────
+    Route::middleware(['role:super_admin|admin|branch_manager'])
+        ->prefix('transactions')->name('transactions.')
+        ->group(function () {
+            Route::get('/money-in',  [TransactionController::class, 'moneyIn'])->name('money-in');
+            Route::post('/money-in', [TransactionController::class, 'store'])->name('store');
+            Route::get('/suspense',  [TransactionController::class, 'suspense'])->name('suspense');
+            Route::post('/suspense', [TransactionController::class, 'storeSuspense'])->name('suspense.store');
+            Route::patch('/suspense/{suspense}/match',    [TransactionController::class, 'matchSuspense'])->name('suspense.match');
+            Route::patch('/suspense/{suspense}/escalate', [TransactionController::class, 'escalateSuspense'])->name('suspense.escalate');
+            Route::get('/processed', [TransactionController::class, 'processed'])->name('processed');
+        });
+
+    // ── M-Pesa staff routes — admin / branch manager ───────────
+    Route::middleware(['role:super_admin|admin|branch_manager'])
+        ->prefix('mpesa')->name('mpesa.')
+        ->group(function () {
+            Route::get('/', [MpesaController::class, 'index'])->name('index');
+            Route::post('/loans/{loan}/stk-push',          [MpesaController::class, 'initiateStkPush'])->name('stk.push');
+            Route::post('/loans/{loan}/disburse',           [MpesaController::class, 'initiateB2c'])->name('b2c.disburse');
+            Route::get('/transactions/{mpesaTxn}/status',   [MpesaController::class, 'stkStatus'])->name('stk.status');
+        });
+
+    // ── Reports — admin / branch manager ───────────────────────
+    Route::middleware(['role:super_admin|admin|branch_manager'])
+        ->prefix('reports')->name('reports.')
+        ->group(function () {
+            Route::get('/', [ReportController::class, 'index'])->name('index');
+            Route::get('/portfolio/loan-book',    [ReportController::class, 'loanBook'])->name('portfolio.loan-book');
+            Route::get('/portfolio/par',           [ReportController::class, 'par'])->name('portfolio.par');
+            Route::get('/portfolio/disbursements', [ReportController::class, 'disbursements'])->name('portfolio.disbursements');
+            Route::get('/portfolio/collections',   [ReportController::class, 'collections'])->name('portfolio.collections');
+            Route::get('/operational/daily',       [ReportController::class, 'dailyActivity'])->name('operational.daily');
+            Route::get('/operational/officers',    [ReportController::class, 'officerPerformance'])->name('operational.officers');
+            Route::get('/operational/branches',    [ReportController::class, 'branchPerformance'])->name('operational.branches');
+            Route::get('/financial/income',        [ReportController::class, 'incomeStatement'])->name('financial.income');
+            Route::get('/financial/ledger',        [ReportController::class, 'transactionLedger'])->name('financial.ledger');
+            Route::get('/customers/register',      [ReportController::class, 'customerRegister'])->name('customers.register');
+            Route::get('/customers/credit-scores', [ReportController::class, 'creditScoreReport'])->name('customers.credit-scores');
+        });
 });
 
 // ============================================
-// M-PESA CALLBACK ROUTES (public — called by Safaricom)
+// M-PESA CALLBACK ROUTES (public — Safaricom)
 // ============================================
 
 Route::prefix('mpesa')->name('mpesa.')->group(function () {
-    Route::post('/stk/callback',  [MpesaController::class, 'stkCallback'])->name('stk.callback');
-    Route::post('/b2c/result',    [MpesaController::class, 'b2cResult'])->name('b2c.result');
-    Route::post('/b2c/timeout',   [MpesaController::class, 'b2cTimeout'])->name('b2c.timeout');
+    Route::post('/stk/callback', [MpesaController::class, 'stkCallback'])->name('stk.callback');
+    Route::post('/b2c/result',   [MpesaController::class, 'b2cResult'])->name('b2c.result');
+    Route::post('/b2c/timeout',  [MpesaController::class, 'b2cTimeout'])->name('b2c.timeout');
 });
 
 // ============================================
@@ -283,13 +274,13 @@ Route::prefix('portal')->name('portal.')->group(function () {
     Route::post('/logout',[CustomerPortalController::class, 'logout'])->name('logout');
 
     Route::middleware(['auth', 'customer.portal'])->group(function () {
-        Route::get('/dashboard',                          [CustomerPortalController::class, 'dashboard'])->name('dashboard');
-        Route::get('/loans',                              [CustomerPortalController::class, 'loans'])->name('loans');
-        Route::get('/loans/{loan}',                       [CustomerPortalController::class, 'loanDetail'])->name('loan.detail');
-        Route::get('/loans/{loan}/pay',                   [CustomerPortalController::class, 'showPayment'])->name('loan.pay');
-        Route::post('/loans/{loan}/pay',                  [CustomerPortalController::class, 'submitPayment'])->name('loan.pay.submit');
-        Route::get('/transactions',                       [CustomerPortalController::class, 'transactions'])->name('transactions');
-        Route::get('/profile',                            [CustomerPortalController::class, 'profile'])->name('profile');
-        Route::post('/profile/change-password',           [CustomerPortalController::class, 'changePassword'])->name('change-password');
+        Route::get('/dashboard',              [CustomerPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('/loans',                  [CustomerPortalController::class, 'loans'])->name('loans');
+        Route::get('/loans/{loan}',           [CustomerPortalController::class, 'loanDetail'])->name('loan.detail');
+        Route::get('/loans/{loan}/pay',       [CustomerPortalController::class, 'showPayment'])->name('loan.pay');
+        Route::post('/loans/{loan}/pay',      [CustomerPortalController::class, 'submitPayment'])->name('loan.pay.submit');
+        Route::get('/transactions',           [CustomerPortalController::class, 'transactions'])->name('transactions');
+        Route::get('/profile',                [CustomerPortalController::class, 'profile'])->name('profile');
+        Route::post('/profile/change-password', [CustomerPortalController::class, 'changePassword'])->name('change-password');
     });
 });

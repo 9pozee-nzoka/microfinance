@@ -84,67 +84,6 @@
         </div>
     </div>
 
-    <div class="form-section">
-        <div class="section-heading"><i class="fas fa-coins"></i> Fees & Requirements</div>
-        <div class="grid-3">
-            <div class="form-group">
-                <label class="form-label">Processing Fee Rate (%)</label>
-                <input type="number" name="processing_fee_rate" value="{{ old('processing_fee_rate', 2) }}" step="0.01" min="0" max="100" class="form-control">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Insurance Fee Rate (%)</label>
-                <input type="number" name="insurance_fee_rate" value="{{ old('insurance_fee_rate', 1) }}" step="0.01" min="0" max="100" class="form-control">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Late Penalty Rate (%)</label>
-                <input type="number" name="late_penalty_rate" value="{{ old('late_penalty_rate', 1) }}" step="0.01" min="0" max="100" class="form-control">
-            </div>
-        </div>
-        <div class="grid-3">
-            <div class="form-group">
-                <label class="form-label">Grace Period (days)</label>
-                <input type="number" name="grace_period_days" value="{{ old('grace_period_days', 3) }}" min="0" class="form-control">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Min Guarantors</label>
-                <input type="number" name="min_guarantors" value="{{ old('min_guarantors', 1) }}" min="0" class="form-control">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Min Savings Multiplier</label>
-                <input type="number" name="min_savings_multiplier" value="{{ old('min_savings_multiplier', 0.2) }}" step="0.01" min="0" class="form-control">
-            </div>
-        </div>
-        <div class="grid-3">
-            <div class="form-group">
-                <label class="form-label">Requires Collateral</label>
-                <select name="requires_collateral" class="form-control">
-                    <option value="0" {{ old('requires_collateral')==='0'?'selected':'' }}>No</option>
-                    <option value="1" {{ old('requires_collateral')==='1'?'selected':'' }}>Yes</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Collateral Type</label>
-                <select name="collateral_type" class="form-control">
-                    <option value="none" {{ old('collateral_type')==='none'?'selected':'' }}>None</option>
-                    <option value="land" {{ old('collateral_type')==='land'?'selected':'' }}>Land</option>
-                    <option value="vehicle" {{ old('collateral_type')==='vehicle'?'selected':'' }}>Vehicle</option>
-                    <option value="equipment" {{ old('collateral_type')==='equipment'?'selected':'' }}>Equipment</option>
-                    <option value="goods" {{ old('collateral_type')==='goods'?'selected':'' }}>Goods</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Min Membership (months)</label>
-                <input type="number" name="min_membership_months" value="{{ old('min_membership_months', 0) }}" min="0" class="form-control">
-            </div>
-        </div>
-        <div class="grid-3">
-            <div class="form-group">
-                <label class="form-label">Min Credit Score</label>
-                <input type="number" name="min_credit_score" value="{{ old('min_credit_score', 0) }}" min="0" class="form-control">
-            </div>
-        </div>
-    </div>
-
     {{-- Rates Table --}}
     <div class="form-section">
         <div class="section-heading"><i class="fas fa-table"></i> Principal / Term Rates</div>

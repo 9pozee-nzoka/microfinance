@@ -220,6 +220,23 @@
                        class="form-control" placeholder="e.g. Retail, Wholesale, Agri">
             </div>
         </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Customer Type</label>
+                <select name="customer_type" class="form-control">
+                    <option value="">-- Select --</option>
+                    <option value="permanent"     {{ old('customer_type')==='permanent'     ? 'selected':'' }}>Permanent</option>
+                    <option value="non_permanent" {{ old('customer_type')==='non_permanent' ? 'selected':'' }}>Non-Permanent</option>
+                </select>
+                <div class="form-hint">Permanent employees / business owners vs casual / seasonal workers</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Qualified Amount (KSH)</label>
+                <input type="number" name="qualified_amount" value="{{ old('qualified_amount') }}"
+                       class="form-control" placeholder="0.00" min="0" step="0.01">
+                <div class="form-hint">Maximum loan amount this customer qualifies for</div>
+            </div>
+        </div>
     </div>
 
     {{-- ── Section 4: Next of Kin ── --}}
@@ -281,19 +298,7 @@
                 </select>
                 @error('branch_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
-            <div class="form-group">
-                <label class="form-label">Relationship Officer <span class="req">*</span></label>
-                <select name="relationship_officer_id"
-                        class="form-control {{ $errors->has('relationship_officer_id') ? 'is-invalid' : '' }}" required>
-                    <option value="">-- Select Officer --</option>
-                    @foreach($officers as $officer)
-                        <option value="{{ $officer->id }}" {{ old('relationship_officer_id') == $officer->id ? 'selected' : '' }}>
-                            {{ $officer->name }} — {{ $officer->designation ?? 'Officer' }}
-                        </option>
-                    @endforeach
-                </select>
-                @error('relationship_officer_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
-            </div>
+
         </div>
     </div>
 

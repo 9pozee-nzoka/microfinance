@@ -30,10 +30,41 @@
         @if(isset($customer))
             {{-- Pre-filled from customer profile --}}
             <input type="hidden" name="customer_id" value="{{ $customer->id }}">
+
+            {{-- Outstanding loan block --}}
+            @if($hasActiveLoan)
+            <div class="flash-error" style="margin-bottom:0;">
+                <i class="fas fa-ban" style="font-size:20px;"></i>
+                <div>
+                    <div style="font-weight:700; font-size:14px;">Cannot Apply — Outstanding Loan Exists</div>
+                    <div style="font-size:13px; margin-top:4px;">
+                        <strong>{{ $customer->full_name }}</strong> has an active loan
+                        <strong>{{ $activeLoan->loan_number }}</strong>
+                        (Status: <strong>{{ ucfirst($activeLoan->status) }}</strong>,
+                        Balance: <strong>KSH {{ number_format($activeLoan->outstanding_balance, 0) }}</strong>).
+                        The customer must complete or close this loan before applying for a new one.
+                    </div>
+                    <a href="{{ route('loans.show', $activeLoan) }}" class="btn btn-outline" style="margin-top:10px; font-size:12px;">
+                        <i class="fas fa-eye"></i> View Active Loan
+                    </a>
+                </div>
+            </div>
+            @else
             <div class="selected-customer-badge">
                 <i class="fas fa-user-check" style="color:var(--success); font-size:18px;"></i>
                 <div>
-                    <div style="font-weight:700;">{{ $customer->full_name }}</div>
+                    <div style="font-weight:700;">
+                        {{ $customer->full_name }}
+                        @if($isReturningCustomer)
+                            <span style="background:#E8F5E9; color:#2E7D32; font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; margin-left:6px;">
+                                <i class="fas fa-redo-alt"></i> Returning Customer
+                            </span>
+                        @else
+                            <span style="background:#E3F2FD; color:#1565C0; font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; margin-left:6px;">
+                                <i class="fas fa-star"></i> First-Time Customer
+                            </span>
+                        @endif
+                    </div>
                     <div style="font-size:12px; color:var(--text-secondary);">
                         {{ $customer->customer_number }} &nbsp;·&nbsp; {{ $customer->phone_number }}
                         &nbsp;·&nbsp; Credit Score: <strong>{{ $customer->credit_score }}</strong>
@@ -41,6 +72,7 @@
                     </div>
                 </div>
             </div>
+            @endif
         @else
             <div class="form-group">
                 <label class="form-label">Search Customer <span class="req">*</span></label>
@@ -51,10 +83,19 @@
                     <div class="customer-dropdown" id="customerDropdown"></div>
                 </div>
                 <input type="hidden" name="customer_id" id="customerId" value="{{ old('customer_id') }}">
+
+                {{-- Dynamic status badge shown after selection --}}
                 <div id="selectedCustomerBadge" style="display:none;" class="selected-customer-badge">
                     <i class="fas fa-user-check" style="color:var(--success); font-size:18px;"></i>
                     <div id="selectedCustomerInfo"></div>
                 </div>
+
+                {{-- Outstanding loan warning --}}
+                <div id="activeLoanWarning" style="display:none;" class="flash-error" style="margin-top:8px;">
+                    <i class="fas fa-ban"></i>
+                    <div id="activeLoanWarningText"></div>
+                </div>
+
                 @error('customer_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
         @endif
@@ -78,8 +119,6 @@
                                 data-max-weeks="{{ $product->max_term_weeks }}"
                                 data-rate="{{ $product->interest_rate }}"
                                 data-method="{{ $product->interest_method }}"
-                                data-proc="{{ $product->processing_fee_rate }}"
-                                data-ins="{{ $product->insurance_fee_rate }}"
                                 {{ old('product_id') == $product->id ? 'selected' : '' }}>
                             {{ $product->name }} — {{ $product->interest_rate }}% p.a.
                         </option>
@@ -137,18 +176,7 @@
                 </select>
                 @error('branch_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
-            <div class="form-group">
-                <label class="form-label">Relationship Officer <span class="req">*</span></label>
-                <select name="relationship_officer_id" class="form-control {{ $errors->has('relationship_officer_id') ? 'is-invalid' : '' }}" required>
-                    <option value="">-- Select Officer --</option>
-                    @foreach($officers as $officer)
-                        <option value="{{ $officer->id }}" {{ old('relationship_officer_id', auth()->id()) == $officer->id ? 'selected' : '' }}>
-                            {{ $officer->name }}
-                        </option>
-                    @endforeach
-                </select>
-                @error('relationship_officer_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
-            </div>
+
         </div>
     </div>
 
@@ -179,7 +207,47 @@
         <span class="form-hint" style="display:inline-block; margin-left:10px;">Add customers who will guarantee this loan</span>
     </div>
 
-    {{-- ── Section 5: Loan Calculator ── --}}
+    {{-- ── Section 5: Processing Fee ── --}}
+    <div class="form-section">
+        <div class="section-heading"><i class="fas fa-receipt"></i> Processing Fee</div>
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">
+            The processing fee is collected <strong>before disbursement</strong> and is <strong>not</strong> included in the weekly repayment installments.
+        </p>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Processing Fee Amount (KSH) <span class="req">*</span></label>
+                <input type="number" name="processing_fee" id="processingFee"
+                       value="{{ old('processing_fee', $processingFee ?? 700) }}"
+                       class="form-control {{ $errors->has('processing_fee') ? 'is-invalid' : '' }}"
+                       placeholder="700" min="0" step="0.01" required>
+                <div class="form-hint" id="processingFeeHint">
+                    @if(isset($isReturningCustomer))
+                        {{ $isReturningCustomer ? 'Returning customer fee: KSH 500' : 'First-time customer fee: KSH 700' }}
+                    @else
+                        First-time: KSH 700 &nbsp;·&nbsp; Returning: KSH 500 (auto-set when customer is selected)
+                    @endif
+                </div>
+                @error('processing_fee')<span class="invalid-feedback">{{ $message }}</span>@enderror
+            </div>
+            <div class="form-group">
+                <label class="form-label">Payment Method <span class="req">*</span></label>
+                <select name="processing_fee_method" id="processingFeeMethod"
+                        class="form-control {{ $errors->has('processing_fee_method') ? 'is-invalid' : '' }}" required>
+                    <option value="cash"          {{ old('processing_fee_method','cash') === 'cash'          ? 'selected':'' }}>Cash</option>
+                    <option value="mpesa"         {{ old('processing_fee_method') === 'mpesa'         ? 'selected':'' }}>M-Pesa</option>
+                    <option value="bank_transfer" {{ old('processing_fee_method') === 'bank_transfer' ? 'selected':'' }}>Bank Transfer</option>
+                </select>
+                @error('processing_fee_method')<span class="invalid-feedback">{{ $message }}</span>@enderror
+            </div>
+            <div class="form-group" id="processingFeeRefGroup" style="display:none;">
+                <label class="form-label">M-Pesa / Reference No.</label>
+                <input type="text" name="processing_fee_reference" value="{{ old('processing_fee_reference') }}"
+                       class="form-control" placeholder="e.g. QAB1234XYZ">
+            </div>
+        </div>
+    </div>
+
+    {{-- ── Section 6: Loan Summary ── --}}
     <div class="form-section">
         <div class="section-heading"><i class="fas fa-calculator"></i> Loan Summary</div>
         <div id="calcBox" class="calc-box" style="display:none;">
@@ -191,20 +259,16 @@
                 <span class="label">Interest (<span id="calcRateLabel">0%</span>)</span>
                 <span class="value" id="calcInterest">KSH 0</span>
             </div>
-            <div class="calc-row">
-                <span class="label">Processing Fee</span>
-                <span class="value" id="calcProcessing">KSH 0</span>
-            </div>
-            <div class="calc-row">
-                <span class="label">Insurance Fee</span>
-                <span class="value" id="calcInsurance">KSH 0</span>
+            <div class="calc-row" style="color:var(--text-secondary);">
+                <span class="label">Processing Fee <small>(paid before disbursement — not in installments)</small></span>
+                <span class="value" id="calcProcessingFee">KSH 200</span>
             </div>
             <div class="calc-row total">
-                <span class="label">Total Repayable</span>
+                <span class="label">Total Repayable (excl. processing fee)</span>
                 <span class="value" id="calcTotal">KSH 0</span>
             </div>
             <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(0,188,212,0.2); display:flex; gap:24px; font-size:12px; color:var(--text-secondary);">
-                <span><i class="fas fa-calendar-week" style="color:var(--primary);"></i> Weekly: <strong id="calcWeekly" style="color:var(--text-primary);">KSH 0</strong></span>
+                <span><i class="fas fa-calendar-week" style="color:var(--primary);"></i> Weekly Installment: <strong id="calcWeekly" style="color:var(--text-primary);">KSH 0</strong></span>
                 <span><i class="fas fa-clock" style="color:var(--primary);"></i> Term: <strong id="calcTerm" style="color:var(--text-primary);">0 weeks</strong></span>
             </div>
         </div>
@@ -214,12 +278,11 @@
         </div>
 
         {{-- Hidden computed fields --}}
-        <input type="hidden" name="interest_amount"   id="hiddenInterest">
-        <input type="hidden" name="processing_fee"    id="hiddenProcessing">
-        <input type="hidden" name="insurance_fee"     id="hiddenInsurance">
-        <input type="hidden" name="total_repayable"   id="hiddenTotal">
+        <input type="hidden" name="interest_amount"    id="hiddenInterest">
+        <input type="hidden" name="insurance_fee"      id="hiddenInsurance" value="0">
+        <input type="hidden" name="total_repayable"    id="hiddenTotal">
         <input type="hidden" name="weekly_installment" id="hiddenWeekly">
-        <input type="hidden" name="application_date"  value="{{ today()->toDateString() }}">
+        <input type="hidden" name="application_date"   value="{{ today()->toDateString() }}">
     </div>
 
     {{-- ── Submit ── --}}
@@ -227,9 +290,15 @@
         <a href="{{ route('loans.index') }}" class="btn btn-outline" style="padding:10px 24px;">
             <i class="fas fa-times"></i> Cancel
         </a>
-        <button type="submit" class="btn btn-primary" style="padding:10px 28px; font-size:14px;" id="submitBtn">
-            <i class="fas fa-paper-plane"></i> Submit Application
-        </button>
+        @if(isset($hasActiveLoan) && $hasActiveLoan)
+            <button type="submit" class="btn btn-primary" style="padding:10px 28px; font-size:14px;" disabled>
+                <i class="fas fa-ban"></i> Cannot Apply — Outstanding Loan
+            </button>
+        @else
+            <button type="submit" class="btn btn-primary" style="padding:10px 28px; font-size:14px;" id="submitBtn">
+                <i class="fas fa-paper-plane"></i> Submit Application
+            </button>
+        @endif
     </div>
 
 </form>
@@ -264,11 +333,48 @@ function selectCustomer(id, name, phone, num) {
     document.getElementById('customerId').value = id;
     document.getElementById('customerSearch').value = name;
     document.getElementById('customerDropdown').style.display = 'none';
-    const badge = document.getElementById('selectedCustomerBadge');
-    badge.style.display = 'flex';
-    document.getElementById('selectedCustomerInfo').innerHTML =
-        `<div style="font-weight:700;">${name}</div>
-         <div style="font-size:12px;color:var(--text-secondary);">${num} &nbsp;·&nbsp; ${phone}</div>`;
+
+    // Reset state
+    document.getElementById('activeLoanWarning').style.display = 'none';
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitBtn').innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
+
+    // Check loan eligibility for this customer
+    fetch(`/api/customers/${id}/loan-eligibility`)
+        .then(r => r.json())
+        .then(data => {
+            // Show customer badge
+            const badge = document.getElementById('selectedCustomerBadge');
+            badge.style.display = 'flex';
+            const typeTag = data.is_returning
+                ? `<span style="background:#E8F5E9;color:#2E7D32;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-left:6px;"><i class="fas fa-redo-alt"></i> Returning Customer</span>`
+                : `<span style="background:#E3F2FD;color:#1565C0;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-left:6px;"><i class="fas fa-star"></i> First-Time Customer</span>`;
+            document.getElementById('selectedCustomerInfo').innerHTML =
+                `<div style="font-weight:700;">${name} ${typeTag}</div>
+                 <div style="font-size:12px;color:var(--text-secondary);">${num} &nbsp;·&nbsp; ${phone}</div>`;
+
+            // Auto-set processing fee
+            const fee = data.processing_fee;
+            document.getElementById('processingFee').value = fee;
+            document.getElementById('processingFeeHint').textContent =
+                data.is_returning
+                    ? `Returning customer fee: KSH ${fee.toLocaleString()}`
+                    : `First-time customer fee: KSH ${fee.toLocaleString()}`;
+            const pfEl = document.getElementById('calcProcessingFee');
+            if (pfEl) pfEl.textContent = 'KSH ' + fee.toLocaleString('en-KE');
+
+            // Block if has active loan
+            if (data.has_active_loan) {
+                document.getElementById('activeLoanWarning').style.display = 'flex';
+                document.getElementById('activeLoanWarningText').innerHTML =
+                    `<strong>Cannot apply</strong> — this customer has an outstanding loan 
+                    <strong>${data.active_loan_number}</strong> 
+                    (${data.active_loan_status}, KSH ${Number(data.active_loan_balance).toLocaleString('en-KE')} remaining). 
+                    They must complete it before applying again.`;
+                document.getElementById('submitBtn').disabled = true;
+                document.getElementById('submitBtn').innerHTML = '<i class="fas fa-ban"></i> Cannot Apply — Outstanding Loan';
+            }
+        });
 }
 
 document.addEventListener('click', e => {
@@ -277,6 +383,12 @@ document.addEventListener('click', e => {
 });
 
 function escHtml(s) { return s.replace(/'/g,"&#39;").replace(/"/g,'&quot;'); }
+
+// ── Processing fee method toggle ────────────────────────────────
+document.getElementById('processingFeeMethod').addEventListener('change', function () {
+    document.getElementById('processingFeeRefGroup').style.display =
+        this.value !== 'cash' ? 'block' : 'none';
+});
 
 // ── Product change ───────────────────────────────────────────────
 function onProductChange() {
@@ -297,15 +409,21 @@ function onProductChange() {
     termInput.max = maxW;
     if (!termInput.value) termInput.value = minW;
 
-    recalculate();
+    // Fetch product-specific rates
+    fetch(`/api/loan-products/${opt.value}/rates`)
+        .then(r => r.json())
+        .then(data => { window._productRates = data; recalculate(); });
 }
 
 // ── Loan calculator ──────────────────────────────────────────────
+// Interest = principal × rate%  (flat, total — not annualised)
+// Processing fee is paid before disbursement — NOT included in installments.
 function recalculate() {
     const sel       = document.getElementById('productSelect');
     const opt       = sel.options[sel.selectedIndex];
     const principal = parseFloat(document.getElementById('principalAmount').value) || 0;
     const weeks     = parseInt(document.getElementById('termWeeks').value) || 0;
+    const procFee   = parseFloat(document.getElementById('processingFee').value) || 0;
 
     if (!opt.value || principal <= 0 || weeks <= 0) {
         document.getElementById('calcBox').style.display = 'none';
@@ -313,44 +431,46 @@ function recalculate() {
         return;
     }
 
-    const rate    = parseFloat(opt.dataset.rate);
-    const method  = opt.dataset.method;
-    const procRate = parseFloat(opt.dataset.proc);
-    const insRate  = parseFloat(opt.dataset.ins);
+    // Find matching rate from product rates table
+    const rates  = window._productRates || [];
+    const match  = rates.find(r => parseFloat(r.principal_amount) === principal && parseInt(r.term_weeks) === weeks);
+    const rate   = match ? parseFloat(match.interest_rate) : parseFloat(opt.dataset.rate);
+    const method = opt.dataset.method;
 
     let interest;
     if (method === 'flat') {
-        interest = principal * (rate / 100) * (weeks / 52);
+        // Flat = principal × rate% (total over full term)
+        interest = principal * (rate / 100);
     } else {
         const weeklyRate = (rate / 100) / 52;
         const installment = principal * (weeklyRate / (1 - Math.pow(1 + weeklyRate, -weeks)));
         interest = (installment * weeks) - principal;
     }
 
-    const processing = principal * (procRate / 100);
-    const insurance  = principal * (insRate  / 100);
-    const total      = principal + interest + processing + insurance;
-    const weekly     = total / weeks;
+    const total  = principal + interest;   // processing fee NOT included
+    const weekly = total / weeks;
 
-    // Update display
     document.getElementById('calcBox').style.display = 'block';
     document.getElementById('calcPlaceholder').style.display = 'none';
-    document.getElementById('calcPrincipal').textContent  = 'KSH ' + fmt(principal);
-    document.getElementById('calcRateLabel').textContent  = rate + '% p.a. (' + method + ')';
-    document.getElementById('calcInterest').textContent   = 'KSH ' + fmt(interest);
-    document.getElementById('calcProcessing').textContent = 'KSH ' + fmt(processing);
-    document.getElementById('calcInsurance').textContent  = 'KSH ' + fmt(insurance);
-    document.getElementById('calcTotal').textContent      = 'KSH ' + fmt(total);
-    document.getElementById('calcWeekly').textContent     = 'KSH ' + fmt(weekly);
-    document.getElementById('calcTerm').textContent       = weeks + ' weeks';
+    document.getElementById('calcPrincipal').textContent    = 'KSH ' + fmt(principal);
+    document.getElementById('calcRateLabel').textContent    = rate + '% flat';
+    document.getElementById('calcInterest').textContent     = 'KSH ' + fmt(interest);
+    document.getElementById('calcProcessingFee').textContent = 'KSH ' + fmt(procFee);
+    document.getElementById('calcTotal').textContent        = 'KSH ' + fmt(total);
+    document.getElementById('calcWeekly').textContent       = 'KSH ' + fmt(weekly);
+    document.getElementById('calcTerm').textContent         = weeks + ' weeks';
 
-    // Populate hidden fields
-    document.getElementById('hiddenInterest').value   = interest.toFixed(2);
-    document.getElementById('hiddenProcessing').value = processing.toFixed(2);
-    document.getElementById('hiddenInsurance').value  = insurance.toFixed(2);
-    document.getElementById('hiddenTotal').value      = total.toFixed(2);
-    document.getElementById('hiddenWeekly').value     = weekly.toFixed(2);
+    document.getElementById('hiddenInterest').value    = interest.toFixed(2);
+    document.getElementById('hiddenInsurance').value   = '0';
+    document.getElementById('hiddenTotal').value       = total.toFixed(2);
+    document.getElementById('hiddenWeekly').value      = weekly.toFixed(2);
 }
+
+// Update processing fee display when field changes
+document.getElementById('processingFee').addEventListener('input', function () {
+    const el = document.getElementById('calcProcessingFee');
+    if (el) el.textContent = 'KSH ' + fmt(parseFloat(this.value) || 0);
+});
 
 function fmt(n) { return Number(n.toFixed(2)).toLocaleString('en-KE'); }
 

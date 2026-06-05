@@ -49,6 +49,40 @@
 </div>
 @endif
 
+{{-- Stored credentials — always visible to admin/manager even after leaving the page --}}
+@hasanyrole('admin|super_admin|branch_manager')
+@if(isset($tempPasswords) && $tempPasswords->count() && $customer->user_id)
+<div style="background:#FFF8E1; border:1px solid #FFE082; border-radius:10px; padding:14px 18px; margin-bottom:16px;">
+    <div style="font-size:13px; font-weight:700; color:#795548; margin-bottom:8px;">
+        <i class="fas fa-key"></i> Stored Portal Credentials
+        <span style="font-size:11px; font-weight:400; margin-left:8px; color:var(--text-secondary);">Visible to managers/admins only</span>
+    </div>
+    @foreach($tempPasswords as $tp)
+    <div style="display:flex; align-items:center; gap:12px; background:white; border-radius:8px; padding:10px 14px; margin-bottom:6px; border:1px solid #FFE082;">
+        <div style="flex:1; font-family:monospace; font-size:13px; color:#1565C0;">
+            <div><strong>Email:</strong> {{ $customer->user?->email ?? '—' }}</div>
+            <div style="margin-top:3px;"><strong>Password:</strong>
+                <span id="pwd_{{ $tp->id }}" style="letter-spacing:3px;">••••••••</span>
+                <button type="button" onclick="togglePwd('{{ $tp->id }}','{{ $tp->temp_password }}')"
+                        style="background:none;border:none;cursor:pointer;color:var(--primary);font-size:12px;margin-left:6px;">
+                    <i class="fas fa-eye" id="eye_{{ $tp->id }}"></i>
+                </button>
+                <button type="button" onclick="navigator.clipboard.writeText('{{ $tp->temp_password }}');this.innerHTML='<i class=\'fas fa-check\' style=\'color:var(--success)\'></i> Copied';"
+                        style="background:none;border:none;cursor:pointer;color:var(--primary);font-size:12px;margin-left:4px;">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        </div>
+        <div style="font-size:11px; color:var(--text-secondary); white-space:nowrap;">{{ $tp->created_at->format('d M Y') }}</div>
+    </div>
+    @endforeach
+    <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">
+        <i class="fas fa-info-circle"></i> These are the most recent stored passwords. Ask the customer to change after first login.
+    </div>
+</div>
+@endif
+@endhasanyrole
+
 {{-- Back + Actions --}}
 <div class="page-actions">
     <a href="{{ route('customers.index') }}" class="btn btn-outline" style="font-size:13px;">

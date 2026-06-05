@@ -44,7 +44,7 @@ class LoanProduct extends Model
 
     public function calculateInterest(float $principal, int $weeks): float
     {
-        // Check for specific rate first
+        // Look up per-principal-per-term rate first
         $specificRate = $this->rates()
             ->where('principal_amount', $principal)
             ->where('term_weeks', $weeks)
@@ -53,21 +53,22 @@ class LoanProduct extends Model
         $rate = $specificRate ? (float) $specificRate->interest_rate : (float) $this->interest_rate;
 
         if ($this->interest_method === 'flat') {
-            return ($principal * ($rate / 100) * ($weeks / 52));
+            // Flat interest = principal × rate%  (rate is a total flat % of principal, NOT annualised)
+            // e.g. KSH 3000 × 20% = KSH 600 interest over the full term
+            return round($principal * ($rate / 100), 2);
         }
-        
-        // Reducing balance (simplified)
+
+        // Reducing balance (weekly amortisation)
         $weeklyRate = ($rate / 100) / 52;
         $installment = $principal * ($weeklyRate / (1 - pow(1 + $weeklyRate, -$weeks)));
-        return ($installment * $weeks) - $principal;
+        return round(($installment * $weeks) - $principal, 2);
     }
 
     public function calculateTotalRepayable(float $principal, int $weeks): float
     {
         $interest = $this->calculateInterest($principal, $weeks);
-        $processingFee = $principal * ($this->processing_fee_rate / 100);
-        $insuranceFee = $principal * ($this->insurance_fee_rate / 100);
-        
-        return $principal + $interest + $processingFee + $insuranceFee;
+        // Processing fee and insurance are handled manually during loan creation,
+        // not included in the total repayable / installments.
+        return $principal + $interest;
     }
 }

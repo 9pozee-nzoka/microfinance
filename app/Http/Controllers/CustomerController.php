@@ -54,9 +54,8 @@ class CustomerController extends Controller
     public function create()
     {
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
-        $officers = User::where('status', 'active')->orderBy('name')->get();
 
-        return view('customers.create', compact('branches', 'officers'));
+        return view('customers.create', compact('branches'));
     }
 
     // ── Store New Customer ────────────────────────────────────────
@@ -91,7 +90,8 @@ class CustomerController extends Controller
             'next_of_kin_relationship'  => 'required|string|max:100',
             'next_of_kin_address'       => 'nullable|string|max:500',
             'branch_id'                 => 'required|exists:branches,id',
-            'relationship_officer_id'   => 'required|exists:users,id',
+            'customer_type'             => 'nullable|in:permanent,non_permanent',
+            'qualified_amount'          => 'nullable|numeric|min:0',
             'id_front'                  => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'id_back'                   => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'passport_photo'            => 'required|file|mimes:jpg,jpeg,png|max:2048',
@@ -110,9 +110,11 @@ class CustomerController extends Controller
         $fullName = trim($validated['first_name'] . ' ' . ($validated['middle_name'] ?? '') . ' ' . $validated['last_name']);
 
         $customer = Customer::create(array_merge($validated, $paths, [
-            'full_name'     => $fullName,
-            'share_capital' => 0,
-            'status'        => 'pending',
+            'full_name'               => $fullName,
+            'share_capital'           => 0,
+            'status'                  => 'pending',
+            'relationship_officer_id' => auth()->id(),
+            'credit_limit'            => $validated['qualified_amount'] ?? 0,
         ]));
 
         return redirect()->route('customers.new')
@@ -124,16 +126,21 @@ class CustomerController extends Controller
     {
         $customer->load(['branch', 'relationshipOfficer', 'loans.product', 'transactions', 'creditScores']);
 
-        return view('customers.profile', compact('customer'));
+        // Load stored portal credentials for admin retrieval
+        $tempPasswords = \App\Models\CustomerTempPassword::where('customer_id', $customer->id)
+            ->latest()
+            ->limit(3)
+            ->get();
+
+        return view('customers.profile', compact('customer', 'tempPasswords'));
     }
 
     // ── Edit Form ─────────────────────────────────────────────────
     public function edit(Customer $customer)
     {
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
-        $officers = User::where('status', 'active')->orderBy('name')->get();
 
-        return view('customers.edit', compact('customer', 'branches', 'officers'));
+        return view('customers.edit', compact('customer', 'branches'));
     }
 
     // ── Update Customer ───────────────────────────────────────────
@@ -171,7 +178,6 @@ class CustomerController extends Controller
             'next_of_kin_relationship'  => 'required|string|max:100',
             'next_of_kin_address'       => 'nullable|string|max:500',
             'branch_id'                 => 'required|exists:branches,id',
-            'relationship_officer_id'   => 'required|exists:users,id',
             'status'                    => 'required|in:pending,active,suspended,dormant',
             'customer_type'             => 'nullable|in:permanent,non_permanent',
             'qualified_amount'          => 'nullable|numeric|min:0',
