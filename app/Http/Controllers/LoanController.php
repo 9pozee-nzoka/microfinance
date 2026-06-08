@@ -71,6 +71,7 @@ class LoanController extends Controller
             'total_repayable'            => 'required|numeric|min:0',
             'weekly_installment'         => 'required|numeric|min:0',
             'application_date'           => 'required|date',
+            'created_at_date'            => 'required|date|before_or_equal:today',
             'guarantors'                 => 'nullable|array',
             'guarantors.*.customer_id'   => 'nullable|exists:customers,id',
             'guarantors.*.amount'        => 'nullable|numeric|min:0',
@@ -113,7 +114,10 @@ class LoanController extends Controller
             ]);
         }
 
-        $loan = \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
+        $backdate = $validated['created_at_date'] ?? today()->toDateString();
+        $isBackdated = $backdate !== today()->toDateString();
+
+        $loan = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $backdate, $isBackdated) {
             $loan = Loan::create([
                 'customer_id'                => $validated['customer_id'],
                 'product_id'                 => $validated['product_id'],
@@ -123,7 +127,7 @@ class LoanController extends Controller
                 'interest_amount'            => $validated['interest_amount'],
                 'processing_fee'             => $validated['processing_fee'],
                 'processing_fee_paid'        => $validated['processing_fee'],  // recorded at creation
-                'processing_fee_paid_at'     => now(),
+                'processing_fee_paid_at'     => $isBackdated ? $backdate . ' 00:00:00' : now(),
                 'processing_fee_paid_by'     => auth()->id(),
                 'insurance_fee'              => $validated['insurance_fee'] ?? 0,
                 'total_repayable'            => $validated['total_repayable'],
@@ -137,6 +141,12 @@ class LoanController extends Controller
                 'application_date'           => $validated['application_date'],
                 'status'                     => 'pending',
             ]);
+
+            // Backdate created_at if a past date was selected
+            if ($isBackdated) {
+                $loan->created_at = $backdate . ' 00:00:00';
+                $loan->saveQuietly();
+            }
 
             // Record processing fee as a transaction
             if ($validated['processing_fee'] > 0) {
@@ -152,11 +162,20 @@ class LoanController extends Controller
                     'external_reference' => $validated['processing_fee_reference'] ?? null,
                     'status'             => 'completed',
                     'is_reconciled'      => true,
-                    'reconciled_at'      => now(),
+                    'reconciled_at'      => $isBackdated ? $backdate . ' 00:00:00' : now(),
                     'narration'          => "Processing fee for {$loan->loan_number} — paid via " . ucfirst(str_replace('_', ' ', $validated['processing_fee_method'])),
                     'created_by'         => auth()->id(),
                     'branch_id'          => $loan->branch_id,
                 ]);
+
+                // Backdate transaction created_at if backdated
+                if ($isBackdated) {
+                    $txn = \App\Models\Transaction::latest()->first();
+                    if ($txn) {
+                        $txn->created_at = $backdate . ' 00:00:00';
+                        $txn->saveQuietly();
+                    }
+                }
             }
 
             // Save guarantors
@@ -176,8 +195,14 @@ class LoanController extends Controller
             return $loan;
         });
 
+        $msg = "Loan application {$loan->loan_number} submitted";
+        if ($isBackdated) {
+            $msg .= " (backdated to " . \Carbon\Carbon::parse($backdate)->format('d M Y') . ")";
+        }
+        $msg .= ". Processing fee of KSH " . number_format($validated['processing_fee'], 0) . " recorded.";
+
         return redirect()->route('loans.show', $loan)
-            ->with('success', "Loan application {$loan->loan_number} submitted. Processing fee of KSH " . number_format($validated['processing_fee'], 0) . " recorded.");
+            ->with('success', $msg);
     }
 
     // ── Pending Approval queue ───────────────────────────────────

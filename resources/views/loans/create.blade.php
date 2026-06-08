@@ -282,7 +282,24 @@
         <input type="hidden" name="insurance_fee"      id="hiddenInsurance" value="0">
         <input type="hidden" name="total_repayable"    id="hiddenTotal">
         <input type="hidden" name="weekly_installment" id="hiddenWeekly">
-        <input type="hidden" name="application_date"   value="{{ today()->toDateString() }}">
+        <input type="hidden" name="application_date"   id="hiddenApplicationDate" value="{{ old('application_date', today()->toDateString()) }}">
+    </div>
+
+    {{-- ── Section 7: Application Date (Backdating) ── --}}
+    <div class="form-section">
+        <div class="section-heading"><i class="fas fa-calendar-alt"></i> Application Date</div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Date Created <span class="req">*</span></label>
+                <input type="date" name="created_at_date" id="createdAtDate"
+                       value="{{ old('created_at_date', today()->toDateString()) }}"
+                       max="{{ today()->toDateString() }}"
+                       class="form-control {{ $errors->has('created_at_date') ? 'is-invalid' : '' }}"
+                       onchange="onDateChange()" required>
+                <div class="form-hint">Defaults to today. Select a past date to backdate the loan.</div>
+                @error('created_at_date')<span class="invalid-feedback">{{ $message }}</span>@enderror
+            </div>
+        </div>
     </div>
 
     {{-- ── Submit ── --}}
@@ -473,6 +490,12 @@ document.getElementById('processingFee').addEventListener('input', function () {
 });
 
 function fmt(n) { return Number(n.toFixed(2)).toLocaleString('en-KE'); }
+
+// ── Backdating: sync application_date with created_at_date ──
+function onDateChange() {
+    const dateVal = document.getElementById('createdAtDate').value;
+    document.getElementById('hiddenApplicationDate').value = dateVal;
+}
 
 // ── Guarantors ───────────────────────────────────────────────────
 let guarantorCount = 0;
