@@ -92,6 +92,7 @@
         }
     </style>
     <script type="application/ld+json">
+    @verbatim
     {
       "@context": "https://schema.org",
       "@type": "FinancialService",
@@ -115,6 +116,7 @@
         "https://mweelacredit.co.ke"
       ]
     }
+    @endverbatim
     </script>
 </head>
 <body>
