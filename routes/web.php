@@ -27,7 +27,6 @@ Route::get('/sitemap.xml', function () {
 
     $urls = [
         ['loc' => url('/'), 'priority' => '1.0', 'changefreq' => 'daily'],
-        ['loc' => url('/login'), 'priority' => '0.5', 'changefreq' => 'monthly'],
     ];
 
     foreach ($urls as $url) {
@@ -43,6 +42,10 @@ Route::get('/sitemap.xml', function () {
 
     return response($xml, 200)->header('Content-Type', 'application/xml');
 })->name('sitemap');
+
+Route::get('/', function () {
+    return view('welcome');
+})->name('home');
 
 Route::get('/login', function () {
     return view('auth.login');
