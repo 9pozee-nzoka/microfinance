@@ -1,2 +1,9 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /login
+Disallow: /logout
+Disallow: /admin
+Disallow: /staff
+Disallow: /api/
+
+Sitemap: https://mweelacredit.co.ke/sitemap.xml

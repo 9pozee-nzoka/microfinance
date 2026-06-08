@@ -21,6 +21,29 @@ use Illuminate\Support\Facades\Route;
 // PUBLIC ROUTES
 // ============================================
 
+Route::get('/sitemap.xml', function () {
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+    $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+
+    $urls = [
+        ['loc' => url('/'), 'priority' => '1.0', 'changefreq' => 'daily'],
+        ['loc' => url('/login'), 'priority' => '0.5', 'changefreq' => 'monthly'],
+    ];
+
+    foreach ($urls as $url) {
+        $xml .= '  <url>' . "\n";
+        $xml .= '    <loc>' . htmlspecialchars($url['loc']) . '</loc>' . "\n";
+        $xml .= '    <lastmod>' . now()->toDateString() . '</lastmod>' . "\n";
+        $xml .= '    <changefreq>' . $url['changefreq'] . '</changefreq>' . "\n";
+        $xml .= '    <priority>' . $url['priority'] . '</priority>' . "\n";
+        $xml .= '  </url>' . "\n";
+    }
+
+    $xml .= '</urlset>';
+
+    return response($xml, 200)->header('Content-Type', 'application/xml');
+})->name('sitemap');
+
 Route::get('/login', function () {
     return view('auth.login');
 })->name('login');

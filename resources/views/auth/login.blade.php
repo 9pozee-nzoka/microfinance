@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Mweela Cash Capital - Login to access your microfinance account. Quick loans, business financing, and financial services in Kenya.">
+    <meta name="robots" content="noindex, nofollow">
     <title>Login - Mweela Cash Capital</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -89,6 +91,31 @@
             background: #00ACC1;
         }
     </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FinancialService",
+      "name": "Mweela Cash Capital",
+      "description": "Trusted microfinance loans and financial services in Kenya. Quick business loans, personal loans, and SME financing.",
+      "url": "https://mweelacredit.co.ke",
+      "logo": "https://mweelacredit.co.ke/favicon.ico",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "KE",
+        "addressLocality": "Mutomo",
+        "addressRegion": "Kitui"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+254700000001",
+        "contactType": "customer service",
+        "availableLanguage": ["English", "Swahili"]
+      },
+      "sameAs": [
+        "https://mweelacredit.co.ke"
+      ]
+    }
+    </script>
 </head>
 <body>
     <div class="login-card">

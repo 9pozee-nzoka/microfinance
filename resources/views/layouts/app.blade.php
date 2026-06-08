@@ -4,6 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    {{-- SEO Meta Tags --}}
+    <meta name="description" content="@yield('meta_description', 'Mweela Cash Capital - Trusted microfinance loans in Kenya. Quick business loans, personal loans, and financial services tailored for you.')">
+    <meta name="keywords" content="@yield('meta_keywords', 'microfinance, loans Kenya, business loans, Mweela Cash Capital, quick loans, SME loans, Mutomo')">
+    <meta name="author" content="Mweela Cash Capital">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ url()->current() }}">
+
+    {{-- Open Graph / Facebook --}}
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:title" content="@yield('title', 'Mweela Cash Capital')">
+    <meta property="og:description" content="@yield('meta_description', 'Quick and affordable microfinance loans in Kenya.')">
+    <meta property="og:image" content="{{ asset('images/og-image.png') }}">
+    <meta property="og:site_name" content="Mweela Cash Capital">
+
+    {{-- Twitter Card --}}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="{{ url()->current() }}">
+    <meta name="twitter:title" content="@yield('title', 'Mweela Cash Capital')">
+    <meta name="twitter:description" content="@yield('meta_description', 'Quick and affordable microfinance loans in Kenya.')">
+    <meta name="twitter:image" content="{{ asset('images/og-image.png') }}">
+
     <title>@yield('title', 'Mweela Cash Capital')</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
