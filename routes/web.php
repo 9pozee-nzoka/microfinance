@@ -169,6 +169,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
             Route::patch('/{loan}/reject',  [LoanController::class, 'rejectLoan'])->name('reject');
             Route::patch('/{loan}/disburse',[LoanController::class, 'disburse'])->name('disburse');
             Route::post('/{loan}/processing-fee', [LoanController::class, 'recordProcessingFee'])->name('processing-fee');
+            Route::patch('/{loan}/close',   [LoanController::class, 'closeLoan'])->name('close');
         });
 
         // View single loan — all staff that can see loans

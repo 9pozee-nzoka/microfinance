@@ -328,56 +328,92 @@ class LoanController extends Controller
         return back()->with('success', "Loan {$loan->loan_number} disbursed successfully.");
     }
 
-    // ── Close Loan (Prepayment / Early Settlement) ───────────────
-    // Admin / Branch Manager only — marks loan as completed so customer can apply again
+    // ── Close Loan (Prepayment / Top-Up / Early Settlement) ─────
+    // Admin / Branch Manager only
     public function closeLoan(Request $request, Loan $loan)
     {
         $request->validate([
-            'close_reason' => 'required|string|max:500',
+            'closure_type'       => 'required|in:prepayment,topup,full_early_settlement,other',
+            'payment_amount'     => 'required_if:closure_type,prepayment,topup,full_early_settlement|nullable|numeric|min:0',
+            'payment_method'     => 'required_if:closure_type,prepayment,topup,full_early_settlement|nullable|in:cash,mpesa,bank_transfer',
+            'payment_reference'  => 'nullable|string|max:255',
+            'close_reason'       => 'nullable|string|max:500',
         ]);
 
         if (!in_array($loan->status, ['disbursed', 'active'])) {
             return back()->with('error', 'Only active or disbursed loans can be closed early.');
         }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($loan, $request) {
+        $closureLabels = [
+            'prepayment'            => 'Prepayment',
+            'topup'                 => 'Top-Up (balance cleared for new loan)',
+            'full_early_settlement' => 'Full Early Settlement',
+            'other'                 => 'Other',
+        ];
+        $closureLabel = $closureLabels[$request->closure_type];
+
+        $auditNote = "[{$closureLabel}] Closed by " . auth()->user()->name . ' on ' . now()->format('d M Y H:i');
+        if ($request->filled('payment_amount')) {
+            $auditNote .= " | Payment: KSH " . number_format($request->payment_amount, 0);
+            if ($request->filled('payment_method')) {
+                $auditNote .= ' via ' . ucfirst(str_replace('_', ' ', $request->payment_method));
+            }
+            if ($request->filled('payment_reference')) {
+                $auditNote .= ' (Ref: ' . $request->payment_reference . ')';
+            }
+        }
+        if ($request->filled('close_reason')) {
+            $auditNote .= ' | Notes: ' . $request->close_reason;
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($loan, $request, $auditNote) {
+
+            // Record payment transaction if amount provided
+            if ($request->filled('payment_amount') && (float) $request->payment_amount > 0) {
+                \App\Models\Transaction::create([
+                    'transaction_number' => 'TXN-' . date('YmdHis') . '-' . str_pad(
+                        \App\Models\Transaction::count() + 1, 4, '0', STR_PAD_LEFT
+                    ),
+                    'customer_id'      => $loan->customer_id,
+                    'loan_id'          => $loan->id,
+                    'transaction_type' => 'loan_repayment',
+                    'direction'        => 'credit',
+                    'amount'           => $request->payment_amount,
+                    'balance_after'    => 0,
+                    'source'           => $request->payment_method ?? 'cash',
+                    'external_reference' => $request->payment_reference,
+                    'status'           => 'completed',
+                    'is_reconciled'    => true,
+                    'reconciled_at'    => now(),
+                    'narration'        => $auditNote,
+                    'created_by'       => auth()->id(),
+                    'branch_id'        => $loan->branch_id,
+                ]);
+            }
+
+            // Close the loan
             $loan->update([
-                'status'           => 'completed',
+                'status'              => 'completed',
                 'outstanding_balance' => 0,
-                'arrears_amount'   => 0,
-                'days_in_arrears'  => 0,
-                'approval_notes'   => ($loan->approval_notes ? $loan->approval_notes . ' | ' : '')
-                    . 'Early closure by ' . auth()->user()->name . ' on ' . now()->format('d M Y H:i')
-                    . ': ' . $request->close_reason,
+                'arrears_amount'      => 0,
+                'days_in_arrears'     => 0,
+                'approval_notes'      => ($loan->approval_notes ? $loan->approval_notes . ' | ' : '') . $auditNote,
             ]);
 
-            // Mark all pending schedule installments as waived
+            // Waive all remaining unpaid installments
             $loan->repaymentSchedules()
                 ->whereIn('status', ['pending', 'partial', 'overdue'])
                 ->update(['status' => 'waived']);
-
-            // Record a closure transaction for audit trail
-            \App\Models\Transaction::create([
-                'transaction_number' => 'TXN-' . date('YmdHis') . '-' . str_pad(
-                    \App\Models\Transaction::count() + 1, 4, '0', STR_PAD_LEFT
-                ),
-                'customer_id'      => $loan->customer_id,
-                'loan_id'          => $loan->id,
-                'transaction_type' => 'adjustment',
-                'direction'        => 'credit',
-                'amount'           => 0,
-                'balance_after'    => 0,
-                'source'           => 'internal',
-                'status'           => 'completed',
-                'is_reconciled'    => true,
-                'reconciled_at'    => now(),
-                'narration'        => "Loan {$loan->loan_number} closed early by {auth()->user()->name}: {$request->close_reason}",
-                'created_by'       => auth()->id(),
-                'branch_id'        => $loan->branch_id,
-            ]);
         });
 
-        return back()->with('success', "Loan {$loan->loan_number} has been closed. The customer can now apply for a new loan.");
+        $messages = [
+            'prepayment'            => "Loan {$loan->loan_number} closed via prepayment.",
+            'topup'                 => "Loan {$loan->loan_number} closed. Customer can now apply for a top-up loan.",
+            'full_early_settlement' => "Loan {$loan->loan_number} settled in full early.",
+            'other'                 => "Loan {$loan->loan_number} has been closed.",
+        ];
+
+        return back()->with('success', $messages[$request->closure_type] . ' Customer is now eligible for a new loan application.');
     }
     public function recordProcessingFee(Request $request, Loan $loan)
     {

@@ -693,6 +693,109 @@
             .card { padding: 12px 10px; }
             .data-table { min-width: 420px; }
         }
+        /* ── Forms — multi-section pages ──────────────────────────────────── */
+        .form-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .section-heading {
+            font-size: 14px; font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 18px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .form-hint { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+        .req { color: var(--danger); }
+        .grid-1 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+
+        /* ── Upload box ─────────────────────────────────────────────────────── */
+        .upload-box {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            position: relative;
+        }
+        .upload-box:hover { border-color: var(--primary); background: #F0FBFD; }
+        .upload-box input[type="file"] {
+            position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+        }
+        .upload-box i { font-size: 24px; color: var(--text-secondary); display: block; margin-bottom: 6px; }
+        .upload-box span { font-size: 13px; color: var(--text-secondary); }
+
+        /* ── Loan calculator box ─────────────────────────────────────────────── */
+        .calc-box {
+            background: linear-gradient(135deg, #E3F2FD 0%, #F0FBFD 100%);
+            border: 1px solid #B3E5FC;
+            border-radius: 10px;
+            padding: 18px 20px;
+        }
+        .calc-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,188,212,0.15);
+            font-size: 13px;
+        }
+        .calc-row:last-of-type { border-bottom: none; }
+        .calc-row .label { color: var(--text-secondary); }
+        .calc-row .value { font-weight: 600; color: var(--text-primary); }
+        .calc-row.total .label,
+        .calc-row.total .value { font-size: 15px; font-weight: 700; color: var(--primary); }
+
+        /* ── Customer search / selection ─────────────────────────────────────── */
+        .customer-search-wrap { position: relative; }
+        .customer-dropdown {
+            display: none;
+            position: absolute; z-index: 500; top: 100%; left: 0; right: 0;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            max-height: 280px; overflow-y: auto;
+        }
+        .customer-option {
+            padding: 10px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.1s;
+        }
+        .customer-option:last-child { border-bottom: none; }
+        .customer-option:hover { background: #E3F2FD; }
+
+        .selected-customer-badge {
+            display: flex; align-items: center; gap: 12px;
+            background: #E8F5E9;
+            border: 1px solid #A5D6A7;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 8px;
+        }
+
+        /* ── Guarantors ─────────────────────────────────────────────────────── */
+        .guarantor-row {
+            display: flex; gap: 12px; align-items: flex-end;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: #FAFBFC;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        @media (max-width: 768px) {
+            .form-section { padding: 16px; }
+            .guarantor-row { flex-direction: column; }
+            .calc-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+        }
+
     </style>
 
     @yield('styles')

@@ -52,6 +52,15 @@
             <i class="fas fa-mobile-alt"></i> Request Payment
         </button>
         @endif
+        @hasanyrole('admin|super_admin|branch_manager')
+        @if(in_array($loan->status, ['disbursed', 'active']))
+        <button class="btn btn-outline" onclick="openCloseModal()"
+                style="color:#B71C1C; border-color:#EF9A9A;"
+                title="Close loan early (prepayment / full settlement)">
+            <i class="fas fa-lock"></i> Close Loan
+        </button>
+        @endif
+        @endhasanyrole
         <button class="btn btn-outline" onclick="openSmsModal()" style="color:#7B1FA2; border-color:#CE93D8;">
             <i class="fas fa-sms"></i> Send SMS
         </button>
@@ -308,6 +317,118 @@
     </div>
 </div>
 @endif
+
+{{-- ── Close Loan Modal (Prepayment / Top-Up / Early Settlement) ── --}}
+@hasanyrole('admin|super_admin|branch_manager')
+<div id="closeModal" class="modal-overlay" onclick="if(event.target===this)closeModal('closeModal')">
+    <div class="modal-box" style="width:560px; max-width:96vw;">
+        <div class="modal-header">
+            <div class="modal-title" style="color:#B71C1C;">
+                <i class="fas fa-lock"></i> Close Loan — {{ $loan->loan_number }}
+            </div>
+            <button class="modal-close" onclick="closeModal('closeModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ route('loans.close', $loan) }}">
+            @csrf @method('PATCH')
+            <div class="modal-body">
+
+                {{-- Current balance summary --}}
+                <div style="background:#FAFBFC; border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:13px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="color:var(--text-secondary);">Outstanding Balance</span>
+                        <strong style="color:var(--primary);" id="closeOutstanding">KSH {{ number_format($loan->outstanding_balance, 0) }}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="color:var(--text-secondary);">Total Paid so far</span>
+                        <strong style="color:var(--success);">KSH {{ number_format($loan->total_paid, 0) }}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="color:var(--text-secondary);">Weekly Installment</span>
+                        <strong>KSH {{ number_format($loan->weekly_installment, 0) }}</strong>
+                    </div>
+                    @if($loan->arrears_amount > 0)
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:var(--text-secondary);">Arrears</span>
+                        <strong style="color:var(--danger);">KSH {{ number_format($loan->arrears_amount, 0) }}</strong>
+                    </div>
+                    @endif
+                </div>
+
+                {{-- Closure Type --}}
+                <div class="form-group">
+                    <label class="form-label">Closure Type <span class="req">*</span></label>
+                    <select name="closure_type" id="closureType" class="form-control" required onchange="onClosureTypeChange()">
+                        <option value="">-- Select reason --</option>
+                        <option value="prepayment">Prepayment — Customer paid remaining balance early</option>
+                        <option value="topup">Top-Up — Customer pays off balance to qualify for a new (larger) loan</option>
+                        <option value="full_early_settlement">Full Early Settlement — Lump sum before maturity</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <div class="form-hint" id="closureTypeHint" style="margin-top:4px;"></div>
+                </div>
+
+                {{-- Payment fields — shown for prepayment / top-up / full settlement --}}
+                <div id="paymentFields" style="display:none;">
+                    <div style="background:#E8F5E9; border:1px solid #A5D6A7; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:#2E7D32;">
+                        <i class="fas fa-info-circle"></i>
+                        Record the payment received to clear the outstanding balance.
+                    </div>
+                    <div class="grid-2" style="gap:12px;">
+                        <div class="form-group">
+                            <label class="form-label">Amount Received (KSH) <span class="req">*</span></label>
+                            <input type="number" name="payment_amount" id="closePaymentAmount"
+                                   class="form-control" step="0.01" min="0"
+                                   placeholder="{{ $loan->outstanding_balance }}"
+                                   value="{{ $loan->outstanding_balance }}">
+                            <div class="form-hint">Outstanding: KSH {{ number_format($loan->outstanding_balance, 0) }}</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Payment Method <span class="req">*</span></label>
+                            <select name="payment_method" id="closePaymentMethod" class="form-control" onchange="onCloseMethodChange()">
+                                <option value="cash">Cash</option>
+                                <option value="mpesa">M-Pesa</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" id="closeRefGroup" style="display:none;">
+                        <label class="form-label">Reference / Transaction Code</label>
+                        <input type="text" name="payment_reference" class="form-control"
+                               placeholder="e.g. QAB1234XYZ">
+                    </div>
+                </div>
+
+                {{-- Notes --}}
+                <div class="form-group">
+                    <label class="form-label">Additional Notes</label>
+                    <textarea name="close_reason" id="closeReasonText" rows="2"
+                              class="form-control"
+                              placeholder="Any additional details…"></textarea>
+                    <div class="form-hint">This note is saved to the loan audit trail.</div>
+                </div>
+
+                {{-- What will happen --}}
+                <div style="background:#FFF3E0; border:1px solid #FFCC80; border-radius:8px; padding:10px 14px; font-size:12px; color:#5D4037;">
+                    <strong style="color:#E65100;"><i class="fas fa-exclamation-triangle"></i> After closing:</strong>
+                    <ul style="margin:6px 0 0; padding-left:18px; line-height:1.9;">
+                        <li>Loan status → <strong>Completed</strong></li>
+                        <li>Outstanding balance → <strong>KSH 0</strong></li>
+                        <li>All remaining installments waived</li>
+                        <li>Customer can <strong>apply for a new loan immediately</strong></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('closeModal')">Cancel</button>
+                <button type="submit" class="btn" style="background:#B71C1C; color:white; border-color:#B71C1C;"
+                        onclick="return confirm('Close this loan? This cannot be undone.')">
+                    <i class="fas fa-lock"></i> Confirm Closure
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+@endhasanyrole
 
 {{-- ── Approve Modal ── --}}
 <div id="approveModal" class="modal-overlay" onclick="if(event.target===this)closeModal('approveModal')">
@@ -602,6 +723,49 @@ function openApproveModal()  { document.getElementById('approveModal').classList
 function openRejectModal()   { document.getElementById('rejectModal').classList.add('show'); }
 function openDisburseModal() { document.getElementById('disburseModal').classList.add('show'); }
 function openStkModal()      { document.getElementById('stkModal').classList.add('show'); }
+function openCloseModal()    { document.getElementById('closeModal').classList.add('show'); }
+
+// ── Close Loan modal logic ───────────────────────────────────────
+const closureHints = {
+    prepayment:           'Customer is paying the remaining balance ahead of schedule.',
+    topup:                'Customer clears balance to immediately qualify for a new (usually larger) loan.',
+    full_early_settlement:'Customer settles the entire outstanding amount in one lump sum before maturity.',
+    other:                'Specify the reason in the notes field below.',
+};
+const paymentRequired = ['prepayment', 'topup', 'full_early_settlement'];
+
+function onClosureTypeChange() {
+    const type    = document.getElementById('closureType').value;
+    const hint    = document.getElementById('closureTypeHint');
+    const fields  = document.getElementById('paymentFields');
+    const reason  = document.getElementById('closeReasonText');
+
+    hint.textContent = closureHints[type] || '';
+
+    if (paymentRequired.includes(type)) {
+        fields.style.display = 'block';
+        // Pre-fill the reason textarea
+        const labels = {
+            prepayment: 'Prepayment — customer paid remaining balance early.',
+            topup: 'Top-Up — customer cleared balance to qualify for new loan.',
+            full_early_settlement: 'Full early settlement — lump sum before maturity.',
+        };
+        if (!reason.value) reason.value = labels[type] || '';
+        // Make payment_amount required
+        document.getElementById('closePaymentAmount').required = true;
+        document.getElementById('closePaymentMethod').required = true;
+    } else {
+        fields.style.display = 'none';
+        document.getElementById('closePaymentAmount').required = false;
+        document.getElementById('closePaymentMethod').required = false;
+    }
+}
+
+function onCloseMethodChange() {
+    const method = document.getElementById('closePaymentMethod').value;
+    document.getElementById('closeRefGroup').style.display = method !== 'cash' ? 'block' : 'none';
+}
+
 function openSmsModal()      {
     loadSmsTemplate();
     document.getElementById('smsModal').classList.add('show');
