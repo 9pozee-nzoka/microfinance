@@ -155,6 +155,11 @@
                 <label class="form-label">Approval Notes</label>
                 <textarea id="approvalNotes" rows="3" class="form-control"></textarea>
             </div>
+            <div class="form-group" style="margin-top:12px;">
+                <label class="form-label">Approval Date <span style="color:var(--danger)">*</span></label>
+                <input type="date" id="approvalDate" value="{{ today()->toDateString() }}" max="{{ today()->toDateString() }}" class="form-control">
+                <div style="font-size:11px; color:var(--text-secondary); margin-top:3px;">Defaults to today. Select a past date to backdate.</div>
+            </div>
         </div>
         <div class="modal-footer">
             <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
@@ -193,7 +198,8 @@
                 'Accept': 'application/json',
             },
             body: JSON.stringify({
-                notes: document.getElementById('approvalNotes').value
+                notes: document.getElementById('approvalNotes').value,
+                approved_at_date: document.getElementById('approvalDate').value
             })
         })
         .then(r => r.json())

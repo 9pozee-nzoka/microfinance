@@ -142,8 +142,23 @@
                        value="{{ old('term_weeks') }}"
                        class="form-control {{ $errors->has('term_weeks') ? 'is-invalid' : '' }}"
                        placeholder="e.g. 6" min="1"
-                       oninput="recalculate()" required>
+                       oninput="onTermChange()" required>
                 @error('term_weeks')<span class="invalid-feedback">{{ $message }}</span>@enderror
+            </div>
+        </div>
+        <div class="grid-2" id="rateSelectionRow" style="display:none;">
+            <div class="form-group">
+                <label class="form-label">Interest Rate <span class="req">*</span></label>
+                <select name="selected_rate" id="rateSelect"
+                        class="form-control {{ $errors->has('selected_rate') ? 'is-invalid' : '' }}"
+                        onchange="onRateChange()" required>
+                    <option value="">-- Select Rate --</option>
+                </select>
+                <div class="form-hint" id="rateHint"></div>
+                @error('selected_rate')<span class="invalid-feedback">{{ $message }}</span>@enderror
+            </div>
+            <div class="form-group" style="display:flex; align-items:flex-end;">
+                <div id="rateInfo" style="font-size:13px; color:var(--text-secondary); padding-bottom:8px;"></div>
             </div>
         </div>
         <div class="grid-2">
@@ -283,6 +298,7 @@
         <input type="hidden" name="total_repayable"    id="hiddenTotal">
         <input type="hidden" name="weekly_installment" id="hiddenWeekly">
         <input type="hidden" name="application_date"   id="hiddenApplicationDate" value="{{ old('application_date', today()->toDateString()) }}">
+        <input type="hidden" name="selected_rate_id"   id="hiddenRateId">
     </div>
 
     {{-- ── Section 7: Application Date (Backdating) ── --}}
@@ -429,7 +445,65 @@ function onProductChange() {
     // Fetch product-specific rates
     fetch(`/api/loan-products/${opt.value}/rates`)
         .then(r => r.json())
-        .then(data => { window._productRates = data; recalculate(); });
+        .then(data => {
+            window._productRates = data;
+            updateRateOptions();
+            recalculate();
+        });
+}
+
+// ── Term change ──────────────────────────────────────────────────
+function onTermChange() {
+    updateRateOptions();
+    recalculate();
+}
+
+// ── Update rate dropdown based on product + principal + term ──
+function updateRateOptions() {
+    const principal = parseFloat(document.getElementById('principalAmount').value) || 0;
+    const weeks     = parseInt(document.getElementById('termWeeks').value) || 0;
+    const rates     = window._productRates || [];
+    const rateSelect = document.getElementById('rateSelect');
+    const rateRow    = document.getElementById('rateSelectionRow');
+
+    // Filter rates matching principal and term
+    const matches = rates.filter(r =>
+        parseFloat(r.principal_amount) === principal &&
+        parseInt(r.term_weeks) === weeks
+    );
+
+    if (matches.length > 0) {
+        // Multiple rates available — show dropdown
+        rateRow.style.display = 'grid';
+        rateSelect.innerHTML = '<option value="">-- Select Rate --</option>' +
+            matches.map((r, i) => `<option value="${r.interest_rate}" data-id="${r.id}" data-rate="${r.interest_rate}" ${i === 0 ? 'selected' : ''}>${r.interest_rate}%</option>`).join('');
+        document.getElementById('rateHint').textContent = `${matches.length} rate(s) available for this combination`;
+        onRateChange();
+    } else if (rates.length > 0 && principal > 0 && weeks > 0) {
+        // No exact match — show default product rate
+        rateRow.style.display = 'none';
+        const opt = document.getElementById('productSelect').options[document.getElementById('productSelect').selectedIndex];
+        window._selectedRate = parseFloat(opt.dataset.rate);
+        window._selectedRateId = null;
+    } else {
+        rateRow.style.display = 'none';
+        window._selectedRate = null;
+        window._selectedRateId = null;
+    }
+}
+
+// ── Rate selection change ────────────────────────────────────────
+function onRateChange() {
+    const rateSelect = document.getElementById('rateSelect');
+    const opt = rateSelect.options[rateSelect.selectedIndex];
+    if (!opt.value) return;
+
+    window._selectedRate = parseFloat(opt.dataset.rate);
+    window._selectedRateId = opt.dataset.id || null;
+    document.getElementById('hiddenRateId').value = window._selectedRateId || '';
+
+    document.getElementById('rateInfo').textContent = `Selected: ${opt.dataset.rate}% interest rate`;
+    recalculate();
 }
 
 // ── Loan calculator ──────────────────────────────────────────────
@@ -448,10 +522,8 @@ function recalculate() {
         return;
     }
 
-    // Find matching rate from product rates table
-    const rates  = window._productRates || [];
-    const match  = rates.find(r => parseFloat(r.principal_amount) === principal && parseInt(r.term_weeks) === weeks);
-    const rate   = match ? parseFloat(match.interest_rate) : parseFloat(opt.dataset.rate);
+    // Use selected rate or fall back to product default
+    const rate   = window._selectedRate || parseFloat(opt.dataset.rate);
     const method = opt.dataset.method;
 
     let interest;
@@ -470,7 +542,7 @@ function recalculate() {
     document.getElementById('calcBox').style.display = 'block';
     document.getElementById('calcPlaceholder').style.display = 'none';
     document.getElementById('calcPrincipal').textContent    = 'KSH ' + fmt(principal);
-    document.getElementById('calcRateLabel').textContent    = rate + '% flat';
+    document.getElementById('calcRateLabel').textContent    = rate + '% ' + (method === 'flat' ? 'flat' : 'reducing');
     document.getElementById('calcInterest').textContent     = 'KSH ' + fmt(interest);
     document.getElementById('calcProcessingFee').textContent = 'KSH ' + fmt(procFee);
     document.getElementById('calcTotal').textContent        = 'KSH ' + fmt(total);

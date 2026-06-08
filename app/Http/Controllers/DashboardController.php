@@ -3,10 +3,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Loan;
 use App\Models\LoanRepayment;
 use App\Models\Transaction;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -51,14 +53,28 @@ class DashboardController extends Controller
         $totalPortfolio = Loan::active()->sum('outstanding_balance');
         $parPercentage = $totalPortfolio > 0 ? round(($portfolioAtRisk / $totalPortfolio) * 100, 1) : 0;
 
-        // NPL Breakdown
-        $nplPrincipal = Loan::where('status', 'defaulted')->sum('principal_amount');
-        $nplAmount = Loan::where('status', 'defaulted')->sum('outstanding_balance');
-        $nplCount = Loan::where('status', 'defaulted')->count();
+        // Overdue loans count (active loans with days_in_arrears > 0)
+        $overdueLoansCount = Loan::active()->where('days_in_arrears', '>', 0)->count();
+        $overdueAmount = Loan::active()->where('days_in_arrears', '>', 0)->sum('outstanding_balance');
+
+        // NPL Breakdown (Non-Performing Loans: defaulted + written_off)
+        $nplStatuses = ['defaulted', 'written_off'];
+        $nplPrincipal = Loan::whereIn('status', $nplStatuses)->sum('principal_amount');
+        $nplAmount = Loan::whereIn('status', $nplStatuses)->sum('outstanding_balance');
+        $nplCount = Loan::whereIn('status', $nplStatuses)->count();
 
         // Pending Actions
         $pendingApprovals = Loan::pendingApproval()->count();
         $pendingDisbursement = Loan::where('status', 'approved')->count();
+
+        // Filter dropdowns
+        $officers = User::where('status', 'active')
+            ->whereHas('roles', function ($q) {
+                $q->whereIn('name', ['loan_officer', 'branch_manager', 'admin', 'super_admin']);
+            })
+            ->orderBy('name')
+            ->get();
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
 
         // Recent Transactions
         $recentTransactions = Transaction::with('customer')
@@ -72,8 +88,11 @@ class DashboardController extends Controller
             'disbursedLoans', 'disbursedAmount', 'fundedPercentage',
             'loansDueToday', 'collectionsToday', 'loansDueCount', 'prepaidLoans',
             'totalArrears', 'arrearsCollectedToday', 'parPercentage',
+            'portfolioAtRisk', 'totalPortfolio',
+            'overdueLoansCount', 'overdueAmount',
             'nplPrincipal', 'nplAmount', 'nplCount',
             'pendingApprovals', 'pendingDisbursement',
+            'officers', 'branches',
             'recentTransactions'
         ));
     }

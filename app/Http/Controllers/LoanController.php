@@ -72,6 +72,8 @@ class LoanController extends Controller
             'weekly_installment'         => 'required|numeric|min:0',
             'application_date'           => 'required|date',
             'created_at_date'            => 'required|date|before_or_equal:today',
+            'selected_rate'              => 'nullable|numeric|min:0',
+            'selected_rate_id'           => 'nullable|exists:loan_product_rates,id',
             'guarantors'                 => 'nullable|array',
             'guarantors.*.customer_id'   => 'nullable|exists:customers,id',
             'guarantors.*.amount'        => 'nullable|numeric|min:0',
@@ -112,6 +114,20 @@ class LoanController extends Controller
             return back()->withInput()->withErrors([
                 'term_weeks' => "Term must be between {$product->min_term_weeks} and {$product->max_term_weeks} weeks for this product.",
             ]);
+        }
+
+        // If a specific rate was selected, validate it matches the principal/term
+        if (!empty($validated['selected_rate_id'])) {
+            $selectedRate = $product->rates()
+                ->where('id', $validated['selected_rate_id'])
+                ->where('principal_amount', $validated['principal_amount'])
+                ->where('term_weeks', $validated['term_weeks'])
+                ->first();
+            if (!$selectedRate) {
+                return back()->withInput()->withErrors([
+                    'selected_rate' => 'The selected rate does not match the principal amount and term.',
+                ]);
+            }
         }
 
         $backdate = $validated['created_at_date'] ?? today()->toDateString();
@@ -284,12 +300,19 @@ class LoanController extends Controller
     // ── Approve ──────────────────────────────────────────────────
     public function approve(Request $request, Loan $loan)
     {
-        $request->validate(['notes' => 'nullable|string|max:1000']);
+        $request->validate([
+            'notes' => 'nullable|string|max:1000',
+            'approved_at_date' => 'nullable|date|before_or_equal:today',
+        ]);
+
+        $approvedAt = $request->filled('approved_at_date')
+            ? $request->approved_at_date . ' 00:00:00'
+            : now();
 
         $loan->update([
             'status'         => 'approved',
             'approved_by'    => auth()->id(),
-            'approved_at'    => now(),
+            'approved_at'    => $approvedAt,
             'approval_notes' => $request->notes,
         ]);
 
@@ -324,23 +347,28 @@ class LoanController extends Controller
             'disbursement_method'    => 'required|in:mpesa,bank_transfer,cash',
             'disbursement_reference' => 'nullable|string',
             'mpesa_receipt_number'   => 'required_if:disbursement_method,mpesa|nullable|string',
+            'disbursement_date'      => 'nullable|date|before_or_equal:today',
         ]);
 
         if ($loan->status !== 'approved') {
             return back()->with('error', 'Only approved loans can be disbursed.');
         }
 
+        $disburseDate = $request->filled('disbursement_date')
+            ? \Carbon\Carbon::parse($request->disbursement_date)
+            : today();
+
         $loan->update([
             'status'                  => 'disbursed',
             'disbursed_by'            => auth()->id(),
             'disbursed_at'            => now(),
-            'disbursement_date'       => today(),
+            'disbursement_date'       => $disburseDate,
             'disbursement_method'     => $request->disbursement_method,
             'disbursement_reference'  => $request->disbursement_reference,
             'mpesa_receipt_number'    => $request->mpesa_receipt_number,
             'outstanding_balance'     => $loan->principal_amount,
-            'first_due_date'          => today()->addWeek(),
-            'next_due_date'           => today()->addWeek(),
+            'first_due_date'          => $disburseDate->copy()->addWeek(),
+            'next_due_date'           => $disburseDate->copy()->addWeek(),
         ]);
 
         // Generate repayment schedule

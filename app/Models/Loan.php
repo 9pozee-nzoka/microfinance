@@ -119,7 +119,7 @@ class Loan extends Model
 
     public function scopePortfolioAtRisk($query, int $days = 30)
     {
-        return $query->where('days_in_arrears', '>=', $days);
+        return $query->active()->where('days_in_arrears', '>=', $days);
     }
 
     // Accessors

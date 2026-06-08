@@ -207,6 +207,55 @@ class StaffController extends Controller
         return back()->with('success', 'Password changed successfully.');
     }
 
+    // ── Deactivate Staff ─────────────────────────────────────────
+    public function deactivate(Request $request, User $user)
+    {
+        // Only admin, super_admin, or branch_manager can deactivate
+        if (!auth()->user()->hasRole(['super_admin', 'admin', 'branch_manager'])) {
+            return back()->with('error', 'You do not have permission to deactivate staff.');
+        }
+
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'You cannot deactivate your own account.');
+        }
+
+        if ($user->hasRole('super_admin')) {
+            return back()->with('error', 'Cannot deactivate a super administrator.');
+        }
+
+        // Revoke session
+        if ($user->session_id) {
+            \Illuminate\Support\Facades\DB::table('sessions')->where('id', $user->session_id)->delete();
+        }
+
+        $user->update([
+            'status' => 'inactive',
+            'session_id' => null,
+            'session_started_at' => null,
+        ]);
+
+        return back()->with('success', "Staff {$user->name} has been deactivated. They have been logged out immediately.");
+    }
+
+    // ── Reactivate Staff ─────────────────────────────────────────
+    public function reactivate(Request $request, User $user)
+    {
+        // Only admin, super_admin, or branch_manager can reactivate
+        if (!auth()->user()->hasRole(['super_admin', 'admin', 'branch_manager'])) {
+            return back()->with('error', 'You do not have permission to reactivate staff.');
+        }
+
+        if ($user->status === 'active') {
+            return back()->with('info', "Staff {$user->name} is already active.");
+        }
+
+        $user->update([
+            'status' => 'active',
+        ]);
+
+        return back()->with('success', "Staff {$user->name} has been reactivated. They can now log in.");
+    }
+
     // ── Staff Performance ────────────────────────────────────────
     public function performance(User $user)
     {

@@ -552,6 +552,11 @@
                         <option value="mpesa">M-Pesa (manual receipt)</option>
                     </select>
                 </div>
+                <div style="margin-bottom:15px;">
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">Disbursement Date <span style="color:var(--danger)">*</span></label>
+                    <input type="date" name="disbursement_date" value="{{ today()->toDateString() }}" max="{{ today()->toDateString() }}" class="filter-select" style="width:100%;" required>
+                    <div style="font-size:11px; color:var(--text-secondary); margin-top:3px;">Defaults to today. Select a past date to backdate. First due date will be 1 week from this date.</div>
+                </div>
                 <div id="mpesaReceiptField" style="display:none; margin-bottom:15px;">
                     <label style="font-size:12px; font-weight:600; display:block; margin-bottom:5px;">M-Pesa Receipt No. <span style="color:var(--danger)">*</span></label>
                     <input type="text" name="mpesa_receipt_number" placeholder="e.g. QHX1234ABC" class="filter-select" style="width:100%; text-transform:uppercase; font-family:monospace;">

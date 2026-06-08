@@ -27,8 +27,29 @@ Route::get('/login', function () {
 
 Route::post('/login', function () {
     $credentials = request()->only('email', 'password');
+
+    // Check if user exists and is active before attempting login
+    $user = \App\Models\User::where('email', $credentials['email'])->first();
+    if ($user && $user->status !== 'active') {
+        return back()->withErrors(['email' => 'Your account has been ' . $user->status . '. Please contact your administrator.']);
+    }
+
     if (auth()->attempt($credentials)) {
         $user = auth()->user();
+
+        // Single-session control: invalidate previous session
+        if ($user->session_id) {
+            \Illuminate\Support\Facades\DB::table('sessions')->where('id', $user->session_id)->delete();
+        }
+
+        // Store current session ID
+        $user->update([
+            'session_id' => session()->getId(),
+            'session_started_at' => now(),
+            'last_login_at' => now(),
+            'last_login_ip' => request()->ip(),
+        ]);
+
         if ($user->hasRole('customer')) {
             return redirect()->route('portal.dashboard');
         }
@@ -46,7 +67,7 @@ Route::post('/logout', function () {
 // STAFF PORTAL (auth + staff middleware)
 // ============================================
 
-Route::middleware(['auth', 'staff'])->group(function () {
+Route::middleware(['auth', 'staff', 'single.session'])->group(function () {
 
     // ── Dashboard — all staff ──────────────────────────────────
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -190,8 +211,8 @@ Route::middleware(['auth', 'staff'])->group(function () {
             Route::put('/{loanProduct}',      [LoanProductAdminController::class, 'update'])->name('update');
         });
 
-    // ── Staff Management — admin only ──────────────────────────
-    Route::middleware(['role:super_admin|admin'])
+    // ── Staff Management — admin / manager ─────────────────────
+    Route::middleware(['role:super_admin|admin|branch_manager'])
         ->prefix('staff')->name('staff.')
         ->group(function () {
             Route::get('/',                       [StaffController::class, 'index'])->name('index');
@@ -199,6 +220,8 @@ Route::middleware(['auth', 'staff'])->group(function () {
             Route::post('/',                      [StaffController::class, 'store'])->name('store');
             Route::post('/{user}/reset-password', [StaffController::class, 'resetPassword'])->name('reset-password');
             Route::get('/{user}/performance',     [StaffController::class, 'performance'])->name('performance');
+            Route::patch('/{user}/deactivate',    [StaffController::class, 'deactivate'])->name('deactivate');
+            Route::patch('/{user}/reactivate',    [StaffController::class, 'reactivate'])->name('reactivate');
         });
 
     // ── Branch Management — admin only ─────────────────────────

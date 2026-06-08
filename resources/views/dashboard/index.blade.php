@@ -9,16 +9,18 @@
 <div class="filter-bar">
     <select class="filter-select" id="officerFilter">
         <option value="">Relationship Officer</option>
-        <option value="joshua">Joshua Kyalo</option>
-        <option value="samuel">Samuel Muimi</option>
+        @foreach($officers as $officer)
+            <option value="{{ $officer->id }}">{{ $officer->name }}</option>
+        @endforeach
     </select>
-    
+
     <select class="filter-select" id="branchFilter">
         <option value="">Branch</option>
-        <option value="sombe">Sombe</option>
-        <option value="nairobi">Nairobi</option>
+        @foreach($branches as $branch)
+            <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+        @endforeach
     </select>
-    
+
     <button class="btn btn-primary">
         <i class="fas fa-search"></i> Search
     </button>
@@ -40,6 +42,34 @@
             <span class="badge badge-primary">{{ $pendingDisbursement }}</span>
         </div>
         <div class="metric-value" style="font-size: 36px;">{{ $pendingDisbursement }}</div>
+    </div>
+</div>
+
+{{-- Overdue & Risk Summary --}}
+<div class="grid-3" style="margin-bottom: 20px;">
+    <div class="card" style="border-left: 4px solid var(--danger);">
+        <div class="card-header">
+            <span class="card-title">Overdue Loans</span>
+            <span class="badge badge-danger">{{ $overdueLoansCount }}</span>
+        </div>
+        <div class="metric-value" style="font-size: 32px; color: var(--danger);">{{ $overdueLoansCount }}</div>
+        <div class="metric-label">KSH {{ number_format($overdueAmount, 0) }} outstanding</div>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--warning);">
+        <div class="card-header">
+            <span class="card-title">Portfolio at Risk (PAR30)</span>
+            <span class="badge badge-warning">{{ $parPercentage }}%</span>
+        </div>
+        <div class="metric-value" style="font-size: 32px; color: var(--warning);">{{ $parPercentage }}%</div>
+        <div class="metric-label">KSH {{ number_format($portfolioAtRisk ?? 0, 0) }} at risk</div>
+    </div>
+    <div class="card" style="border-left: 4px solid #6A1B9A;">
+        <div class="card-header">
+            <span class="card-title">Non-Performing Loans</span>
+            <span class="badge" style="background:#6A1B9A; color:white;">{{ $nplCount }}</span>
+        </div>
+        <div class="metric-value" style="font-size: 32px; color: #6A1B9A;">{{ $nplCount }}</div>
+        <div class="metric-label">KSH {{ number_format($nplAmount, 0) }} NPL amount</div>
     </div>
 </div>
 
@@ -110,37 +140,22 @@
         <div class="card-header">
             <span class="badge badge-success">Collection</span>
         </div>
-        <div class="circle-card-inner">
-            <div class="circle-progress">
-                <svg width="120" height="120" viewBox="0 0 120 120">
-                    <circle class="circle-bg" cx="60" cy="60" r="52"/>
-                    <circle class="circle-fill" cx="60" cy="60" r="52" 
-                        stroke="#4CAF50" 
-                        stroke-dasharray="326.73" 
-                        stroke-dashoffset="326.73"/>
-                </svg>
-                <div class="circle-text">
-                    <div class="circle-percent" style="color: var(--success);">0%</div>
-                    <div class="circle-label">Collection Rate</div>
-                </div>
+        <div style="padding: 16px;">
+            <div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items:center;">
+                <span style="font-size: 12px; color: var(--text-secondary);">Loans Due Today</span>
+                <span style="font-size: 16px; font-weight: 600;">{{ $loansDueToday }}</span>
             </div>
-            <div style="flex: 1;">
-                <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
-                    <span style="font-size: 12px; color: var(--text-secondary);">Loans Due Today</span>
-                    <span style="font-size: 13px; font-weight: 600;">KSH {{ number_format($loansDueToday, 0) }}</span>
-                </div>
-                <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
-                    <span style="font-size: 12px; color: var(--text-secondary);">Collections</span>
-                    <span style="font-size: 13px; font-weight: 600;">KSH {{ number_format($collectionsToday, 1) }}</span>
-                </div>
-                <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
-                    <span style="font-size: 12px; color: var(--text-secondary);">Loans Due Count</span>
-                    <span style="font-size: 13px; font-weight: 600;">{{ $loansDueCount }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span style="font-size: 12px; color: var(--text-secondary);">Prepaid Loans</span>
-                    <span style="font-size: 13px; font-weight: 600;">KSH {{ number_format($prepaidLoans, 0) }}</span>
-                </div>
+            <div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items:center;">
+                <span style="font-size: 12px; color: var(--text-secondary);">Collections Today</span>
+                <span style="font-size: 16px; font-weight: 600; color: var(--success);">KSH {{ number_format($collectionsToday, 0) }}</span>
+            </div>
+            <div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items:center;">
+                <span style="font-size: 12px; color: var(--text-secondary);">Total Loans Due (incl. overdue)</span>
+                <span style="font-size: 16px; font-weight: 600;">{{ $loansDueCount }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items:center;">
+                <span style="font-size: 12px; color: var(--text-secondary);">Prepaid Loans</span>
+                <span style="font-size: 16px; font-weight: 600;">{{ $prepaidLoans }}</span>
             </div>
         </div>
     </div>
@@ -150,29 +165,22 @@
         <div class="card-header">
             <span class="badge badge-danger">Risk</span>
         </div>
-        <div class="circle-card-inner">
-            <div class="circle-progress">
-                <svg width="120" height="120" viewBox="0 0 120 120">
-                    <circle class="circle-bg" cx="60" cy="60" r="52"/>
-                    <circle class="circle-fill" cx="60" cy="60" r="52" 
-                        stroke="#F44336" 
-                        stroke-dasharray="326.73" 
-                        stroke-dashoffset="{{ 326.73 - (326.73 * $parPercentage / 100) }}"/>
-                </svg>
-                <div class="circle-text">
-                    <div class="circle-percent" style="color: var(--danger);">{{ $parPercentage }}%</div>
-                    <div class="circle-label">Portfolio at Risk</div>
-                </div>
+        <div style="padding: 16px;">
+            <div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items:center;">
+                <span style="font-size: 12px; color: var(--text-secondary);">Portfolio at Risk (PAR30)</span>
+                <span style="font-size: 18px; font-weight: 700; color: var(--danger);">{{ $parPercentage }}%</span>
             </div>
-            <div style="flex: 1;">
-                <div style="margin-bottom: 15px;">
-                    <div style="font-size: 11px; color: var(--text-secondary);">Total Arrears</div>
-                    <div style="font-size: 20px; font-weight: 600; color: var(--danger);">KSH {{ number_format($totalArrears, 0) }}</div>
-                </div>
-                <div>
-                    <div style="font-size: 11px; color: var(--text-secondary);">Arrears Collected Today</div>
-                    <div style="font-size: 20px; font-weight: 600; color: var(--success);">KSH {{ number_format($arrearsCollectedToday, 0) }}</div>
-                </div>
+            <div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items:center;">
+                <span style="font-size: 12px; color: var(--text-secondary);">Amount at Risk</span>
+                <span style="font-size: 14px; font-weight: 600;">KSH {{ number_format($portfolioAtRisk ?? 0, 0) }}</span>
+            </div>
+            <div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items:center;">
+                <span style="font-size: 12px; color: var(--text-secondary);">Total Arrears</span>
+                <span style="font-size: 14px; font-weight: 600; color: var(--danger);">KSH {{ number_format($totalArrears, 0) }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items:center;">
+                <span style="font-size: 12px; color: var(--text-secondary);">Arrears Collected Today</span>
+                <span style="font-size: 14px; font-weight: 600; color: var(--success);">KSH {{ number_format($arrearsCollectedToday, 0) }}</span>
             </div>
         </div>
     </div>
@@ -182,23 +190,24 @@
 <div class="card" style="margin-bottom: 20px;">
     <div class="card-header">
         <span class="card-title">Non-Performing Loan Breakdown</span>
+        <span class="form-hint">Includes defaulted and written-off loans</span>
     </div>
     <div class="grid-4">
         <div>
-            <div class="metric-label">Principal Amount in NPL</div>
-            <div class="metric-value" style="font-size: 24px;">{{ number_format($nplPrincipal, 0) }}</div>
-        </div>
-        <div>
-            <div class="metric-label">NPL Amount</div>
-            <div class="metric-value" style="font-size: 24px;">{{ number_format($nplAmount, 0) }}</div>
-        </div>
-        <div>
-            <div class="metric-label">Number of NPLs</div>
+            <div class="metric-label">NPL Count</div>
             <div class="metric-value" style="font-size: 24px;">{{ $nplCount }}</div>
         </div>
         <div>
-            <div class="metric-label">Percentage Turnover</div>
-            <div class="metric-value" style="font-size: 24px;">% 0.0</div>
+            <div class="metric-label">NPL Principal</div>
+            <div class="metric-value" style="font-size: 24px;">KSH {{ number_format($nplPrincipal, 0) }}</div>
+        </div>
+        <div>
+            <div class="metric-label">NPL Outstanding</div>
+            <div class="metric-value" style="font-size: 24px;">KSH {{ number_format($nplAmount, 0) }}</div>
+        </div>
+        <div>
+            <div class="metric-label">NPL Ratio</div>
+            <div class="metric-value" style="font-size: 24px;">{{ $totalPortfolio > 0 ? round(($nplAmount / $totalPortfolio) * 100, 1) : 0 }}%</div>
         </div>
     </div>
 </div>

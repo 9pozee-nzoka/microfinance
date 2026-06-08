@@ -97,6 +97,21 @@
                             <i class="fas fa-key"></i> Reset
                         </button>
                     </form>
+                    @if($user->status === 'active')
+                    <form method="POST" action="{{ route('staff.deactivate', $user) }}" style="display:inline;" onsubmit="return confirm('Deactivate {{ $user->name }}? They will be logged out immediately and cannot log in until reactivated.');">
+                        @csrf @method('PATCH')
+                        <button type="submit" class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);margin-left:4px;" title="Deactivate Staff">
+                            <i class="fas fa-user-slash"></i> Deactivate
+                        </button>
+                    </form>
+                    @else
+                    <form method="POST" action="{{ route('staff.reactivate', $user) }}" style="display:inline;">
+                        @csrf @method('PATCH')
+                        <button type="submit" class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);margin-left:4px;" title="Reactivate Staff">
+                            <i class="fas fa-user-check"></i> Reactivate
+                        </button>
+                    </form>
+                    @endif
                     @endif
                 </td>
             </tr>
