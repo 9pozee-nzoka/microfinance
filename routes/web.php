@@ -165,6 +165,7 @@ Route::middleware(['auth', 'staff', 'single.session'])->group(function () {
                 Route::get('/rejected',        [CustomerController::class, 'rejected'])->name('rejected');
                 Route::get('/credit-history',  [CustomerController::class, 'creditHistory'])->name('credit-history');
                 Route::get('/limits',          [CustomerController::class, 'limits'])->name('limits');
+                Route::get('/kyc-documents',   [CustomerController::class, 'kycDocuments'])->name('kyc-documents');
                 Route::get('/{customer}/profile', [CustomerController::class, 'profile'])->name('profile');
                 Route::get('/{customer}/edit',    [CustomerController::class, 'edit'])->name('edit');
                 Route::put('/{customer}',         [CustomerController::class, 'update'])->name('update');
