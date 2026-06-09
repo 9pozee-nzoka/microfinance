@@ -251,10 +251,14 @@
         <div class="grid-2" style="gap: 20px;">
             <div class="form-group">
                 <label class="form-label">National ID — Front</label>
-                @if($customer->id_front_path)
+                @if($customer->id_front_path && Storage::disk('public')->exists($customer->id_front_path))
                 <div style="margin-bottom:8px; font-size:12px; color:var(--success);">
                     <i class="fas fa-check-circle"></i> Currently uploaded
                     <a href="{{ Storage::url($customer->id_front_path) }}" target="_blank" style="margin-left:8px; color:var(--primary);"><i class="fas fa-eye"></i> View</a>
+                </div>
+                @elseif($customer->id_front_path)
+                <div style="margin-bottom:8px; font-size:12px; color:var(--danger);">
+                    <i class="fas fa-unlink"></i> File missing on server
                 </div>
                 @endif
                 <div class="upload-box" id="idFrontBox" onclick="triggerFileUpload('id_front_input')">
@@ -275,10 +279,14 @@
             </div>
             <div class="form-group">
                 <label class="form-label">National ID — Back</label>
-                @if($customer->id_back_path)
+                @if($customer->id_back_path && Storage::disk('public')->exists($customer->id_back_path))
                 <div style="margin-bottom:8px; font-size:12px; color:var(--success);">
                     <i class="fas fa-check-circle"></i> Currently uploaded
                     <a href="{{ Storage::url($customer->id_back_path) }}" target="_blank" style="margin-left:8px; color:var(--primary);"><i class="fas fa-eye"></i> View</a>
+                </div>
+                @elseif($customer->id_back_path)
+                <div style="margin-bottom:8px; font-size:12px; color:var(--danger);">
+                    <i class="fas fa-unlink"></i> File missing on server
                 </div>
                 @endif
                 <div class="upload-box" id="idBackBox" onclick="triggerFileUpload('id_back_input')">
@@ -299,10 +307,14 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Passport Photo</label>
-                @if($customer->passport_photo_path)
+                @if($customer->passport_photo_path && Storage::disk('public')->exists($customer->passport_photo_path))
                 <div style="margin-bottom:8px; font-size:12px; color:var(--success);">
                     <i class="fas fa-check-circle"></i> Currently uploaded
                     <a href="{{ Storage::url($customer->passport_photo_path) }}" target="_blank" style="margin-left:8px; color:var(--primary);"><i class="fas fa-eye"></i> View</a>
+                </div>
+                @elseif($customer->passport_photo_path)
+                <div style="margin-bottom:8px; font-size:12px; color:var(--danger);">
+                    <i class="fas fa-unlink"></i> File missing on server
                 </div>
                 @endif
                 <div class="upload-box" id="photoBox" onclick="triggerFileUpload('passport_photo_input')">
@@ -323,10 +335,14 @@
             </div>
             <div class="form-group">
                 <label class="form-label">KRA PIN Certificate</label>
-                @if($customer->kra_pin_path)
+                @if($customer->kra_pin_path && Storage::disk('public')->exists($customer->kra_pin_path))
                 <div style="margin-bottom:8px; font-size:12px; color:var(--success);">
                     <i class="fas fa-check-circle"></i> Currently uploaded
                     <a href="{{ Storage::url($customer->kra_pin_path) }}" target="_blank" style="margin-left:8px; color:var(--primary);"><i class="fas fa-eye"></i> View</a>
+                </div>
+                @elseif($customer->kra_pin_path)
+                <div style="margin-bottom:8px; font-size:12px; color:var(--danger);">
+                    <i class="fas fa-unlink"></i> File missing on server
                 </div>
                 @endif
                 <div class="upload-box" id="kraBox" onclick="triggerFileUpload('kra_pin_input')">

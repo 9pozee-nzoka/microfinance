@@ -98,11 +98,13 @@ class CustomerController extends Controller
             'kra_pin'                   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
 
-        // Handle file uploads
+        // Handle file uploads — save directly to public/storage/kyc to avoid symlink issues on shared hosting
         $paths = [];
         foreach (['id_front' => 'id_front_path', 'id_back' => 'id_back_path', 'passport_photo' => 'passport_photo_path', 'kra_pin' => 'kra_pin_path'] as $field => $column) {
             if ($request->hasFile($field)) {
-                $paths[$column] = $request->file($field)->store('kyc', 'public');
+                $filename = $request->file($field)->hashName();
+                $request->file($field)->move(public_path('storage/kyc'), $filename);
+                $paths[$column] = 'kyc/' . $filename;
             }
         }
 
@@ -189,14 +191,16 @@ class CustomerController extends Controller
 
         $validated['full_name'] = trim($validated['first_name'] . ' ' . ($validated['middle_name'] ?? '') . ' ' . $validated['last_name']);
 
-        // Handle file uploads
+        // Handle file uploads — save directly to public/storage/kyc to avoid symlink issues on shared hosting
         foreach (['id_front' => 'id_front_path', 'id_back' => 'id_back_path', 'passport_photo' => 'passport_photo_path', 'kra_pin' => 'kra_pin_path'] as $field => $column) {
             if ($request->hasFile($field)) {
                 // Delete old file if exists
-                if ($customer->$column) {
-                    Storage::disk('public')->delete($customer->$column);
+                if ($customer->$column && file_exists(public_path('storage/' . $customer->$column))) {
+                    @unlink(public_path('storage/' . $customer->$column));
                 }
-                $validated[$column] = $request->file($field)->store('kyc', 'public');
+                $filename = $request->file($field)->hashName();
+                $request->file($field)->move(public_path('storage/kyc'), $filename);
+                $validated[$column] = 'kyc/' . $filename;
             }
             unset($validated[$field]);
         }

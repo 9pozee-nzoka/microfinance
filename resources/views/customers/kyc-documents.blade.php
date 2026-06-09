@@ -323,6 +323,12 @@
             @endif
         </div>
         <div class="kyc-doc-body">
+            @php
+                $idFrontExists = $customer->id_front_path && Storage::disk('public')->exists($customer->id_front_path);
+                $idBackExists = $customer->id_back_path && Storage::disk('public')->exists($customer->id_back_path);
+                $photoExists = $customer->passport_photo_path && Storage::disk('public')->exists($customer->passport_photo_path);
+                $kraExists = $customer->kra_pin_path && Storage::disk('public')->exists($customer->kra_pin_path);
+            @endphp
             {{-- ID Front --}}
             <div class="kyc-doc-item">
                 <div class="kyc-doc-label">
@@ -330,13 +336,15 @@
                     ID Front
                 </div>
                 <div class="kyc-doc-actions">
-                    @if($customer->id_front_path)
+                    @if($idFrontExists)
                         <button type="button" class="kyc-doc-btn view-btn" onclick="openKycViewer('{{ Storage::url($customer->id_front_path) }}', 'ID Front - {{ $customer->full_name }}')">
                             <i class="fas fa-eye"></i> View
                         </button>
                         <a href="{{ Storage::url($customer->id_front_path) }}" download class="kyc-doc-btn">
                             <i class="fas fa-download"></i>
                         </a>
+                    @elseif($customer->id_front_path)
+                        <span class="kyc-doc-btn missing" title="File record exists but file is missing on server"><i class="fas fa-unlink"></i> Not Found</span>
                     @else
                         <span class="kyc-doc-btn missing">Missing</span>
                     @endif
@@ -349,13 +357,15 @@
                     ID Back
                 </div>
                 <div class="kyc-doc-actions">
-                    @if($customer->id_back_path)
+                    @if($idBackExists)
                         <button type="button" class="kyc-doc-btn view-btn" onclick="openKycViewer('{{ Storage::url($customer->id_back_path) }}', 'ID Back - {{ $customer->full_name }}')">
                             <i class="fas fa-eye"></i> View
                         </button>
                         <a href="{{ Storage::url($customer->id_back_path) }}" download class="kyc-doc-btn">
                             <i class="fas fa-download"></i>
                         </a>
+                    @elseif($customer->id_back_path)
+                        <span class="kyc-doc-btn missing" title="File record exists but file is missing on server"><i class="fas fa-unlink"></i> Not Found</span>
                     @else
                         <span class="kyc-doc-btn missing">Missing</span>
                     @endif
@@ -368,13 +378,15 @@
                     Passport Photo
                 </div>
                 <div class="kyc-doc-actions">
-                    @if($customer->passport_photo_path)
+                    @if($photoExists)
                         <button type="button" class="kyc-doc-btn view-btn" onclick="openKycViewer('{{ Storage::url($customer->passport_photo_path) }}', 'Passport Photo - {{ $customer->full_name }}')">
                             <i class="fas fa-eye"></i> View
                         </button>
                         <a href="{{ Storage::url($customer->passport_photo_path) }}" download class="kyc-doc-btn">
                             <i class="fas fa-download"></i>
                         </a>
+                    @elseif($customer->passport_photo_path)
+                        <span class="kyc-doc-btn missing" title="File record exists but file is missing on server"><i class="fas fa-unlink"></i> Not Found</span>
                     @else
                         <span class="kyc-doc-btn missing">Missing</span>
                     @endif
@@ -387,13 +399,15 @@
                     KRA PIN
                 </div>
                 <div class="kyc-doc-actions">
-                    @if($customer->kra_pin_path)
+                    @if($kraExists)
                         <button type="button" class="kyc-doc-btn view-btn" onclick="openKycViewer('{{ Storage::url($customer->kra_pin_path) }}', 'KRA PIN - {{ $customer->full_name }}')">
                             <i class="fas fa-eye"></i> View
                         </button>
                         <a href="{{ Storage::url($customer->kra_pin_path) }}" download class="kyc-doc-btn">
                             <i class="fas fa-download"></i>
                         </a>
+                    @elseif($customer->kra_pin_path)
+                        <span class="kyc-doc-btn missing" title="File record exists but file is missing on server"><i class="fas fa-unlink"></i> Not Found</span>
                     @else
                         <span class="kyc-doc-btn missing">Missing</span>
                     @endif
