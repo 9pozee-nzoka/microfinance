@@ -138,59 +138,60 @@
     </style>
 
     {{-- JSON-LD: ContactPage + LocalBusiness --}}
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "ContactPage",
-                "@id": "https://mweelacredit.co.ke/contact#contactpage",
-                "url": "https://mweelacredit.co.ke/contact",
-                "name": "Contact Mweela Cash Capital",
-                "isPartOf": { "@id": "https://mweelacredit.co.ke/#website" },
-                "about": { "@id": "https://mweelacredit.co.ke/#organization" }
-            },
-            {
-                "@type": "LocalBusiness",
-                "@id": "https://mweelacredit.co.ke/#localbusiness",
-                "name": "Mweela Cash Capital",
-                "image": "https://mweelacredit.co.ke/images/og-image.jpg",
-                "url": "https://mweelacredit.co.ke",
-                "telephone": "+254-700-000-001",
-                "email": "info@mweelacredit.co.ke",
-                "address": {
-                    "@type": "PostalAddress",
-                    "streetAddress": "Mutomo Town",
-                    "addressLocality": "Mutomo",
-                    "addressRegion": "Kitui County",
-                    "addressCountry": "KE"
-                },
-                "geo": {
-                    "@type": "GeoCoordinates",
-                    "latitude": -1.8500,
-                    "longitude": 38.1833
-                },
-                "openingHoursSpecification": [
-                    {
-                        "@type": "OpeningHoursSpecification",
-                        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-                        "opens": "08:00",
-                        "closes": "17:00"
-                    },
-                    {
-                        "@type": "OpeningHoursSpecification",
-                        "dayOfWeek": "Saturday",
-                        "opens": "09:00",
-                        "closes": "13:00"
-                    }
+    @php
+    $contactJsonLd = json_encode([
+        '@context' => 'https://schema.org',
+        '@graph' => [
+            [
+                '@type' => 'ContactPage',
+                '@id' => 'https://mweelacredit.co.ke/contact#contactpage',
+                'url' => 'https://mweelacredit.co.ke/contact',
+                'name' => 'Contact Mweela Cash Capital',
+                'isPartOf' => [ '@id' => 'https://mweelacredit.co.ke/#website' ],
+                'about' => [ '@id' => 'https://mweelacredit.co.ke/#organization' ]
+            ],
+            [
+                '@type' => 'LocalBusiness',
+                '@id' => 'https://mweelacredit.co.ke/#localbusiness',
+                'name' => 'Mweela Cash Capital',
+                'image' => 'https://mweelacredit.co.ke/images/og-image.jpg',
+                'url' => 'https://mweelacredit.co.ke',
+                'telephone' => '+254-700-000-001',
+                'email' => 'info@mweelacredit.co.ke',
+                'address' => [
+                    '@type' => 'PostalAddress',
+                    'streetAddress' => 'Mutomo Town',
+                    'addressLocality' => 'Mutomo',
+                    'addressRegion' => 'Kitui County',
+                    'addressCountry' => 'KE'
                 ],
-                "priceRange": "$$",
-                "currenciesAccepted": "KES",
-                "paymentAccepted": "Cash, M-Pesa, Bank Transfer"
-            }
+                'geo' => [
+                    '@type' => 'GeoCoordinates',
+                    'latitude' => -1.8500,
+                    'longitude' => 38.1833
+                ],
+                'openingHoursSpecification' => [
+                    [
+                        '@type' => 'OpeningHoursSpecification',
+                        'dayOfWeek' => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+                        'opens' => '08:00',
+                        'closes' => '17:00'
+                    ],
+                    [
+                        '@type' => 'OpeningHoursSpecification',
+                        'dayOfWeek' => 'Saturday',
+                        'opens' => '09:00',
+                        'closes' => '13:00'
+                    ]
+                ],
+                'priceRange' => '$$',
+                'currenciesAccepted' => 'KES',
+                'paymentAccepted' => 'Cash, M-Pesa, Bank Transfer'
+            ]
         ]
-    }
-    </script>
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    @endphp
+    <script type="application/ld+json">{!! $contactJsonLd !!}</script>
 </head>
 <body>
     <nav>

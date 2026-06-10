@@ -86,136 +86,137 @@
     </style>
 
     {{-- JSON-LD Structured Data: Organization + LocalBusiness + WebSite --}}
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "Organization",
-                "@id": "https://mweelacredit.co.ke/#organization",
-                "name": "Mweela Cash Capital",
-                "alternateName": "Mweela",
-                "url": "https://mweelacredit.co.ke",
-                "logo": {
-                    "@type": "ImageObject",
-                    "url": "https://mweelacredit.co.ke/images/logo.png"
-                },
-                "description": "Trusted microfinance institution providing quick business loans, personal loans, and SME financing in Kenya.",
-                "sameAs": [],
-                "contactPoint": {
-                    "@type": "ContactPoint",
-                    "telephone": "+254-700-000-001",
-                    "contactType": "customer service",
-                    "areaServed": "KE",
-                    "availableLanguage": ["English", "Swahili"]
-                }
-            },
-            {
-                "@type": "LocalBusiness",
-                "@id": "https://mweelacredit.co.ke/#localbusiness",
-                "name": "Mweela Cash Capital",
-                "image": "https://mweelacredit.co.ke/images/og-image.jpg",
-                "url": "https://mweelacredit.co.ke",
-                "telephone": "+254-700-000-001",
-                "address": {
-                    "@type": "PostalAddress",
-                    "streetAddress": "Mutomo Town",
-                    "addressLocality": "Mutomo",
-                    "addressRegion": "Kitui County",
-                    "addressCountry": "KE"
-                },
-                "geo": {
-                    "@type": "GeoCoordinates",
-                    "latitude": -1.8500,
-                    "longitude": 38.1833
-                },
-                "openingHoursSpecification": {
-                    "@type": "OpeningHoursSpecification",
-                    "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-                    "opens": "08:00",
-                    "closes": "17:00"
-                },
-                "priceRange": "$$",
-                "currenciesAccepted": "KES",
-                "paymentAccepted": "Cash, M-Pesa, Bank Transfer"
-            },
-            {
-                "@type": "WebSite",
-                "@id": "https://mweelacredit.co.ke/#website",
-                "url": "https://mweelacredit.co.ke",
-                "name": "Mweela Cash Capital",
-                "publisher": {
-                    "@id": "https://mweelacredit.co.ke/#organization"
-                },
-                "potentialAction": {
-                    "@type": "SearchAction",
-                    "target": {
-                        "@type": "EntryPoint",
-                        "urlTemplate": "https://mweelacredit.co.ke/search?q={search_term_string}"
-                    },
-                    "query-input": "required name=search_term_string"
-                }
-            },
-            {
-                "@type": "WebPage",
-                "@id": "https://mweelacredit.co.ke/#webpage",
-                "url": "https://mweelacredit.co.ke/",
-                "name": "Mweela Cash Capital - Microfinance Loans in Kenya",
-                "isPartOf": {
-                    "@id": "https://mweelacredit.co.ke/#website"
-                },
-                "about": {
-                    "@id": "https://mweelacredit.co.ke/#organization"
-                },
-                "primaryImageOfPage": {
-                    "@type": "ImageObject",
-                    "url": "https://mweelacredit.co.ke/images/og-image.jpg"
-                }
-            },
-            {
-                "@type": "FinancialService",
-                "name": "Mweela Cash Capital",
-                "description": "Quick and affordable microfinance loans in Kenya. Business loans, personal loans, and SME financing.",
-                "url": "https://mweelacredit.co.ke",
-                "logo": "https://mweelacredit.co.ke/images/logo.png",
-                "areaServed": {
-                    "@type": "Country",
-                    "name": "Kenya"
-                },
-                "hasOfferCatalog": {
-                    "@type": "OfferCatalog",
-                    "name": "Loan Products",
-                    "itemListElement": [
-                        {
-                            "@type": "Offer",
-                            "itemOffered": {
-                                "@type": "Service",
-                                "name": "Business Loans",
-                                "description": "Flexible business financing to grow your enterprise."
-                            }
-                        },
-                        {
-                            "@type": "Offer",
-                            "itemOffered": {
-                                "@type": "Service",
-                                "name": "Personal Loans",
-                                "description": "Quick personal loans for education, medical, and home improvement."
-                            }
-                        },
-                        {
-                            "@type": "Offer",
-                            "itemOffered": {
-                                "@type": "Service",
-                                "name": "SME Financing",
-                                "description": "Specialized financing for small and medium enterprises."
-                            }
-                        }
+    @php
+    $jsonLd = json_encode([
+        '@context' => 'https://schema.org',
+        '@graph' => [
+            [
+                '@type' => 'Organization',
+                '@id' => 'https://mweelacredit.co.ke/#organization',
+                'name' => 'Mweela Cash Capital',
+                'alternateName' => 'Mweela',
+                'url' => 'https://mweelacredit.co.ke',
+                'logo' => [
+                    '@type' => 'ImageObject',
+                    'url' => 'https://mweelacredit.co.ke/images/logo.png'
+                ],
+                'description' => 'Trusted microfinance institution providing quick business loans, personal loans, and SME financing in Kenya.',
+                'sameAs' => [],
+                'contactPoint' => [
+                    '@type' => 'ContactPoint',
+                    'telephone' => '+254-700-000-001',
+                    'contactType' => 'customer service',
+                    'areaServed' => 'KE',
+                    'availableLanguage' => ['English', 'Swahili']
+                ]
+            ],
+            [
+                '@type' => 'LocalBusiness',
+                '@id' => 'https://mweelacredit.co.ke/#localbusiness',
+                'name' => 'Mweela Cash Capital',
+                'image' => 'https://mweelacredit.co.ke/images/og-image.jpg',
+                'url' => 'https://mweelacredit.co.ke',
+                'telephone' => '+254-700-000-001',
+                'address' => [
+                    '@type' => 'PostalAddress',
+                    'streetAddress' => 'Mutomo Town',
+                    'addressLocality' => 'Mutomo',
+                    'addressRegion' => 'Kitui County',
+                    'addressCountry' => 'KE'
+                ],
+                'geo' => [
+                    '@type' => 'GeoCoordinates',
+                    'latitude' => -1.8500,
+                    'longitude' => 38.1833
+                ],
+                'openingHoursSpecification' => [
+                    '@type' => 'OpeningHoursSpecification',
+                    'dayOfWeek' => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+                    'opens' => '08:00',
+                    'closes' => '17:00'
+                ],
+                'priceRange' => '$$',
+                'currenciesAccepted' => 'KES',
+                'paymentAccepted' => 'Cash, M-Pesa, Bank Transfer'
+            ],
+            [
+                '@type' => 'WebSite',
+                '@id' => 'https://mweelacredit.co.ke/#website',
+                'url' => 'https://mweelacredit.co.ke',
+                'name' => 'Mweela Cash Capital',
+                'publisher' => [
+                    '@id' => 'https://mweelacredit.co.ke/#organization'
+                ],
+                'potentialAction' => [
+                    '@type' => 'SearchAction',
+                    'target' => [
+                        '@type' => 'EntryPoint',
+                        'urlTemplate' => 'https://mweelacredit.co.ke/search?q={search_term_string}'
+                    ],
+                    'query-input' => 'required name=search_term_string'
+                ]
+            ],
+            [
+                '@type' => 'WebPage',
+                '@id' => 'https://mweelacredit.co.ke/#webpage',
+                'url' => 'https://mweelacredit.co.ke/',
+                'name' => 'Mweela Cash Capital - Microfinance Loans in Kenya',
+                'isPartOf' => [
+                    '@id' => 'https://mweelacredit.co.ke/#website'
+                ],
+                'about' => [
+                    '@id' => 'https://mweelacredit.co.ke/#organization'
+                ],
+                'primaryImageOfPage' => [
+                    '@type' => 'ImageObject',
+                    'url' => 'https://mweelacredit.co.ke/images/og-image.jpg'
+                ]
+            ],
+            [
+                '@type' => 'FinancialService',
+                'name' => 'Mweela Cash Capital',
+                'description' => 'Quick and affordable microfinance loans in Kenya. Business loans, personal loans, and SME financing.',
+                'url' => 'https://mweelacredit.co.ke',
+                'logo' => 'https://mweelacredit.co.ke/images/logo.png',
+                'areaServed' => [
+                    '@type' => 'Country',
+                    'name' => 'Kenya'
+                ],
+                'hasOfferCatalog' => [
+                    '@type' => 'OfferCatalog',
+                    'name' => 'Loan Products',
+                    'itemListElement' => [
+                        [
+                            '@type' => 'Offer',
+                            'itemOffered' => [
+                                '@type' => 'Service',
+                                'name' => 'Business Loans',
+                                'description' => 'Flexible business financing to grow your enterprise.'
+                            ]
+                        ],
+                        [
+                            '@type' => 'Offer',
+                            'itemOffered' => [
+                                '@type' => 'Service',
+                                'name' => 'Personal Loans',
+                                'description' => 'Quick personal loans for education, medical, and home improvement.'
+                            ]
+                        ],
+                        [
+                            '@type' => 'Offer',
+                            'itemOffered' => [
+                                '@type' => 'Service',
+                                'name' => 'SME Financing',
+                                'description' => 'Specialized financing for small and medium enterprises.'
+                            ]
+                        ]
                     ]
-                }
-            }
+                ]
+            ]
         ]
-    }
-    </script>
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    @endphp
+    <script type="application/ld+json">{!! $jsonLd !!}</script>
 </head>
 <body>
     <nav>

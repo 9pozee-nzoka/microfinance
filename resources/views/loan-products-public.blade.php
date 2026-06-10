@@ -131,59 +131,60 @@
     </style>
 
     {{-- JSON-LD: Product Collection + Individual Products --}}
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "CollectionPage",
-                "@id": "https://mweelacredit.co.ke/our-loans#collectionpage",
-                "url": "https://mweelacredit.co.ke/our-loans",
-                "name": "Loan Products - Mweela Cash Capital",
-                "isPartOf": { "@id": "https://mweelacredit.co.ke/#website" },
-                "about": { "@id": "https://mweelacredit.co.ke/#organization" },
-                "mainEntity": {
-                    "@type": "ItemList",
-                    "itemListElement": [
-                        {
-                            "@type": "ListItem",
-                            "position": 1,
-                            "item": {
-                                "@type": "FinancialProduct",
-                                "name": "Business Loans",
-                                "description": "Flexible financing to grow your enterprise with competitive rates and quick approval.",
-                                "provider": { "@id": "https://mweelacredit.co.ke/#organization" },
-                                "areaServed": "Kenya"
-                            }
-                        },
-                        {
-                            "@type": "ListItem",
-                            "position": 2,
-                            "item": {
-                                "@type": "FinancialProduct",
-                                "name": "Personal Loans",
-                                "description": "Quick personal loans for education, medical, agriculture, and home improvement needs.",
-                                "provider": { "@id": "https://mweelacredit.co.ke/#organization" },
-                                "areaServed": "Kenya"
-                            }
-                        },
-                        {
-                            "@type": "ListItem",
-                            "position": 3,
-                            "item": {
-                                "@type": "FinancialProduct",
-                                "name": "SME Financing",
-                                "description": "Specialized financing solutions for small and medium enterprises in Kenya.",
-                                "provider": { "@id": "https://mweelacredit.co.ke/#organization" },
-                                "areaServed": "Kenya"
-                            }
-                        }
+    @php
+    $productsJsonLd = json_encode([
+        '@context' => 'https://schema.org',
+        '@graph' => [
+            [
+                '@type' => 'CollectionPage',
+                '@id' => 'https://mweelacredit.co.ke/our-loans#collectionpage',
+                'url' => 'https://mweelacredit.co.ke/our-loans',
+                'name' => 'Loan Products - Mweela Cash Capital',
+                'isPartOf' => [ '@id' => 'https://mweelacredit.co.ke/#website' ],
+                'about' => [ '@id' => 'https://mweelacredit.co.ke/#organization' ],
+                'mainEntity' => [
+                    '@type' => 'ItemList',
+                    'itemListElement' => [
+                        [
+                            '@type' => 'ListItem',
+                            'position' => 1,
+                            'item' => [
+                                '@type' => 'FinancialProduct',
+                                'name' => 'Business Loans',
+                                'description' => 'Flexible financing to grow your enterprise with competitive rates and quick approval.',
+                                'provider' => [ '@id' => 'https://mweelacredit.co.ke/#organization' ],
+                                'areaServed' => 'Kenya'
+                            ]
+                        ],
+                        [
+                            '@type' => 'ListItem',
+                            'position' => 2,
+                            'item' => [
+                                '@type' => 'FinancialProduct',
+                                'name' => 'Personal Loans',
+                                'description' => 'Quick personal loans for education, medical, agriculture, and home improvement needs.',
+                                'provider' => [ '@id' => 'https://mweelacredit.co.ke/#organization' ],
+                                'areaServed' => 'Kenya'
+                            ]
+                        ],
+                        [
+                            '@type' => 'ListItem',
+                            'position' => 3,
+                            'item' => [
+                                '@type' => 'FinancialProduct',
+                                'name' => 'SME Financing',
+                                'description' => 'Specialized financing solutions for small and medium enterprises in Kenya.',
+                                'provider' => [ '@id' => 'https://mweelacredit.co.ke/#organization' ],
+                                'areaServed' => 'Kenya'
+                            ]
+                        ]
                     ]
-                }
-            }
+                ]
+            ]
         ]
-    }
-    </script>
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    @endphp
+    <script type="application/ld+json">{!! $productsJsonLd !!}</script>
 </head>
 <body>
     <nav>

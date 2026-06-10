@@ -112,43 +112,44 @@
     </style>
 
     {{-- JSON-LD: AboutPage + Organization --}}
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "AboutPage",
-                "@id": "https://mweelacredit.co.ke/about#aboutpage",
-                "url": "https://mweelacredit.co.ke/about",
-                "name": "About Mweela Cash Capital",
-                "isPartOf": { "@id": "https://mweelacredit.co.ke/#website" },
-                "about": { "@id": "https://mweelacredit.co.ke/#organization" }
-            },
-            {
-                "@type": "Organization",
-                "@id": "https://mweelacredit.co.ke/#organization",
-                "name": "Mweela Cash Capital",
-                "url": "https://mweelacredit.co.ke",
-                "logo": "https://mweelacredit.co.ke/images/logo.png",
-                "description": "Trusted microfinance institution providing quick business loans, personal loans, and SME financing in Kenya.",
-                "address": {
-                    "@type": "PostalAddress",
-                    "streetAddress": "Mutomo Town",
-                    "addressLocality": "Mutomo",
-                    "addressRegion": "Kitui County",
-                    "addressCountry": "KE"
-                },
-                "contactPoint": {
-                    "@type": "ContactPoint",
-                    "telephone": "+254-700-000-001",
-                    "contactType": "customer service",
-                    "areaServed": "KE",
-                    "availableLanguage": ["English", "Swahili"]
-                }
-            }
+    @php
+    $aboutJsonLd = json_encode([
+        '@context' => 'https://schema.org',
+        '@graph' => [
+            [
+                '@type' => 'AboutPage',
+                '@id' => 'https://mweelacredit.co.ke/about#aboutpage',
+                'url' => 'https://mweelacredit.co.ke/about',
+                'name' => 'About Mweela Cash Capital',
+                'isPartOf' => [ '@id' => 'https://mweelacredit.co.ke/#website' ],
+                'about' => [ '@id' => 'https://mweelacredit.co.ke/#organization' ]
+            ],
+            [
+                '@type' => 'Organization',
+                '@id' => 'https://mweelacredit.co.ke/#organization',
+                'name' => 'Mweela Cash Capital',
+                'url' => 'https://mweelacredit.co.ke',
+                'logo' => 'https://mweelacredit.co.ke/images/logo.png',
+                'description' => 'Trusted microfinance institution providing quick business loans, personal loans, and SME financing in Kenya.',
+                'address' => [
+                    '@type' => 'PostalAddress',
+                    'streetAddress' => 'Mutomo Town',
+                    'addressLocality' => 'Mutomo',
+                    'addressRegion' => 'Kitui County',
+                    'addressCountry' => 'KE'
+                ],
+                'contactPoint' => [
+                    '@type' => 'ContactPoint',
+                    'telephone' => '+254-700-000-001',
+                    'contactType' => 'customer service',
+                    'areaServed' => 'KE',
+                    'availableLanguage' => ['English', 'Swahili']
+                ]
+            ]
         ]
-    }
-    </script>
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    @endphp
+    <script type="application/ld+json">{!! $aboutJsonLd !!}</script>
 </head>
 <body>
     <nav>
