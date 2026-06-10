@@ -5,5 +5,16 @@ Disallow: /logout
 Disallow: /admin
 Disallow: /staff
 Disallow: /api/
+Disallow: /portal/
+Disallow: /dashboard
+Disallow: /customers/
+Disallow: /loans/
+Disallow: /transactions/
+Disallow: /mpesa/
+Disallow: /reports/
+Disallow: /loan-products/
+Disallow: /collection/
+Disallow: /branches/
+Disallow: /profile/
 
 Sitemap: https://mweelacredit.co.ke/sitemap.xml

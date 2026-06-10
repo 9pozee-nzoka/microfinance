@@ -4,7 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    {{-- SEO: Portal pages should not be indexed --}}
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="googlebot" content="noindex, nofollow">
+    <meta name="description" content="Mweela Cash Capital Customer Portal - Access your loan account, make payments, and view your transaction history.">
+    <link rel="canonical" href="{{ url()->current() }}">
+
+    {{-- Open Graph --}}
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:title" content="@yield('title', 'My Account') — Mweela Cash Capital">
+    <meta property="og:description" content="Mweela Cash Capital Customer Portal - Access your loan account, make payments, and view your transaction history.">
+    <meta property="og:site_name" content="Mweela Cash Capital">
+
+    {{-- Twitter Card --}}
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:url" content="{{ url()->current() }}">
+    <meta name="twitter:title" content="@yield('title', 'My Account') — Mweela Cash Capital">
+    <meta name="twitter:description" content="Mweela Cash Capital Customer Portal - Access your loan account, make payments, and view your transaction history.">
+
     <title>@yield('title', 'My Account') — Mweela Cash Capital</title>
+
+    {{-- Favicon --}}
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
+    <meta name="theme-color" content="#00BCD4">
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">

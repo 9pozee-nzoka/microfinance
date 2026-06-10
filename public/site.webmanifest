@@ -1,0 +1,21 @@
+{
+    "name": "Mweela Cash Capital",
+    "short_name": "Mweela",
+    "description": "Trusted microfinance loans in Kenya. Quick business loans, personal loans, and SME financing.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#F5F7FA",
+    "theme_color": "#00BCD4",
+    "icons": [
+        {
+            "src": "/favicon.ico",
+            "sizes": "48x48",
+            "type": "image/x-icon"
+        },
+        {
+            "src": "/apple-touch-icon.png",
+            "sizes": "180x180",
+            "type": "image/png"
+        }
+    ]
+}

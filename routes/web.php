@@ -25,14 +25,18 @@ Route::get('/sitemap.xml', function () {
     $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 
+    $baseUrl = config('app.url', 'https://mweelacredit.co.ke');
+    $today = now()->toDateString();
+
     $urls = [
-        ['loc' => url('/'), 'priority' => '1.0', 'changefreq' => 'daily'],
+        ['loc' => $baseUrl . '/', 'priority' => '1.0', 'changefreq' => 'daily'],
+        ['loc' => $baseUrl . '/login', 'priority' => '0.3', 'changefreq' => 'monthly'],
     ];
 
     foreach ($urls as $url) {
         $xml .= '  <url>' . "\n";
         $xml .= '    <loc>' . htmlspecialchars($url['loc']) . '</loc>' . "\n";
-        $xml .= '    <lastmod>' . now()->toDateString() . '</lastmod>' . "\n";
+        $xml .= '    <lastmod>' . $today . '</lastmod>' . "\n";
         $xml .= '    <changefreq>' . $url['changefreq'] . '</changefreq>' . "\n";
         $xml .= '    <priority>' . $url['priority'] . '</priority>' . "\n";
         $xml .= '  </url>' . "\n";

@@ -9,7 +9,8 @@
     <meta name="description" content="@yield('meta_description', 'Mweela Cash Capital - Trusted microfinance loans in Kenya. Quick business loans, personal loans, and financial services tailored for you.')">
     <meta name="keywords" content="@yield('meta_keywords', 'microfinance, loans Kenya, business loans, Mweela Cash Capital, quick loans, SME loans, Mutomo')">
     <meta name="author" content="Mweela Cash Capital">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="googlebot" content="noindex, nofollow">
     <link rel="canonical" href="{{ url()->current() }}">
 
     {{-- Open Graph / Facebook --}}
@@ -17,7 +18,10 @@
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:title" content="@yield('title', 'Mweela Cash Capital')">
     <meta property="og:description" content="@yield('meta_description', 'Quick and affordable microfinance loans in Kenya.')">
-    <meta property="og:image" content="{{ asset('images/og-image.png') }}">
+    <meta property="og:image" content="{{ asset('images/og-image.jpg') }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Mweela Cash Capital - Microfinance Loans in Kenya">
     <meta property="og:site_name" content="Mweela Cash Capital">
 
     {{-- Twitter Card --}}
@@ -25,9 +29,16 @@
     <meta name="twitter:url" content="{{ url()->current() }}">
     <meta name="twitter:title" content="@yield('title', 'Mweela Cash Capital')">
     <meta name="twitter:description" content="@yield('meta_description', 'Quick and affordable microfinance loans in Kenya.')">
-    <meta name="twitter:image" content="{{ asset('images/og-image.png') }}">
+    <meta name="twitter:image" content="{{ asset('images/og-image.jpg') }}">
+    <meta name="twitter:image:alt" content="Mweela Cash Capital - Microfinance Loans in Kenya">
 
     <title>@yield('title', 'Mweela Cash Capital')</title>
+
+    {{-- Favicon --}}
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ asset('site.webmanifest') }}">
+    <meta name="theme-color" content="#00BCD4">
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
