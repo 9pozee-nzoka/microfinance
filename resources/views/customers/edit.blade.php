@@ -261,7 +261,7 @@
                     <i class="fas fa-unlink"></i> File missing on server
                 </div>
                 @endif
-                <div class="upload-box" id="idFrontBox" onclick="triggerFileUpload('id_front_input')">
+                <div class="upload-box" id="idFrontBox">
                     <input type="file" name="id_front" id="id_front_input" accept="image/*,.pdf" capture="environment" onchange="previewFile(this,'idFrontBox','idFrontPreview')">
                     <i class="fas fa-id-card"></i>
                     <span>Click to upload or take photo</span>
@@ -289,7 +289,7 @@
                     <i class="fas fa-unlink"></i> File missing on server
                 </div>
                 @endif
-                <div class="upload-box" id="idBackBox" onclick="triggerFileUpload('id_back_input')">
+                <div class="upload-box" id="idBackBox">
                     <input type="file" name="id_back" id="id_back_input" accept="image/*,.pdf" capture="environment" onchange="previewFile(this,'idBackBox','idBackPreview')">
                     <i class="fas fa-id-card"></i>
                     <span>Click to upload or take photo</span>
@@ -317,7 +317,7 @@
                     <i class="fas fa-unlink"></i> File missing on server
                 </div>
                 @endif
-                <div class="upload-box" id="photoBox" onclick="triggerFileUpload('passport_photo_input')">
+                <div class="upload-box" id="photoBox">
                     <input type="file" name="passport_photo" id="passport_photo_input" accept="image/*" capture="user" onchange="previewFile(this,'photoBox','photoPreview')">
                     <i class="fas fa-camera"></i>
                     <span>Click to upload or take photo</span>
@@ -345,7 +345,7 @@
                     <i class="fas fa-unlink"></i> File missing on server
                 </div>
                 @endif
-                <div class="upload-box" id="kraBox" onclick="triggerFileUpload('kra_pin_input')">
+                <div class="upload-box" id="kraBox">
                     <input type="file" name="kra_pin" id="kra_pin_input" accept="image/*,.pdf" capture="environment" onchange="previewFile(this,'kraBox','kraPreview')">
                     <i class="fas fa-file-alt"></i>
                     <span>Click to upload or take photo</span>
@@ -399,10 +399,6 @@ function previewFile(input, boxId, previewId) {
         document.getElementById(boxId).style.borderColor = 'var(--success)';
         document.getElementById(boxId).style.background  = '#F1F8E9';
     }
-}
-
-function triggerFileUpload(inputId) {
-    document.getElementById(inputId).click();
 }
 
 function openCamera(inputId, boxId, previewId) {
