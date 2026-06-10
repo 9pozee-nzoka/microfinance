@@ -30,6 +30,9 @@ Route::get('/sitemap.xml', function () {
 
     $urls = [
         ['loc' => $baseUrl . '/', 'priority' => '1.0', 'changefreq' => 'daily'],
+        ['loc' => $baseUrl . '/about', 'priority' => '0.8', 'changefreq' => 'weekly'],
+        ['loc' => $baseUrl . '/our-loans', 'priority' => '0.9', 'changefreq' => 'weekly'],
+        ['loc' => $baseUrl . '/contact', 'priority' => '0.7', 'changefreq' => 'weekly'],
         ['loc' => $baseUrl . '/login', 'priority' => '0.3', 'changefreq' => 'monthly'],
     ];
 
@@ -50,6 +53,33 @@ Route::get('/sitemap.xml', function () {
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
+
+Route::get('/about', function () {
+    return view('about');
+})->name('about');
+
+Route::get('/our-loans', function () {
+    return view('loan-products-public');
+})->name('loan-products.public');
+
+Route::get('/contact', function () {
+    return view('contact');
+})->name('contact');
+
+Route::post('/contact', function () {
+    // Simple contact form handler - store inquiry or send email
+    $validated = request()->validate([
+        'name' => 'required|string|max:255',
+        'phone' => 'required|string|max:20',
+        'email' => 'nullable|email|max:255',
+        'interest' => 'required|string|in:business,personal,sme,general',
+        'message' => 'nullable|string|max:2000',
+    ]);
+
+    // TODO: Send email notification or store in database
+    // For now, just redirect back with success message
+    return redirect()->route('contact')->with('success', 'Thank you for your message! We will get back to you within 24 hours.');
+})->name('contact.submit');
 
 Route::get('/login', function () {
     return view('auth.login');
@@ -100,8 +130,9 @@ Route::post('/logout', function () {
 Route::middleware(['auth', 'staff', 'single.session'])->group(function () {
 
     // ── Dashboard — all staff ──────────────────────────────────
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.overview');
+    // Note: Public '/' is defined above for guests (welcome page).
+    // Staff dashboard is at /dashboard only to avoid route conflicts.
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // ── Profile ────────────────────────────────────────────────
     Route::get('/profile/change-password', [StaffController::class, 'showChangePassword'])->name('profile.change-password');

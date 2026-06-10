@@ -43,26 +43,46 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', -apple-system, sans-serif; background: #F5F7FA; color: #2C3E50; line-height: 1.6; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
-        header { background: #00BCD4; color: white; padding: 20px 0; }
-        header h1 { font-size: 28px; }
-        header p { opacity: 0.9; margin-top: 5px; }
-        .hero { background: linear-gradient(135deg, #00BCD4 0%, #00ACC1 100%); color: white; padding: 80px 0; text-align: center; }
+
+        /* Navigation */
+        nav { background: #fff; border-bottom: 1px solid #E8ECF1; position: sticky; top: 0; z-index: 100; }
+        .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+        .nav-brand { font-size: 20px; font-weight: 700; color: #00BCD4; text-decoration: none; }
+        .nav-links { display: flex; gap: 32px; list-style: none; }
+        .nav-links a { color: #5D6D7E; text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover { color: #00BCD4; }
+        .nav-cta { background: #00BCD4; color: #fff; padding: 8px 20px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; }
+        .nav-cta:hover { background: #00ACC1; }
+
+        header { background: #00BCD4; color: white; padding: 20px 0; display: none; }
+        .hero { background: linear-gradient(135deg, #00BCD4 0%, #00ACC1 100%); color: white; padding: 100px 0 80px; text-align: center; }
         .hero h2 { font-size: 42px; margin-bottom: 20px; }
         .hero p { font-size: 18px; opacity: 0.95; max-width: 600px; margin: 0 auto 30px; }
         .btn { display: inline-block; padding: 14px 32px; background: white; color: #00BCD4; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; }
         .btn:hover { background: #f0f0f0; }
-        .features { padding: 60px 0; }
+        .btn-outline { background: transparent; border: 2px solid white; color: white; margin-left: 12px; }
+        .btn-outline:hover { background: white; color: #00BCD4; }
+        .features { padding: 70px 0; background: #fff; }
+        .features h2 { text-align: center; font-size: 32px; margin-bottom: 40px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; }
-        .feature { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .feature h3 { color: #00BCD4; margin-bottom: 10px; }
-        .cta { background: #2C3E50; color: white; padding: 60px 0; text-align: center; }
-        .cta h2 { margin-bottom: 20px; }
-        footer { background: #1a252f; color: #95a5a6; padding: 30px 0; text-align: center; }
-        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+        .feature { background: #F5F7FA; padding: 30px; border-radius: 12px; }
+        .feature i { font-size: 32px; color: #00BCD4; margin-bottom: 16px; }
+        .feature h3 { color: #1A2332; margin-bottom: 10px; font-size: 20px; }
+        .feature p { color: #5D6D7E; }
+        .cta { background: #2C3E50; color: white; padding: 70px 0; text-align: center; }
+        .cta h2 { margin-bottom: 16px; font-size: 32px; }
+        .cta p { opacity: 0.85; margin-bottom: 28px; }
+        footer { background: #0F1923; color: #7F8C8D; padding: 40px 0; text-align: center; font-size: 14px; }
+        footer a { color: #00BCD4; text-decoration: none; }
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hero h2 { font-size: 28px; }
+        }
     </style>
 
     {{-- JSON-LD Structured Data: Organization + LocalBusiness + WebSite --}}
@@ -198,35 +218,61 @@
     </script>
 </head>
 <body>
-    <header>
-        <div class="container">
-            <h1>Mweela Cash Capital</h1>
-            <p>Your Trusted Microfinance Partner in Kenya</p>
+    <nav>
+        <div class="container nav-inner">
+            <a href="/" class="nav-brand">Mweela Cash Capital</a>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/our-loans">Loan Products</a></li>
+                <li><a href="/contact">Contact</a></li>
+            </ul>
+            <a href="/login" class="nav-cta">Staff Login</a>
         </div>
-    </header>
+    </nav>
 
     <section class="hero">
         <div class="container">
             <h2>Quick Loans for Your Business</h2>
             <p>Get affordable microfinance loans in Kenya. Business loans, personal loans, and SME financing tailored for you.</p>
-            <a href="/login" class="btn">Staff Login</a>
+            <a href="/our-loans" class="btn">Explore Loans</a>
+            <a href="/contact" class="btn btn-outline">Contact Us</a>
         </div>
     </section>
 
     <section class="features">
         <div class="container">
+            <h2>Why Choose Mweela?</h2>
             <div class="grid">
                 <div class="feature">
-                    <h3>Business Loans</h3>
-                    <p>Flexible business financing to grow your enterprise. Competitive rates and quick approval.</p>
+                    <i class="fas fa-bolt"></i>
+                    <h3>Quick Approval</h3>
+                    <p>Get loan decisions within 24 hours. No lengthy paperwork or waiting periods.</p>
                 </div>
                 <div class="feature">
-                    <h3>Personal Loans</h3>
-                    <p>Quick personal loans for education, medical, agriculture, and home improvement needs.</p>
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <h3>Flexible Terms</h3>
+                    <p>Repayment schedules designed around your cash flow, not against it.</p>
                 </div>
                 <div class="feature">
-                    <h3>SME Financing</h3>
-                    <p>Specialized financing solutions for small and medium enterprises in Kenya.</p>
+                    <i class="fas fa-shield-alt"></i>
+                    <h3>Transparent Pricing</h3>
+                    <p>No hidden fees. Every charge is clearly explained before you commit.</p>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-mobile-alt"></i>
+                    <h3>M-Pesa Repayments</h3>
+                    <p>Repay your loan conveniently via M-Pesa from anywhere in Kenya.</p>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-users"></i>
+                    <h3>Local Support</h3>
+                    <p>Our team in Mutomo knows the community and understands your needs.</p>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-chart-line"></i>
+                    <h3>Build Credit</h3>
+                    <p>Establish a positive credit history with us for larger loans in the future.</p>
                 </div>
             </div>
         </div>
@@ -236,14 +282,14 @@
         <div class="container">
             <h2>Ready to Apply?</h2>
             <p>Visit our branch in Mutomo or contact us to learn more about our loan products.</p>
-            <a href="/login" class="btn">Staff Portal</a>
+            <a href="/contact" class="btn">Get in Touch</a>
+            <a href="/about" class="btn btn-outline">Learn More</a>
         </div>
     </section>
 
     <footer>
         <div class="container">
-            <p>&copy; 2026 Mweela Cash Capital. All rights reserved.</p>
-            <p>Mutomo, Kitui County, Kenya</p>
+            <p>&copy; 2026 Mweela Cash Capital. All rights reserved. | <a href="/">Home</a> · <a href="/about">About</a> · <a href="/our-loans">Loan Products</a> · <a href="/contact">Contact</a></p>
         </div>
     </footer>
 </body>
