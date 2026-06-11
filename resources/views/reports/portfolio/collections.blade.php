@@ -113,7 +113,7 @@
         <div class="table-wrap">
         <table class="data-table" style="min-width:1000px;">
             <thead>
-                <tr><th>#</th><th>Customer</th><th>Loan No.</th><th>Amount</th><th>Principal</th><th>Interest</th><th>Penalty</th><th>Method</th><th>Reference</th><th>Received By</th><th>Date</th></tr>
+                <tr><th>#</th><th>Customer</th><th>Loan No.</th><th>Amount</th><th>Principal</th><th>Interest</th><th>Penalty</th><th>Method</th><th>Reference</th><th>Received By</th><th>Status</th><th>Date</th></tr>
             </thead>
             <tbody>
                 @forelse($repayments as $i => $r)
@@ -130,11 +130,20 @@
                     <td>KSH {{ number_format($r->penalty_portion, 0) }}</td>
                     <td><span class="badge badge-primary">{{ ucfirst(str_replace('_',' ',$r->payment_method)) }}</span></td>
                     <td style="font-family:monospace; font-size:11px;">{{ $r->transaction_reference ?? '—' }}</td>
-                    <td style="font-size:12px;">{{ $r->receivedBy->name ?? 'System' }}</td>
+                    <td style="font-size:12px;">{{ $r->receivedBy->name ?? 'Portal' }}</td>
+                    <td>
+                        @if($r->status === 'confirmed')
+                            <span class="badge badge-success" style="font-size:10px;">Confirmed</span>
+                        @elseif($r->status === 'reversed')
+                            <span class="badge badge-danger" style="font-size:10px;">Reversed</span>
+                        @else
+                            <span class="badge badge-warning" style="font-size:10px;">Pending</span>
+                        @endif
+                    </td>
                     <td style="font-size:12px; color:var(--text-secondary);">{{ $r->created_at->format('d M Y') }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="11" style="text-align:center; padding:50px; color:var(--text-secondary);">No collections in this period</td></tr>
+                <tr><td colspan="12" style="text-align:center; padding:50px; color:var(--text-secondary);">No collections in this period</td></tr>
                 @endforelse
             </tbody>
         </table>

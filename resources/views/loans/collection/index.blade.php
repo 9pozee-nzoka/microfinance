@@ -79,6 +79,14 @@
             <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">Active Schedules</div>
         </div>
     </div>
+    <div class="stat-card" style="border-left:4px solid #9C27B0;">
+        <div class="stat-icon" style="background:#F3E5F5;color:#9C27B0;"><i class="fas fa-clock"></i></div>
+        <div>
+            <div style="font-size:26px;font-weight:700;color:var(--text-primary);line-height:1;">{{ number_format($pendingCount) }}</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">Pending Payments</div>
+            <div style="font-size:11px;color:#9C27B0;margin-top:2px;">KSH {{ number_format($pendingTotal, 0) }}</div>
+        </div>
+    </div>
 </div>
 
 {{-- ── PAR Buckets + Quick Actions ── --}}
@@ -149,6 +157,58 @@
         </form>
     </div>
 </div>
+
+{{-- ── Pending Payments ── --}}
+@if($pendingCount > 0)
+<div class="card" style="margin-bottom:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);">
+            <i class="fas fa-clock" style="color:#9C27B0;margin-right:6px;"></i>Pending Payments Awaiting Confirmation ({{ $pendingCount }})
+        </div>
+        <span style="font-size:11px;color:var(--text-secondary);">KSH {{ number_format($pendingTotal, 0) }} total</span>
+    </div>
+    <div style="max-height:280px;overflow-y:auto;">
+        @forelse($pendingPayments as $repayment)
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+            <div>
+                <div style="font-weight:600;font-size:13px;">{{ $repayment->customer->full_name ?? '—' }}</div>
+                <div style="font-size:11px;color:var(--text-secondary);">
+                    {{ $repayment->loan->loan_number ?? '—' }} · {{ ucfirst(str_replace('_', ' ', $repayment->payment_method)) }}
+                </div>
+                <div style="font-size:11px;color:var(--text-secondary);">
+                    {{ $repayment->created_at->format('d M Y h:i A') }}
+                    @if($repayment->notes && str_contains($repayment->notes, 'Early payment'))
+                        <span style="color:var(--success);font-weight:600;">· Early Payment</span>
+                    @elseif($repayment->notes && str_contains($repayment->notes, 'Top-up'))
+                        <span style="color:var(--warning);font-weight:600;">· Top-Up</span>
+                    @elseif($repayment->notes && str_contains($repayment->notes, 'Full prepayment'))
+                        <span style="color:var(--primary);font-weight:600;">· Full Prepayment</span>
+                    @endif
+                </div>
+            </div>
+            <div style="text-align:right;display:flex;align-items:center;gap:10px;">
+                <div>
+                    <div style="font-weight:700;font-size:13px;color:#9C27B0;">KSH {{ number_format($repayment->amount, 0) }}</div>
+                    <div style="font-size:10px;color:var(--text-secondary);">pending</div>
+                </div>
+                <form method="POST" action="{{ route('repayments.confirm', $repayment) }}" style="display:inline;">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="action-btn" style="background:#E8F5E9;border-color:#4CAF50;color:#4CAF50;" title="Confirm Payment" onclick="return confirm('Confirm payment of KSH {{ number_format($repayment->amount, 0) }} from {{ addslashes($repayment->customer->full_name ?? '') }}?')">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </form>
+                <a href="{{ route('loans.show', $repayment->loan_id) }}" class="action-btn" title="View Loan">
+                    <i class="fas fa-eye"></i>
+                </a>
+            </div>
+        </div>
+        @empty
+        <div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">No pending payments</div>
+        @endforelse
+    </div>
+</div>
+@endif
 
 {{-- ── Due Today + Overdue side by side ── --}}
 <div class="grid-2" style="margin-bottom:24px;gap:20px;">

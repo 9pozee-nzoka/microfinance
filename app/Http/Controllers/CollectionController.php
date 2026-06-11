@@ -7,6 +7,7 @@ use App\Jobs\SendSmsJob;
 use App\Models\Branch;
 use App\Models\Loan;
 use App\Models\LoanProduct;
+use App\Models\LoanRepayment;
 use App\Models\SmsLog;
 use App\Models\SmsSchedule;
 use Carbon\Carbon;
@@ -65,12 +66,29 @@ class CollectionController extends Controller
             ->when($isOfficer, fn($q) => $q->where('created_by', $user->id))
             ->latest()->limit(8)->get();
 
+        // Pending payments awaiting confirmation
+        $pendingPayments = LoanRepayment::with(['loan.customer', 'customer'])
+            ->where('status', 'pending')
+            ->when($isOfficer, fn($q) => $q->whereHas('loan', fn($lq) => $lq->where('relationship_officer_id', $user->id)))
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        $pendingCount = LoanRepayment::where('status', 'pending')
+            ->when($isOfficer, fn($q) => $q->whereHas('loan', fn($lq) => $lq->where('relationship_officer_id', $user->id)))
+            ->count();
+
+        $pendingTotal = LoanRepayment::where('status', 'pending')
+            ->when($isOfficer, fn($q) => $q->whereHas('loan', fn($lq) => $lq->where('relationship_officer_id', $user->id)))
+            ->sum('amount');
+
         return view('loans.collection.index', compact(
             'dueToday', 'overdueLoans',
             'totalDueToday', 'totalOverdue', 'totalArrearsAmt',
             'smsSentToday', 'schedulesActive',
             'par30', 'par60', 'par90', 'par90p',
-            'recentSms'
+            'recentSms',
+            'pendingPayments', 'pendingCount', 'pendingTotal'
         ));
     }
 

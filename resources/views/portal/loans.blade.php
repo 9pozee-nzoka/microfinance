@@ -27,7 +27,7 @@
             @forelse($loans as $loan)
             @php
                 $progress = $loan->total_repayable > 0
-                    ? min(100, ($loan->total_paid / $loan->total_repayable) * 100)
+                    ? ($loan->status === 'completed' ? 100 : min(100, ($loan->total_paid / $loan->total_repayable) * 100))
                     : 0;
 
                 $badgeClass = match($loan->status) {

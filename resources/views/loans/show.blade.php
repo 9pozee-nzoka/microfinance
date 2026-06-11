@@ -134,7 +134,9 @@
 
 {{-- ── Repayment Progress ── --}}
 @php
-    $progress = $loan->total_repayable > 0 ? min(100, round(($loan->total_paid / $loan->total_repayable) * 100, 1)) : 0;
+    $progress = $loan->total_repayable > 0
+        ? ($loan->status === 'completed' ? 100 : min(100, round(($loan->total_paid / $loan->total_repayable) * 100, 1)))
+        : 0;
 @endphp
 <div class="card" style="margin-bottom:20px;">
     <div class="section-title"><i class="fas fa-chart-line" style="color:var(--primary); margin-right:6px;"></i>Repayment Progress</div>
@@ -169,7 +171,7 @@
             </thead>
             <tbody>
                 @forelse($loan->repaymentSchedules as $schedule)
-                <tr class="{{ $schedule->status === 'paid' ? 'schedule-row-paid' : ($schedule->is_overdue ? 'schedule-row-overdue' : '') }}">
+                <tr class="{{ $schedule->status === 'paid' ? 'schedule-row-paid' : ($schedule->is_overdue ? 'schedule-row-overdue' : ($schedule->status === 'waived' ? 'schedule-row-waived' : '')) }}">
                     <td>{{ $schedule->installment_number }}</td>
                     <td style="font-size:12px;">{{ $schedule->due_date->format('d M Y') }}</td>
                     <td>{{ number_format($schedule->principal_amount, 0) }}</td>
@@ -184,6 +186,8 @@
                             <span class="status status-rejected">Overdue ({{ $schedule->days_overdue }}d)</span>
                         @elseif($schedule->status === 'partial')
                             <span class="status status-partially-approved">Partial</span>
+                        @elseif($schedule->status === 'waived')
+                            <span class="status status-info">Waived</span>
                         @else
                             <span class="status status-pending">Pending</span>
                         @endif
@@ -212,6 +216,7 @@
                 <th>Reference</th>
                 <th>Received By</th>
                 <th>Status</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
@@ -223,7 +228,7 @@
                 <td>{{ number_format($repayment->interest_portion, 0) }}</td>
                 <td><span class="badge badge-primary">{{ ucfirst(str_replace('_',' ',$repayment->payment_method)) }}</span></td>
                 <td style="font-family:monospace; font-size:11px;">{{ $repayment->transaction_reference ?? '—' }}</td>
-                <td style="font-size:12px;">{{ $repayment->receivedBy?->name ?? 'System' }}</td>
+                <td style="font-size:12px;">{{ $repayment->receivedBy?->name ?? 'Portal' }}</td>
                 <td>
                     @if($repayment->status === 'confirmed')
                         <span class="status status-active">Confirmed</span>
@@ -233,9 +238,22 @@
                         <span class="status status-pending">Pending</span>
                     @endif
                 </td>
+                <td>
+                    @if($repayment->status === 'pending')
+                    <form method="POST" action="{{ route('repayments.confirm', $repayment) }}" style="display:inline;">
+                        @csrf
+                        @method('PATCH')
+                        <button type="submit" class="btn btn-primary btn-sm" style="font-size:11px; padding:4px 10px;" onclick="return confirm('Confirm payment of KSH {{ number_format($repayment->amount, 0) }}?')">
+                            <i class="fas fa-check"></i> Confirm
+                        </button>
+                    </form>
+                    @else
+                    <span style="font-size:11px; color:var(--text-secondary);">—</span>
+                    @endif
+                </td>
             </tr>
             @empty
-            <tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-secondary);">No payments recorded yet</td></tr>
+            <tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-secondary);">No payments recorded yet</td></tr>
             @endforelse
         </tbody>
     </table>

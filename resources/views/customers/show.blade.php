@@ -287,15 +287,6 @@
                     {{-- Status --}}
                     <td>
                         <span class="status {{ $statusClass }}">{{ $statusLabel }}</span>
-                        @if($customer->kyc_verified_at)
-                        <div style="margin-top: 4px; font-size: 10px; color: var(--success);">
-                            <i class="fas fa-shield-alt"></i> KYC Verified
-                        </div>
-                        @else
-                        <div style="margin-top: 4px; font-size: 10px; color: var(--warning);">
-                            <i class="fas fa-exclamation-circle"></i> KYC Pending
-                        </div>
-                        @endif
                     </td>
 
                     {{-- Joined --}}

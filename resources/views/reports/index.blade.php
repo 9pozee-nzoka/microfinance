@@ -95,6 +95,16 @@
                 <span class="report-card-badge" style="background: #E8F5E9; color: var(--success);">Period</span>
             </div>
         </a>
+        <a href="{{ route('reports.portfolio.prepayments') }}" class="report-card">
+            <div class="report-icon" style="background: #FFF3E0; color: #E65100;">
+                <i class="fas fa-calendar-check"></i>
+            </div>
+            <div>
+                <div class="report-card-title">Prepayment Analytics</div>
+                <div class="report-card-desc">Early loan closures: prepayments, top-ups, and full settlements with trends.</div>
+                <span class="report-card-badge" style="background: #FFF3E0; color: #E65100;">Analytics</span>
+            </div>
+        </a>
     </div>
 </div>
 

@@ -70,6 +70,31 @@ class TransactionController extends Controller
     }
 
     // ─────────────────────────────────────────────
+    // CONFIRM PENDING REPAYMENT
+    // ─────────────────────────────────────────────
+    public function confirmRepayment(LoanRepayment $repayment)
+    {
+        abort_if($repayment->status !== 'pending', 403, 'Only pending repayments can be confirmed.');
+
+        $repayment->update([
+            'status'       => 'confirmed',
+            'confirmed_at' => now(),
+            'confirmed_by' => auth()->id(),
+            'received_by'  => auth()->id(),
+        ]);
+
+        // Also update the linked transaction to reconciled
+        Transaction::where('repayment_id', $repayment->id)
+            ->update([
+                'is_reconciled' => true,
+                'reconciled_at' => now(),
+                'description'   => 'Confirmed by ' . auth()->user()->name,
+            ]);
+
+        return back()->with('success', 'Payment of KSH ' . number_format($repayment->amount, 0) . ' confirmed successfully.');
+    }
+
+    // ─────────────────────────────────────────────
     // RECORD PAYMENT (POST)
     // ─────────────────────────────────────────────
     public function store(Request $request)

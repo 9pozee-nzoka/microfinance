@@ -131,11 +131,6 @@
             </div>
             <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                 <span class="status {{ $statusClass }}">{{ $statusLabel }}</span>
-                @if($customer->kyc_verified_at)
-                    <span style="font-size:12px; color:var(--success);"><i class="fas fa-shield-alt"></i> KYC Verified</span>
-                @else
-                    <span style="font-size:12px; color:var(--warning);"><i class="fas fa-exclamation-circle"></i> KYC Pending</span>
-                @endif
                 <span style="font-size:12px; color:var(--text-secondary);">
                     Joined {{ $customer->created_at->format('d M Y') }}
                 </span>
@@ -211,15 +206,6 @@
             <div><div class="detail-label">Branch</div><div class="detail-value">{{ $customer->branch->name ?? '—' }}</div></div>
             <div><div class="detail-label">Relationship Officer</div><div class="detail-value">{{ $customer->relationshipOfficer->name ?? '—' }}</div></div>
             <div><div class="detail-label">Credit Limit</div><div class="detail-value">KSH {{ number_format($customer->credit_limit, 0) }}</div></div>
-            <div><div class="detail-label">KYC Verified</div>
-                <div class="detail-value">
-                    @if($customer->kyc_verified_at)
-                        <span style="color:var(--success);">{{ $customer->kyc_verified_at->format('d M Y') }}</span>
-                    @else
-                        <span style="color:var(--warning);">Not verified</span>
-                    @endif
-                </div>
-            </div>
             <div><div class="detail-label">Activated</div><div class="detail-value">{{ $customer->activated_at?->format('d M Y') ?? '—' }}</div></div>
             <div><div class="detail-label">Last Transaction</div><div class="detail-value">{{ $customer->last_transaction_at?->format('d M Y') ?? 'Never' }}</div></div>
         </div>

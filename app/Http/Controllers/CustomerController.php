@@ -92,26 +92,12 @@ class CustomerController extends Controller
             'branch_id'                 => 'required|exists:branches,id',
             'customer_type'             => 'nullable|in:permanent,non_permanent',
             'qualified_amount'          => 'nullable|numeric|min:0',
-            'id_front'                  => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
-            'id_back'                   => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
-            'passport_photo'            => 'required|file|mimes:jpg,jpeg,png|max:10240',
-            'kra_pin'                   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
-
-        // Handle file uploads — save directly to public/storage/kyc to avoid symlink issues on shared hosting
-        $paths = [];
-        foreach (['id_front' => 'id_front_path', 'id_back' => 'id_back_path', 'passport_photo' => 'passport_photo_path', 'kra_pin' => 'kra_pin_path'] as $field => $column) {
-            if ($request->hasFile($field)) {
-                $filename = $request->file($field)->hashName();
-                $request->file($field)->move(public_path('storage/kyc'), $filename);
-                $paths[$column] = 'kyc/' . $filename;
-            }
-        }
 
         // Build full_name from parts
         $fullName = trim($validated['first_name'] . ' ' . ($validated['middle_name'] ?? '') . ' ' . $validated['last_name']);
 
-        $customer = Customer::create(array_merge($validated, $paths, [
+        $customer = Customer::create(array_merge($validated, [
             'full_name'               => $fullName,
             'share_capital'           => 0,
             'status'                  => 'pending',
@@ -120,7 +106,7 @@ class CustomerController extends Controller
         ]));
 
         return redirect()->route('customers.new')
-            ->with('success', "Customer {$customer->full_name} registered successfully. Pending KYC verification.");
+            ->with('success', "Customer {$customer->full_name} registered successfully.");
     }
 
     // ── Customer Profile ──────────────────────────────────────────
@@ -183,27 +169,9 @@ class CustomerController extends Controller
             'status'                    => 'required|in:pending,active,suspended,dormant',
             'customer_type'             => 'nullable|in:permanent,non_permanent',
             'qualified_amount'          => 'nullable|numeric|min:0',
-            'id_front'                  => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
-            'id_back'                   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
-            'passport_photo'            => 'nullable|file|mimes:jpg,jpeg,png|max:10240',
-            'kra_pin'                   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
 
         $validated['full_name'] = trim($validated['first_name'] . ' ' . ($validated['middle_name'] ?? '') . ' ' . $validated['last_name']);
-
-        // Handle file uploads — save directly to public/storage/kyc to avoid symlink issues on shared hosting
-        foreach (['id_front' => 'id_front_path', 'id_back' => 'id_back_path', 'passport_photo' => 'passport_photo_path', 'kra_pin' => 'kra_pin_path'] as $field => $column) {
-            if ($request->hasFile($field)) {
-                // Delete old file if exists
-                if ($customer->$column && file_exists(public_path('storage/' . $customer->$column))) {
-                    @unlink(public_path('storage/' . $customer->$column));
-                }
-                $filename = $request->file($field)->hashName();
-                $request->file($field)->move(public_path('storage/kyc'), $filename);
-                $validated[$column] = 'kyc/' . $filename;
-            }
-            unset($validated[$field]);
-        }
 
         $customer->update($validated);
 
@@ -233,17 +201,6 @@ class CustomerController extends Controller
         $branches  = Branch::where('status', 'active')->orderBy('name')->get();
 
         return view('customers.new', compact('customers', 'branches'));
-    }
-
-    // ── Verify KYC ───────────────────────────────────────────────
-    public function verifyKyc(Customer $customer)
-    {
-        $customer->update([
-            'kyc_verified_at' => now(),
-            'kyc_verified_by' => auth()->id(),
-        ]);
-
-        return back()->with('success', "KYC verified for {$customer->full_name}.");
     }
 
     // ── Activate Customer ────────────────────────────────────────
@@ -455,65 +412,6 @@ class CustomerController extends Controller
         });
 
         return back()->with('success', "Credit score recalculated for {$customer->full_name}: {$totalScore} ({$rating}).");
-    }
-
-    // ── KYC Documents Directory ─────────────────────────────────
-    public function kycDocuments(Request $request)
-    {
-        $query = Customer::with('branch', 'relationshipOfficer')
-            ->whereNotNull('id_front_path')
-            ->orWhereNotNull('id_back_path')
-            ->orWhereNotNull('passport_photo_path')
-            ->orWhereNotNull('kra_pin_path');
-
-        if ($request->filled('search')) {
-            $s = $request->search;
-            $query->where(function ($q) use ($s) {
-                $q->where('full_name', 'like', "%{$s}%")
-                  ->orWhere('phone_number', 'like', "%{$s}%")
-                  ->orWhere('id_number', 'like', "%{$s}%")
-                  ->orWhere('customer_number', 'like', "%{$s}%");
-            });
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('branch')) {
-            $query->where('branch_id', $request->branch);
-        }
-        if ($request->filled('doc_type')) {
-            $docType = $request->doc_type;
-            $query->whereNotNull(match ($docType) {
-                'id_front' => 'id_front_path',
-                'id_back' => 'id_back_path',
-                'passport_photo' => 'passport_photo_path',
-                'kra_pin' => 'kra_pin_path',
-                default => 'id_front_path',
-            });
-        }
-
-        $customers = $query->latest()->paginate(20)->withQueryString();
-        $branches  = Branch::where('status', 'active')->orderBy('name')->get();
-
-        $totalWithKyc = Customer::where(function ($q) {
-            $q->whereNotNull('id_front_path')
-              ->orWhereNotNull('id_back_path')
-              ->orWhereNotNull('passport_photo_path')
-              ->orWhereNotNull('kra_pin_path');
-        })->count();
-
-        $verifiedKyc = Customer::whereNotNull('kyc_verified_at')->count();
-        $pendingKyc  = Customer::whereNull('kyc_verified_at')
-            ->where(function ($q) {
-                $q->whereNotNull('id_front_path')
-                  ->orWhereNotNull('id_back_path')
-                  ->orWhereNotNull('passport_photo_path')
-                  ->orWhereNotNull('kra_pin_path');
-            })->count();
-
-        return view('customers.kyc-documents', compact(
-            'customers', 'branches', 'totalWithKyc', 'verifiedKyc', 'pendingKyc'
-        ));
     }
 
     // ── Limit Management ─────────────────────────────────────────

@@ -125,7 +125,9 @@
                     default => ['#757575', '#F5F5F5']
                 };
 
-                $progressPercent = $loan->total_repayable > 0 ? min(100, round(($loan->total_paid / $loan->total_repayable) * 100, 1)) : 0;
+                $progressPercent = $loan->total_repayable > 0
+                    ? ($loan->status === 'completed' ? 100 : min(100, round(($loan->total_paid / $loan->total_repayable) * 100, 1)))
+                    : 0;
             @endphp
             <tr>
                 <td><input type="checkbox" style="cursor: pointer;"></td>

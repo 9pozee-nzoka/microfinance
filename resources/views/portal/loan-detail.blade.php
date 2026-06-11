@@ -18,7 +18,7 @@
 
 @php
     $progress = $loan->total_repayable > 0
-        ? min(100, ($loan->total_paid / $loan->total_repayable) * 100)
+        ? ($loan->status === 'completed' ? 100 : min(100, ($loan->total_paid / $loan->total_repayable) * 100))
         : 0;
 
     $badgeClass = match($loan->status) {
@@ -50,6 +50,42 @@
             @endif
         </div>
     </div>
+
+    {{-- Prepay Options --}}
+    @if(in_array($loan->status, ['disbursed', 'active']))
+    @php
+        $nextSched = $loan->repaymentSchedules
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->sortBy('installment_number')
+            ->first();
+        $nextDueAmount = $nextSched ? ($nextSched->total_amount - $nextSched->total_paid) : 0;
+        $nextTwoAmount = 0;
+        $remainingSchedules = $loan->repaymentSchedules
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->sortBy('installment_number')
+            ->values();
+        foreach ($remainingSchedules->take(2) as $s) {
+            $nextTwoAmount += ($s->total_amount - $s->total_paid);
+        }
+    @endphp
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <a href="{{ route('portal.loan.pay', ['loan' => $loan, 'type' => 'early']) }}" class="btn btn-outline" style="flex-direction: column; gap: 6px; padding: 14px; text-align: center; height: auto;">
+            <i class="fas fa-calendar-check" style="font-size: 18px; color: var(--success);"></i>
+            <div style="font-size: 12px; font-weight: 600;">Pay Next Week Early</div>
+            <div style="font-size: 11px; color: var(--text-secondary);">KSH {{ number_format($nextDueAmount, 0) }}</div>
+        </a>
+        <a href="{{ route('portal.loan.pay', ['loan' => $loan, 'type' => 'topup']) }}" class="btn btn-outline" style="flex-direction: column; gap: 6px; padding: 14px; text-align: center; height: auto;">
+            <i class="fas fa-layer-group" style="font-size: 18px; color: var(--warning);"></i>
+            <div style="font-size: 12px; font-weight: 600;">Pay Multiple Weeks</div>
+            <div style="font-size: 11px; color: var(--text-secondary);">KSH {{ number_format($nextTwoAmount, 0) }}</div>
+        </a>
+        <a href="{{ route('portal.loan.pay', ['loan' => $loan, 'type' => 'full']) }}" class="btn btn-outline" style="flex-direction: column; gap: 6px; padding: 14px; text-align: center; height: auto; border-color: var(--primary); color: var(--primary);">
+            <i class="fas fa-check-double" style="font-size: 18px; color: var(--primary);"></i>
+            <div style="font-size: 12px; font-weight: 600;">Pay Off Loan Early</div>
+            <div style="font-size: 11px; color: var(--text-secondary);">KSH {{ number_format($loan->outstanding_balance, 0) }}</div>
+        </a>
+    </div>
+    @endif
 
     {{-- Progress --}}
     <div style="margin-bottom: 20px;">
@@ -96,6 +132,38 @@
         </div>
     </div>
 </div>
+
+{{-- Ahead of Schedule Indicator --}}
+@php
+    $nextPending = $loan->repaymentSchedules
+        ->whereIn('status', ['pending', 'partial', 'overdue'])
+        ->sortBy('installment_number')
+        ->first();
+    $paidAheadCount = $loan->repaymentSchedules->where('status', 'paid')->count();
+    $totalSchedules = $loan->repaymentSchedules->count();
+    $weeksAhead = 0;
+    if ($nextPending && $loan->first_due_date) {
+        $expectedPaidByNow = max(0, ceil($loan->first_due_date->diffInDays(now(), false) / 7));
+        $weeksAhead = max(0, $paidAheadCount - $expectedPaidByNow);
+    }
+@endphp
+@if($paidAheadCount > 0 && $loan->status !== 'completed')
+<div class="alert alert-success" style="margin-bottom: 20px;">
+    <i class="fas fa-trophy"></i>
+    <div>
+        <strong>{{ $paidAheadCount }} of {{ $totalSchedules }} installments paid.</strong>
+        @if($weeksAhead > 0)
+            You are <strong>{{ $weeksAhead }} week{{ $weeksAhead > 1 ? 's' : '' }} ahead</strong> of schedule.
+        @endif
+        @if($nextPending)
+            Next due: <strong>{{ $nextPending->due_date->format('d M Y') }}</strong>
+            (Installment #{{ $nextPending->installment_number }}).
+        @else
+            <strong>Loan fully paid!</strong> 🎉
+        @endif
+    </div>
+</div>
+@endif
 
 {{-- Installment summary --}}
 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">

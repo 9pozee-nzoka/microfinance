@@ -147,6 +147,199 @@ class ReportController extends Controller
     }
 
     /**
+     * Prepayment Analytics — early installment payments + early loan closures
+     */
+    public function prepaymentAnalytics(Request $request)
+    {
+        $dateFrom = $request->date_from ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->startOfMonth();
+        $dateTo   = $request->date_to   ? Carbon::parse($request->date_to)->endOfDay()     : Carbon::now()->endOfDay();
+
+        // ══════════════════════════════════════════════════════════════
+        // SECTION A — Early Installment Payments (paid before due date)
+        // ══════════════════════════════════════════════════════════════
+        $earlyPaymentsQuery = LoanRepayment::with(['loan', 'customer', 'schedule', 'receivedBy'])
+            ->join('repayment_schedules', 'loan_repayments.schedule_id', '=', 'repayment_schedules.id')
+            ->whereColumn('loan_repayments.created_at', '<', 'repayment_schedules.due_date')
+            ->whereBetween('loan_repayments.created_at', [$dateFrom, $dateTo])
+            ->whereIn('loan_repayments.status', ['confirmed', 'pending'])
+            ->select('loan_repayments.*', 'repayment_schedules.due_date');
+
+        if ($request->filled('branch')) {
+            $earlyPaymentsQuery->where('loan_repayments.branch_id', $request->branch);
+        }
+
+        $earlyPayments = $earlyPaymentsQuery->orderByDesc('loan_repayments.created_at')->paginate(25, ['*'], 'payments_page')->withQueryString();
+
+        // Compute days early for each payment
+        $earlyPayments->getCollection()->transform(function ($repayment) {
+            $repayment->days_early = $repayment->created_at->diffInDays(Carbon::parse($repayment->due_date), false);
+            return $repayment;
+        });
+
+        // Early payments summary
+        $earlyPaymentsSummary = LoanRepayment::join('repayment_schedules', 'loan_repayments.schedule_id', '=', 'repayment_schedules.id')
+            ->whereColumn('loan_repayments.created_at', '<', 'repayment_schedules.due_date')
+            ->whereBetween('loan_repayments.created_at', [$dateFrom, $dateTo])
+            ->whereIn('loan_repayments.status', ['confirmed', 'pending'])
+            ->when($request->filled('branch'), fn($q) => $q->where('loan_repayments.branch_id', $request->branch))
+            ->selectRaw('
+                COUNT(*) as count,
+                SUM(loan_repayments.amount) as total_amount,
+                AVG(DATEDIFF(repayment_schedules.due_date, loan_repayments.created_at)) as avg_days_early
+            ')
+            ->first();
+
+        $earlyPaymentsByMethod = LoanRepayment::join('repayment_schedules', 'loan_repayments.schedule_id', '=', 'repayment_schedules.id')
+            ->whereColumn('loan_repayments.created_at', '<', 'repayment_schedules.due_date')
+            ->whereBetween('loan_repayments.created_at', [$dateFrom, $dateTo])
+            ->whereIn('loan_repayments.status', ['confirmed', 'pending'])
+            ->when($request->filled('branch'), fn($q) => $q->where('loan_repayments.branch_id', $request->branch))
+            ->selectRaw('loan_repayments.payment_method, COUNT(*) as cnt, SUM(loan_repayments.amount) as total')
+            ->groupBy('loan_repayments.payment_method')
+            ->get();
+
+        // ══════════════════════════════════════════════════════════════
+        // SECTION B — Early Loan Closures
+        // ══════════════════════════════════════════════════════════════
+        $closuresQuery = Loan::with(['branch', 'relationshipOfficer'])
+            ->where('status', 'completed')
+            ->whereNotNull('approval_notes')
+            ->whereBetween('updated_at', [$dateFrom, $dateTo]);
+
+        if ($request->filled('branch')) {
+            $closuresQuery->where('branch_id', $request->branch);
+        }
+
+        $closures = $closuresQuery->orderByDesc('updated_at')->paginate(25, ['*'], 'closures_page')->withQueryString();
+
+        $closures->getCollection()->transform(function ($loan) {
+            $loan->closure_type = 'other';
+            $loan->closure_payment_amount = 0;
+            $loan->closure_payment_method = null;
+            $loan->officer_name = $loan->relationshipOfficer?->name;
+
+            if ($loan->approval_notes) {
+                if (str_contains($loan->approval_notes, '[Prepayment]')) {
+                    $loan->closure_type = 'prepayment';
+                } elseif (str_contains($loan->approval_notes, '[Top-Up]')) {
+                    $loan->closure_type = 'topup';
+                } elseif (str_contains($loan->approval_notes, '[Full Early Settlement]')) {
+                    $loan->closure_type = 'full_early_settlement';
+                }
+
+                if (preg_match('/Payment:\s*KSH\s*([\d,]+(?:\.\d{2})?)/i', $loan->approval_notes, $matches)) {
+                    $loan->closure_payment_amount = (float) str_replace(',', '', $matches[1]);
+                }
+
+                if (preg_match('/via\s+(Cash|Mpesa|M-Pesa|Bank\s*Transfer)/i', $loan->approval_notes, $matches)) {
+                    $method = strtolower(str_replace(' ', '_', $matches[1]));
+                    if ($method === 'm-pesa') $method = 'mpesa';
+                    $loan->closure_payment_method = $method;
+                }
+            }
+
+            return $loan;
+        });
+
+        $closureSummary = [
+            'total_count' => 0,
+            'prepayment_count' => 0,
+            'prepayment_amount' => 0,
+            'topup_count' => 0,
+            'topup_amount' => 0,
+            'settlement_count' => 0,
+            'settlement_amount' => 0,
+            'other_count' => 0,
+            'other_amount' => 0,
+        ];
+
+        foreach ($closures as $loan) {
+            $closureSummary['total_count']++;
+            switch ($loan->closure_type) {
+                case 'prepayment':
+                    $closureSummary['prepayment_count']++;
+                    $closureSummary['prepayment_amount'] += $loan->closure_payment_amount;
+                    break;
+                case 'topup':
+                    $closureSummary['topup_count']++;
+                    $closureSummary['topup_amount'] += $loan->closure_payment_amount;
+                    break;
+                case 'full_early_settlement':
+                    $closureSummary['settlement_count']++;
+                    $closureSummary['settlement_amount'] += $loan->closure_payment_amount;
+                    break;
+                default:
+                    $closureSummary['other_count']++;
+                    $closureSummary['other_amount'] += $loan->closure_payment_amount;
+                    break;
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // COMBINED MONTHLY TREND
+        // ══════════════════════════════════════════════════════════════
+        $monthlyTrend = collect();
+        for ($i = 5; $i >= 0; $i--) {
+            $m = Carbon::now()->subMonths($i);
+            $start = $m->copy()->startOfMonth();
+            $end = $m->copy()->endOfMonth();
+
+            // Early payments for this month
+            $monthEarlyPayments = LoanRepayment::join('repayment_schedules', 'loan_repayments.schedule_id', '=', 'repayment_schedules.id')
+                ->whereColumn('loan_repayments.created_at', '<', 'repayment_schedules.due_date')
+                ->whereBetween('loan_repayments.created_at', [$start, $end])
+                ->whereIn('loan_repayments.status', ['confirmed', 'pending'])
+                ->when($request->filled('branch'), fn($q) => $q->where('loan_repayments.branch_id', $request->branch))
+                ->sum('loan_repayments.amount');
+
+            $monthEarlyPaymentCount = LoanRepayment::join('repayment_schedules', 'loan_repayments.schedule_id', '=', 'repayment_schedules.id')
+                ->whereColumn('loan_repayments.created_at', '<', 'repayment_schedules.due_date')
+                ->whereBetween('loan_repayments.created_at', [$start, $end])
+                ->whereIn('loan_repayments.status', ['confirmed', 'pending'])
+                ->when($request->filled('branch'), fn($q) => $q->where('loan_repayments.branch_id', $request->branch))
+                ->count();
+
+            // Early closures for this month
+            $monthClosureAmount = 0;
+            $monthClosureCount = Loan::where('status', 'completed')
+                ->whereNotNull('approval_notes')
+                ->whereBetween('updated_at', [$start, $end])
+                ->when($request->filled('branch'), fn($q) => $q->where('branch_id', $request->branch))
+                ->count();
+
+            $monthLoans = Loan::where('status', 'completed')
+                ->whereNotNull('approval_notes')
+                ->whereBetween('updated_at', [$start, $end])
+                ->when($request->filled('branch'), fn($q) => $q->where('branch_id', $request->branch))
+                ->get();
+
+            foreach ($monthLoans as $ml) {
+                if (preg_match('/Payment:\s*KSH\s*([\d,]+(?:\.\d{2})?)/i', $ml->approval_notes ?? '', $matches)) {
+                    $monthClosureAmount += (float) str_replace(',', '', $matches[1]);
+                }
+            }
+
+            $monthlyTrend->push([
+                'month' => $m->format('M Y'),
+                'early_payment_count' => $monthEarlyPaymentCount,
+                'early_payment_amount' => $monthEarlyPayments,
+                'closure_count' => $monthClosureCount,
+                'closure_amount' => $monthClosureAmount,
+                'total_count' => $monthEarlyPaymentCount + $monthClosureCount,
+                'total_amount' => $monthEarlyPayments + $monthClosureAmount,
+            ]);
+        }
+
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
+
+        return view('reports.portfolio.prepayments', compact(
+            'earlyPayments', 'earlyPaymentsSummary', 'earlyPaymentsByMethod',
+            'closures', 'closureSummary',
+            'monthlyTrend', 'dateFrom', 'dateTo', 'branches'
+        ));
+    }
+
+    /**
      * Loan Repayments — collections in a period
      */
     public function collections(Request $request)
@@ -154,9 +347,16 @@ class ReportController extends Controller
         $dateFrom = $request->date_from ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->startOfMonth();
         $dateTo   = $request->date_to   ? Carbon::parse($request->date_to)->endOfDay()     : Carbon::now()->endOfDay();
 
+        $statusFilter = $request->filled('status') && in_array($request->status, ['confirmed', 'pending', 'reversed'])
+            ? $request->status
+            : null;
+
         $query = LoanRepayment::with(['loan.product', 'loan.branch', 'customer', 'receivedBy'])
-            ->whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'confirmed');
+            ->whereBetween('created_at', [$dateFrom, $dateTo]);
+
+        if ($statusFilter) {
+            $query->where('status', $statusFilter);
+        }
 
         if ($request->filled('branch')) {
             $query->whereHas('loan', fn($q) => $q->where('branch_id', $request->branch));
@@ -167,20 +367,26 @@ class ReportController extends Controller
 
         $repayments = $query->orderByDesc('created_at')->paginate(25)->withQueryString();
 
-        $totals = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'confirmed')
-            ->selectRaw('COUNT(*) as count, SUM(amount) as total, SUM(principal_portion) as principal, SUM(interest_portion) as interest, SUM(penalty_portion) as penalty')
+        $totalsQuery = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo]);
+        if ($statusFilter) {
+            $totalsQuery->where('status', $statusFilter);
+        }
+        $totals = $totalsQuery->selectRaw('COUNT(*) as count, SUM(amount) as total, SUM(principal_portion) as principal, SUM(interest_portion) as interest, SUM(penalty_portion) as penalty')
             ->first();
 
-        $byMethod = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'confirmed')
-            ->selectRaw('payment_method, COUNT(*) as cnt, SUM(amount) as total')
+        $byMethodQuery = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo]);
+        if ($statusFilter) {
+            $byMethodQuery->where('status', $statusFilter);
+        }
+        $byMethod = $byMethodQuery->selectRaw('payment_method, COUNT(*) as cnt, SUM(amount) as total')
             ->groupBy('payment_method')
             ->get();
 
-        $daily = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'confirmed')
-            ->selectRaw('DATE(created_at) as day, COUNT(*) as cnt, SUM(amount) as total')
+        $dailyQuery = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo]);
+        if ($statusFilter) {
+            $dailyQuery->where('status', $statusFilter);
+        }
+        $daily = $dailyQuery->selectRaw('DATE(created_at) as day, COUNT(*) as cnt, SUM(amount) as total')
             ->groupBy('day')
             ->orderBy('day')
             ->get();
@@ -188,7 +394,7 @@ class ReportController extends Controller
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
 
         return view('reports.portfolio.collections', compact(
-            'repayments', 'totals', 'byMethod', 'daily', 'dateFrom', 'dateTo', 'branches'
+            'repayments', 'totals', 'byMethod', 'daily', 'dateFrom', 'dateTo', 'branches', 'statusFilter'
         ));
     }
 
@@ -210,8 +416,8 @@ class ReportController extends Controller
         $loansDisbursed  = Loan::whereDate('disbursed_at', $date)->count();
         $disbursedAmount = Loan::whereDate('disbursed_at', $date)->sum('principal_amount');
 
-        $collections     = LoanRepayment::whereDate('created_at', $date)->where('status', 'confirmed')->sum('amount');
-        $collectionCount = LoanRepayment::whereDate('created_at', $date)->where('status', 'confirmed')->count();
+        $collections     = LoanRepayment::whereDate('created_at', $date)->whereIn('status', ['confirmed', 'pending'])->sum('amount');
+        $collectionCount = LoanRepayment::whereDate('created_at', $date)->whereIn('status', ['confirmed', 'pending'])->count();
 
         $transactions = Transaction::with(['customer', 'createdBy'])
             ->whereDate('created_at', $date)
@@ -251,7 +457,7 @@ class ReportController extends Controller
             ->leftJoin('loan_repayments', function ($join) use ($dateFrom, $dateTo) {
                 $join->on('users.id', '=', 'loan_repayments.received_by')
                      ->whereBetween('loan_repayments.created_at', [$dateFrom, $dateTo])
-                     ->where('loan_repayments.status', 'confirmed');
+                     ->whereIn('loan_repayments.status', ['confirmed', 'pending']);
             })
             ->where('users.status', 'active')
             ->selectRaw('
@@ -302,7 +508,7 @@ class ReportController extends Controller
                 ->sum('principal_amount');
             $branch->collected_period = LoanRepayment::whereHas('loan', fn($q) => $q->where('branch_id', $branch->id))
                 ->whereBetween('created_at', [$dateFrom, $dateTo])
-                ->where('status', 'confirmed')
+                ->whereIn('status', ['confirmed', 'pending'])
                 ->sum('amount');
             return $branch;
         });
@@ -326,7 +532,7 @@ class ReportController extends Controller
 
         // Interest income collected
         $interestIncome = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['confirmed', 'pending'])
             ->sum('interest_portion');
 
         // Processing fees (from disbursed loans in period)
@@ -339,7 +545,7 @@ class ReportController extends Controller
 
         // Penalty income
         $penaltyIncome = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['confirmed', 'pending'])
             ->sum('penalty_portion');
 
         // Total disbursed (funds out)
@@ -348,7 +554,7 @@ class ReportController extends Controller
 
         // Total principal collected (funds in)
         $principalCollected = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['confirmed', 'pending'])
             ->sum('principal_portion');
 
         // Monthly trend (last 6 months)
@@ -359,11 +565,11 @@ class ReportController extends Controller
             $end   = $m->copy()->endOfMonth();
             $trend->push([
                 'month'    => $m->format('M Y'),
-                'interest' => LoanRepayment::whereBetween('created_at', [$start, $end])->where('status', 'confirmed')->sum('interest_portion'),
+                'interest' => LoanRepayment::whereBetween('created_at', [$start, $end])->whereIn('status', ['confirmed', 'pending'])->sum('interest_portion'),
                 'fees'     => Loan::whereBetween('disbursement_date', [$start->toDateString(), $end->toDateString()])
                                 ->selectRaw('COALESCE(SUM(processing_fee + insurance_fee), 0) as total')
                                 ->value('total') ?? 0,
-                'penalty'  => LoanRepayment::whereBetween('created_at', [$start, $end])->where('status', 'confirmed')->sum('penalty_portion'),
+                'penalty'  => LoanRepayment::whereBetween('created_at', [$start, $end])->whereIn('status', ['confirmed', 'pending'])->sum('penalty_portion'),
             ]);
         }
 

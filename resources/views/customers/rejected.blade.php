@@ -75,7 +75,7 @@
                 <td>
                     <span class="status status-rejected">{{ $customer->rejection_reason ?? 'Not specified' }}</span>
                 </td>
-                <td style="font-size: 12px;">{{ $customer->kyc_verified_by ? \App\Models\User::find($customer->kyc_verified_by)?->name ?? 'System' : 'System' }}</td>
+                <td style="font-size: 12px;">{{ $customer->relationshipOfficer->name ?? 'System' }}</td>
                 <td>
                     <div style="display: flex; gap: 5px;">
                         <form method="POST" action="{{ route('customers.reactivate', $customer) }}" style="display:inline;">

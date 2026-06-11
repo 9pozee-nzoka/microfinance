@@ -27,14 +27,11 @@ class Customer extends Model
         'share_capital', 'savings_balance',
         'credit_score', 'credit_limit', 'qualified_amount',
         'customer_type',
-        'id_front_path', 'id_back_path', 'passport_photo_path', 'kra_pin_path',
-        'kyc_verified_at', 'kyc_verified_by',
         'status', 'rejection_reason', 'activated_at', 'last_transaction_at'
     ];
 
     protected $casts = [
         'date_of_birth' => 'date',
-        'kyc_verified_at' => 'datetime',
         'activated_at' => 'datetime',
         'last_transaction_at' => 'datetime',
         'monthly_income' => 'decimal:2',

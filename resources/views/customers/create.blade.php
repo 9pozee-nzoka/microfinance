@@ -24,7 +24,7 @@
 </div>
 @endif
 
-<form method="POST" action="{{ route('customers.store') }}" enctype="multipart/form-data" id="customerForm">
+<form method="POST" action="{{ route('customers.store') }}" id="customerForm">
     @csrf
 
     {{-- ── Section 1: Personal Information ── --}}
@@ -302,87 +302,6 @@
         </div>
     </div>
 
-    {{-- ── Section 6: KYC Documents ── --}}
-    <div class="form-section">
-        <div class="section-heading">
-            <i class="fas fa-id-card"></i> KYC Documents
-        </div>
-        <div class="grid-2" style="gap: 20px;">
-            <div class="form-group">
-                <label class="form-label">National ID — Front <span class="req">*</span></label>
-                <div class="upload-box" id="idFrontBox">
-                    <input type="file" name="id_front" id="id_front_input" accept="image/*,.pdf" capture="environment" onchange="previewFile(this,'idFrontBox','idFrontPreview')">
-                    <i class="fas fa-id-card"></i>
-                    <span>Click to upload or take photo</span>
-                    <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">JPG, PNG or PDF · Max 10MB</div>
-                </div>
-                <div style="display:flex; gap:8px; margin-top:8px;">
-                    <button type="button" class="btn btn-outline" style="font-size:12px; padding:6px 12px; flex:1;" onclick="event.stopPropagation(); openCamera('id_front_input', 'idFrontBox', 'idFrontPreview')">
-                        <i class="fas fa-camera"></i> Use Camera
-                    </button>
-                </div>
-                <div id="idFrontPreview" style="display:none; margin-top:8px; font-size:12px; color:var(--success);">
-                    <i class="fas fa-check-circle"></i> <span></span>
-                </div>
-                @error('id_front')<span class="invalid-feedback">{{ $message }}</span>@enderror
-            </div>
-            <div class="form-group">
-                <label class="form-label">National ID — Back <span class="req">*</span></label>
-                <div class="upload-box" id="idBackBox">
-                    <input type="file" name="id_back" id="id_back_input" accept="image/*,.pdf" capture="environment" onchange="previewFile(this,'idBackBox','idBackPreview')">
-                    <i class="fas fa-id-card"></i>
-                    <span>Click to upload or take photo</span>
-                    <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">JPG, PNG or PDF · Max 10MB</div>
-                </div>
-                <div style="display:flex; gap:8px; margin-top:8px;">
-                    <button type="button" class="btn btn-outline" style="font-size:12px; padding:6px 12px; flex:1;" onclick="event.stopPropagation(); openCamera('id_back_input', 'idBackBox', 'idBackPreview')">
-                        <i class="fas fa-camera"></i> Use Camera
-                    </button>
-                </div>
-                <div id="idBackPreview" style="display:none; margin-top:8px; font-size:12px; color:var(--success);">
-                    <i class="fas fa-check-circle"></i> <span></span>
-                </div>
-                @error('id_back')<span class="invalid-feedback">{{ $message }}</span>@enderror
-            </div>
-            <div class="form-group">
-                <label class="form-label">Passport Photo <span class="req">*</span></label>
-                <div class="upload-box" id="photoBox">
-                    <input type="file" name="passport_photo" id="passport_photo_input" accept="image/*" capture="user" onchange="previewFile(this,'photoBox','photoPreview')">
-                    <i class="fas fa-camera"></i>
-                    <span>Click to upload or take photo</span>
-                    <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">JPG or PNG · Max 10MB</div>
-                </div>
-                <div style="display:flex; gap:8px; margin-top:8px;">
-                    <button type="button" class="btn btn-outline" style="font-size:12px; padding:6px 12px; flex:1;" onclick="event.stopPropagation(); openCamera('passport_photo_input', 'photoBox', 'photoPreview')">
-                        <i class="fas fa-camera"></i> Use Camera
-                    </button>
-                </div>
-                <div id="photoPreview" style="display:none; margin-top:8px; font-size:12px; color:var(--success);">
-                    <i class="fas fa-check-circle"></i> <span></span>
-                </div>
-                @error('passport_photo')<span class="invalid-feedback">{{ $message }}</span>@enderror
-            </div>
-            <div class="form-group">
-                <label class="form-label">KRA PIN Certificate <small>(optional)</small></label>
-                <div class="upload-box" id="kraBox">
-                    <input type="file" name="kra_pin" id="kra_pin_input" accept="image/*,.pdf" capture="environment" onchange="previewFile(this,'kraBox','kraPreview')">
-                    <i class="fas fa-file-alt"></i>
-                    <span>Click to upload or take photo</span>
-                    <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">JPG, PNG or PDF · Max 10MB</div>
-                </div>
-                <div style="display:flex; gap:8px; margin-top:8px;">
-                    <button type="button" class="btn btn-outline" style="font-size:12px; padding:6px 12px; flex:1;" onclick="event.stopPropagation(); openCamera('kra_pin_input', 'kraBox', 'kraPreview')">
-                        <i class="fas fa-camera"></i> Use Camera
-                    </button>
-                </div>
-                <div id="kraPreview" style="display:none; margin-top:8px; font-size:12px; color:var(--success);">
-                    <i class="fas fa-check-circle"></i> <span></span>
-                </div>
-                @error('kra_pin')<span class="invalid-feedback">{{ $message }}</span>@enderror
-            </div>
-        </div>
-    </div>
-
     {{-- ── Submit ── --}}
     <div style="display:flex; justify-content:flex-end; gap:12px; padding-bottom:30px;">
         <a href="{{ route('customers.index') }}" class="btn btn-outline" style="padding: 10px 24px;">
@@ -403,46 +322,6 @@ function toggleEmploymentFields() {
     const isBusiness = ['business', 'self_employed'].includes(type);
     document.getElementById('businessFields').style.display = isBusiness ? 'grid' : 'none';
     document.getElementById('employerField').style.display  = type === 'salaried' ? 'block' : 'none';
-}
-
-function previewFile(input, boxId, previewId) {
-    const preview = document.getElementById(previewId);
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        if (file.size > 10 * 1024 * 1024) {
-            alert('File size must not exceed 10MB.');
-            input.value = '';
-            return;
-        }
-        preview.style.display = 'block';
-        preview.querySelector('span').textContent = file.name;
-        document.getElementById(boxId).style.borderColor = 'var(--success)';
-        document.getElementById(boxId).style.background  = '#F1F8E9';
-    }
-}
-
-function openCamera(inputId, boxId, previewId) {
-    const input = document.getElementById(inputId);
-    const originalAccept = input.accept;
-    const originalCapture = input.getAttribute('capture');
-
-    // Force camera on mobile: strip non-image accept values so browser shows camera
-    // The capture attribute tells mobile browsers to open camera directly
-    input.setAttribute('accept', 'image/*');
-    input.setAttribute('capture', inputId === 'passport_photo_input' ? 'user' : 'environment');
-    input.click();
-
-    // Restore original attributes after picker closes
-    requestAnimationFrame(() => {
-        setTimeout(() => {
-            input.setAttribute('accept', originalAccept);
-            if (originalCapture) {
-                input.setAttribute('capture', originalCapture);
-            } else {
-                input.removeAttribute('capture');
-            }
-        }, 500);
-    });
 }
 
 // Restore employment fields on validation error

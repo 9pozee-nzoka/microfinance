@@ -60,10 +60,6 @@
                class="nav-item {{ request()->routeIs('customers.limits') ? 'active' : '' }}">
                 <i class="fas fa-sliders-h"></i><span>Limit Management</span>
             </a>
-            <a href="{{ route('customers.kyc-documents') }}"
-               class="nav-item {{ request()->routeIs('customers.kyc-documents') ? 'active' : '' }}">
-                <i class="fas fa-folder-open"></i><span>KYC Documents</span>
-            </a>
             @endhasanyrole
         </div>
         @endhasanyrole

@@ -200,14 +200,12 @@ Route::middleware(['auth', 'staff', 'single.session'])->group(function () {
                 Route::get('/rejected',        [CustomerController::class, 'rejected'])->name('rejected');
                 Route::get('/credit-history',  [CustomerController::class, 'creditHistory'])->name('credit-history');
                 Route::get('/limits',          [CustomerController::class, 'limits'])->name('limits');
-                Route::get('/kyc-documents',   [CustomerController::class, 'kycDocuments'])->name('kyc-documents');
                 Route::get('/{customer}/profile', [CustomerController::class, 'profile'])->name('profile');
                 Route::get('/{customer}/edit',    [CustomerController::class, 'edit'])->name('edit');
                 Route::put('/{customer}',         [CustomerController::class, 'update'])->name('update');
             });
 
         Route::middleware(['role:super_admin|admin|branch_manager'])->group(function () {
-            Route::patch('/{customer}/verify-kyc',       [CustomerController::class, 'verifyKyc'])->name('verify-kyc');
             Route::patch('/{customer}/activate',         [CustomerController::class, 'activate'])->name('activate');
             Route::patch('/{customer}/reject',           [CustomerController::class, 'reject'])->name('reject');
             Route::patch('/{customer}/reactivate',       [CustomerController::class, 'reactivate'])->name('reactivate');
@@ -235,6 +233,11 @@ Route::middleware(['auth', 'staff', 'single.session'])->group(function () {
             Route::post('/schedules/{schedule}/run',           [CollectionController::class, 'runSchedule'])->name('schedules.run');
             Route::patch('/schedules/{schedule}/toggle',       [CollectionController::class, 'toggleSchedule'])->name('schedules.toggle');
         });
+
+    // ── Repayment Confirmation ─────────────────────────────────
+    Route::middleware(['role:super_admin|admin|branch_manager|loan_officer'])
+        ->patch('/repayments/{repayment}/confirm', [TransactionController::class, 'confirmRepayment'])
+        ->name('repayments.confirm');
 
     // ── Loan Management ────────────────────────────────────────
     Route::prefix('loans')->name('loans.')->group(function () {
@@ -330,6 +333,7 @@ Route::middleware(['auth', 'staff', 'single.session'])->group(function () {
             Route::get('/portfolio/par',           [ReportController::class, 'par'])->name('portfolio.par');
             Route::get('/portfolio/disbursements', [ReportController::class, 'disbursements'])->name('portfolio.disbursements');
             Route::get('/portfolio/collections',   [ReportController::class, 'collections'])->name('portfolio.collections');
+            Route::get('/portfolio/prepayments',   [ReportController::class, 'prepaymentAnalytics'])->name('portfolio.prepayments');
             Route::get('/operational/daily',       [ReportController::class, 'dailyActivity'])->name('operational.daily');
             Route::get('/operational/officers',    [ReportController::class, 'officerPerformance'])->name('operational.officers');
             Route::get('/operational/branches',    [ReportController::class, 'branchPerformance'])->name('operational.branches');

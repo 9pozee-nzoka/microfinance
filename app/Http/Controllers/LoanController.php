@@ -445,18 +445,41 @@ class LoanController extends Controller
             }
 
             // Close the loan
-            $loan->update([
+            $updateData = [
                 'status'              => 'completed',
                 'outstanding_balance' => 0,
                 'arrears_amount'      => 0,
                 'days_in_arrears'     => 0,
                 'approval_notes'      => ($loan->approval_notes ? $loan->approval_notes . ' | ' : '') . $auditNote,
-            ]);
+            ];
 
-            // Waive all remaining unpaid installments
-            $loan->repaymentSchedules()
-                ->whereIn('status', ['pending', 'partial', 'overdue'])
-                ->update(['status' => 'waived']);
+            // For prepayment types, ensure loan totals reflect 100% paid
+            if (in_array($request->closure_type, ['prepayment', 'topup', 'full_early_settlement'])) {
+                $updateData['total_paid'] = $loan->total_repayable;
+                $updateData['total_paid_principal'] = $loan->principal_amount;
+                $updateData['total_paid_interest'] = $loan->interest_amount;
+            }
+
+            $loan->update($updateData);
+
+            // Handle remaining schedules based on closure type
+            if (in_array($request->closure_type, ['prepayment', 'topup', 'full_early_settlement'])) {
+                // Customer paid off the loan — mark remaining schedules as paid
+                $loan->repaymentSchedules()
+                    ->whereIn('status', ['pending', 'partial', 'overdue'])
+                    ->update([
+                        'status' => 'paid',
+                        'paid_date' => today(),
+                        'total_paid' => \Illuminate\Support\Facades\DB::raw('total_amount'),
+                        'principal_paid' => \Illuminate\Support\Facades\DB::raw('principal_amount'),
+                        'interest_paid' => \Illuminate\Support\Facades\DB::raw('interest_amount'),
+                    ]);
+            } else {
+                // Admin is closing without payment — waive remaining schedules
+                $loan->repaymentSchedules()
+                    ->whereIn('status', ['pending', 'partial', 'overdue'])
+                    ->update(['status' => 'waived']);
+            }
         });
 
         $messages = [

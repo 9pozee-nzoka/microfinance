@@ -136,7 +136,7 @@ class CustomerPortalController extends Controller
 
     // ── Make Payment ─────────────────────────────────────────────
 
-    public function showPayment(Loan $loan)
+    public function showPayment(Request $request, Loan $loan)
     {
         $customer = $this->getCustomer();
         abort_if($loan->customer_id !== $customer->id, 403);
@@ -149,7 +149,39 @@ class CustomerPortalController extends Controller
             ->sortBy('installment_number')
             ->first();
 
-        return view('portal.make-payment', compact('customer', 'loan', 'nextSchedule'));
+        $prepayType = in_array($request->get('type'), ['early', 'topup', 'full']) ? $request->get('type') : null;
+
+        // Calculate suggested amount based on prepay type
+        $suggestedAmount = $nextSchedule
+            ? (float) $nextSchedule->total_amount - (float) $nextSchedule->total_paid
+            : (float) $loan->weekly_installment;
+
+        $projectedInstallments = 0;
+
+        if ($prepayType === 'topup') {
+            $remaining = $loan->repaymentSchedules
+                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->sortBy('installment_number')
+                ->values();
+            $topUpWeeks = 2;
+            $suggestedAmount = 0;
+            foreach ($remaining->take($topUpWeeks) as $s) {
+                $suggestedAmount += (float) $s->total_amount - (float) $s->total_paid;
+            }
+            $projectedInstallments = min($topUpWeeks, $remaining->count());
+        } elseif ($prepayType === 'full') {
+            $suggestedAmount = (float) $loan->outstanding_balance;
+            $projectedInstallments = $loan->repaymentSchedules
+                ->whereIn('status', ['pending', 'partial', 'overdue'])
+                ->count();
+        } elseif ($prepayType === 'early') {
+            $projectedInstallments = 1;
+        }
+
+        return view('portal.make-payment', compact(
+            'customer', 'loan', 'nextSchedule',
+            'prepayType', 'suggestedAmount', 'projectedInstallments'
+        ));
     }
 
     public function submitPayment(Request $request, Loan $loan)
@@ -164,74 +196,172 @@ class CustomerPortalController extends Controller
             'mpesa_receipt'    => 'required_if:payment_method,mpesa|nullable|string|max:20',
             'bank_reference'   => 'required_if:payment_method,bank_transfer|nullable|string|max:50',
             'phone_number'     => 'nullable|string|max:20',
+            'prepay_type'      => 'nullable|in:early,topup,full',
         ]);
 
-        DB::transaction(function () use ($request, $loan, $customer) {
+        $prepayType = $request->prepay_type;
+
+        DB::transaction(function () use ($request, $loan, $customer, $prepayType) {
             $amount = (float) $request->amount;
 
-            // Find next unpaid schedule
-            $schedule = RepaymentSchedule::where('loan_id', $loan->id)
-                ->whereIn('status', ['pending', 'partial', 'overdue'])
-                ->orderBy('installment_number')
-                ->first();
-
-            $principalPortion = $schedule
-                ? min($amount, (float)$schedule->principal_amount - (float)$schedule->principal_paid)
-                : 0;
-            $interestPortion = $schedule
-                ? min($amount - $principalPortion, (float)$schedule->interest_amount - (float)$schedule->interest_paid)
-                : 0;
-            $excess = max(0, $amount - $principalPortion - $interestPortion);
-
             $reference = $request->mpesa_receipt ?? $request->bank_reference ?? ('PORTAL-' . now()->format('YmdHis'));
+
+            $totalPrincipalPortion = 0;
+            $totalInterestPortion = 0;
+            $totalExcess = 0;
+            $remainingAmount = $amount;
+            $firstScheduleId = null;
+            $schedulesPaid = 0;
+
+            // For topup/full: cascade payment across multiple schedules
+            $isCascading = in_array($prepayType, ['topup', 'full']);
+
+            if ($isCascading) {
+                $schedules = RepaymentSchedule::where('loan_id', $loan->id)
+                    ->whereIn('status', ['pending', 'partial', 'overdue'])
+                    ->orderBy('installment_number')
+                    ->get();
+
+                foreach ($schedules as $schedule) {
+                    if ($remainingAmount <= 0) break;
+
+                    $scheduleRemainingPrincipal = (float) $schedule->principal_amount - (float) $schedule->principal_paid;
+                    $scheduleRemainingInterest = (float) $schedule->interest_amount - (float) $schedule->interest_paid;
+                    $scheduleRemainingTotal = $scheduleRemainingPrincipal + $scheduleRemainingInterest;
+
+                    $principalPortion = min($remainingAmount, $scheduleRemainingPrincipal);
+                    $remainingAfterPrincipal = $remainingAmount - $principalPortion;
+                    $interestPortion = min($remainingAfterPrincipal, $scheduleRemainingInterest);
+                    $paidToSchedule = $principalPortion + $interestPortion;
+
+                    $newPrincipalPaid = (float) $schedule->principal_paid + $principalPortion;
+                    $newInterestPaid = (float) $schedule->interest_paid + $interestPortion;
+                    $newTotalPaid = (float) $schedule->total_paid + $paidToSchedule;
+                    $isPaid = $newTotalPaid >= (float) $schedule->total_amount;
+
+                    $schedule->update([
+                        'principal_paid' => $newPrincipalPaid,
+                        'interest_paid'  => $newInterestPaid,
+                        'total_paid'     => $newTotalPaid,
+                        'status'         => $isPaid ? 'paid' : 'partial',
+                        'paid_date'      => $isPaid ? today() : null,
+                    ]);
+
+                    $totalPrincipalPortion += $principalPortion;
+                    $totalInterestPortion += $interestPortion;
+                    $remainingAmount -= $paidToSchedule;
+                    $schedulesPaid++;
+
+                    if ($firstScheduleId === null) {
+                        $firstScheduleId = $schedule->id;
+                    }
+                }
+
+                $totalExcess = max(0, $remainingAmount);
+            } else {
+                // Single schedule payment (regular or early)
+                $schedule = RepaymentSchedule::where('loan_id', $loan->id)
+                    ->whereIn('status', ['pending', 'partial', 'overdue'])
+                    ->orderBy('installment_number')
+                    ->first();
+
+                $principalPortion = $schedule
+                    ? min($remainingAmount, (float)$schedule->principal_amount - (float)$schedule->principal_paid)
+                    : 0;
+                $interestPortion = $schedule
+                    ? min($remainingAmount - $principalPortion, (float)$schedule->interest_amount - (float)$schedule->interest_paid)
+                    : 0;
+                $totalExcess = max(0, $remainingAmount - $principalPortion - $interestPortion);
+
+                if ($schedule) {
+                    $newPrincipalPaid = (float)$schedule->principal_paid + $principalPortion;
+                    $newInterestPaid  = (float)$schedule->interest_paid + $interestPortion;
+                    $newTotalPaid     = (float)$schedule->total_paid + ($remainingAmount - $totalExcess);
+                    $isPaid           = $newTotalPaid >= (float)$schedule->total_amount;
+
+                    $schedule->update([
+                        'principal_paid' => $newPrincipalPaid,
+                        'interest_paid'  => $newInterestPaid,
+                        'total_paid'     => $newTotalPaid,
+                        'status'         => $isPaid ? 'paid' : 'partial',
+                        'paid_date'      => $isPaid ? today() : null,
+                    ]);
+
+                    $firstScheduleId = $schedule->id;
+                    $schedulesPaid = 1;
+                }
+
+                $totalPrincipalPortion = $principalPortion;
+                $totalInterestPortion = $interestPortion;
+            }
+
+            // Build note based on prepay type
+            $note = 'Submitted via customer portal';
+            if ($prepayType === 'early') {
+                $note = 'Early payment — installment paid before due date | ' . $note;
+            } elseif ($prepayType === 'topup') {
+                $note = "Top-up payment — covered {$schedulesPaid} installment(s) | " . $note;
+            } elseif ($prepayType === 'full') {
+                $note = 'Full prepayment — loan paid off early | ' . $note;
+            }
 
             // Create repayment record
             $repayment = LoanRepayment::create([
                 'loan_id'               => $loan->id,
-                'schedule_id'           => $schedule?->id,
+                'schedule_id'           => $firstScheduleId,
                 'customer_id'           => $customer->id,
                 'amount'                => $amount,
-                'principal_portion'     => $principalPortion,
-                'interest_portion'      => $interestPortion,
+                'principal_portion'     => $totalPrincipalPortion,
+                'interest_portion'      => $totalInterestPortion,
                 'penalty_portion'       => 0,
-                'excess_amount'         => $excess,
+                'excess_amount'         => $totalExcess,
                 'payment_method'        => $request->payment_method,
                 'transaction_reference' => $reference,
                 'mpesa_receipt_number'  => $request->mpesa_receipt,
                 'phone_number'          => $request->phone_number ?? $customer->phone_number,
                 'received_by'           => null,
                 'branch_id'             => $customer->branch_id,
-                'status'                => 'pending', // pending confirmation by staff
-                'notes'                 => 'Submitted via customer portal',
+                'status'                => 'pending',
+                'notes'                 => $note,
             ]);
 
-            // Update schedule
-            if ($schedule) {
-                $newPrincipalPaid = (float)$schedule->principal_paid + $principalPortion;
-                $newInterestPaid  = (float)$schedule->interest_paid + $interestPortion;
-                $newTotalPaid     = (float)$schedule->total_paid + ($amount - $excess);
-                $isPaid           = $newTotalPaid >= (float)$schedule->total_amount;
+            // Update loan totals
+            $loan->increment('total_paid', $amount - $totalExcess);
+            $loan->increment('total_paid_principal', $totalPrincipalPortion);
+            $loan->increment('total_paid_interest', $totalInterestPortion);
+            $loan->decrement('outstanding_balance', $totalPrincipalPortion);
 
-                $schedule->update([
-                    'principal_paid' => $newPrincipalPaid,
-                    'interest_paid'  => $newInterestPaid,
-                    'total_paid'     => $newTotalPaid,
-                    'status'         => $isPaid ? 'paid' : 'partial',
-                    'paid_date'      => $isPaid ? today() : null,
+            // For full prepay: ensure ALL remaining schedules are marked paid, then complete loan
+            if ($prepayType === 'full') {
+                // Mark any remaining pending/partial/overdue schedules as paid
+                $loan->repaymentSchedules()
+                    ->whereIn('status', ['pending', 'partial', 'overdue'])
+                    ->update([
+                        'status' => 'paid',
+                        'paid_date' => today(),
+                        'total_paid' => DB::raw('total_amount'),
+                        'principal_paid' => DB::raw('principal_amount'),
+                        'interest_paid' => DB::raw('interest_amount'),
+                    ]);
+
+                // Explicitly set loan totals to 100% to ensure progress shows correctly
+                $loan->update([
+                    'total_paid' => $loan->total_repayable,
+                    'total_paid_principal' => $loan->principal_amount,
+                    'total_paid_interest' => $loan->interest_amount,
+                    'outstanding_balance' => 0,
+                    'arrears_amount' => 0,
+                    'days_in_arrears' => 0,
                 ]);
             }
 
-            // Update loan totals
-            $loan->increment('total_paid', $amount - $excess);
-            $loan->increment('total_paid_principal', $principalPortion);
-            $loan->increment('total_paid_interest', $interestPortion);
-            $loan->decrement('outstanding_balance', $principalPortion);
             $loan->update([
                 'last_payment_date' => today(),
                 'next_due_date'     => $this->getNextDueDate($loan),
             ]);
 
-            if ($loan->fresh()->outstanding_balance <= 0) {
+            // Mark loan completed if fully paid
+            if ($prepayType === 'full' || $loan->fresh()->outstanding_balance <= 0) {
                 $loan->update(['status' => 'completed']);
             }
 
@@ -249,8 +379,8 @@ class CustomerPortalController extends Controller
                 'phone_number'       => $request->phone_number ?? $customer->phone_number,
                 'status'             => 'completed',
                 'is_reconciled'      => false,
-                'narration'          => "Portal repayment for {$loan->loan_number}",
-                'description'        => 'Submitted via customer portal — pending staff confirmation',
+                'narration'          => "Portal repayment for {$loan->loan_number}" . ($prepayType ? ' (' . ucfirst(str_replace('_', ' ', $prepayType)) . ')' : ''),
+                'description'        => $note,
                 'created_by'         => auth()->id(),
                 'branch_id'          => $customer->branch_id,
             ]);
@@ -258,8 +388,31 @@ class CustomerPortalController extends Controller
             $customer->update(['last_transaction_at' => now()]);
         });
 
+        // Build contextual success message with impact
+        $freshLoan = $loan->fresh();
+        $paidCount = $freshLoan->repaymentSchedules()->where('status', 'paid')->count();
+        $totalCount = $freshLoan->repaymentSchedules()->count();
+        $nextPending = $freshLoan->repaymentSchedules()
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->orderBy('installment_number')
+            ->first();
+
+        $impactMsg = '';
+        if ($prepayType === 'early') {
+            $impactMsg = "Early payment submitted! {$paidCount} of {$totalCount} installments now paid.";
+            if ($nextPending) {
+                $impactMsg .= " Next due: {$nextPending->due_date->format('d M Y')}.";
+            }
+        } elseif ($prepayType === 'topup') {
+            $impactMsg = "Top-up payment submitted! {$paidCount} of {$totalCount} installments now paid. You are ahead of schedule.";
+        } elseif ($prepayType === 'full') {
+            $impactMsg = 'Full prepayment submitted! Your loan will be marked completed once confirmed by our team.';
+        } else {
+            $impactMsg = 'Payment submitted successfully. It will be confirmed by our team shortly.';
+        }
+
         return redirect()->route('portal.loan.detail', $loan)
-            ->with('success', 'Payment submitted successfully. It will be confirmed by our team shortly.');
+            ->with('success', $impactMsg);
     }
 
     // ── Transactions ─────────────────────────────────────────────

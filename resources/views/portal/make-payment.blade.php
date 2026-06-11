@@ -1,7 +1,16 @@
 @extends('portal.layouts.app')
 
-@section('title', 'Make Payment')
-@section('page-title', 'Make a Payment')
+@php
+    $typeLabels = [
+        'early' => ['title' => 'Pay Next Installment Early', 'icon' => 'fa-calendar-check', 'color' => '#4CAF50'],
+        'topup' => ['title' => 'Top-Up Payment', 'icon' => 'fa-layer-group', 'color' => '#FF9800'],
+        'full'  => ['title' => 'Full Prepayment', 'icon' => 'fa-check-double', 'color' => '#00BCD4'],
+    ];
+    $typeInfo = $typeLabels[$prepayType] ?? null;
+@endphp
+
+@section('title', $typeInfo ? $typeInfo['title'] : 'Make Payment')
+@section('page-title', $typeInfo ? $typeInfo['title'] : 'Make a Payment')
 
 @section('content')
 
@@ -14,8 +23,14 @@
     </div>
 
     {{-- Loan summary --}}
-    <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, #00BCD4, #0097A7); color: white; border: none;">
-        <div style="font-size: 13px; opacity: 0.85; margin-bottom: 4px;">Paying for</div>
+    <div class="card" style="margin-bottom: 20px; background: linear-gradient(135deg, {{ $typeInfo ? $typeInfo['color'] : '#00BCD4' }}, {{ $typeInfo ? $typeInfo['color'] : '#0097A7' }}); color: white; border: none;">
+        <div style="font-size: 13px; opacity: 0.85; margin-bottom: 4px;">
+            @if($typeInfo)
+                <i class="fas {{ $typeInfo['icon'] }}"></i> {{ $typeInfo['title'] }}
+            @else
+                Paying for
+            @endif
+        </div>
         <div style="font-size: 20px; font-weight: 700; font-family: monospace; margin-bottom: 12px;">{{ $loan->loan_number }}</div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
@@ -36,7 +51,32 @@
         </div>
     </div>
 
-    @if($nextSchedule)
+    @if($typeInfo && $prepayType === 'early' && $nextSchedule)
+    <div class="alert alert-success" style="margin-bottom: 20px;">
+        <i class="fas fa-calendar-check"></i>
+        <div>
+            You are paying installment #{{ $nextSchedule->installment_number }} early.
+            Due date is <strong>{{ $nextSchedule->due_date->format('d M Y') }}</strong>.
+            Paying early improves your credit score.
+        </div>
+    </div>
+    @elseif($typeInfo && $prepayType === 'topup' && $projectedInstallments > 0)
+    <div class="alert alert-warning" style="margin-bottom: 20px;">
+        <i class="fas fa-layer-group"></i>
+        <div>
+            Top-up payment will cover approximately <strong>{{ $projectedInstallments }} installment{{ $projectedInstallments > 1 ? 's' : '' }}</strong>.
+            This helps you get ahead on your loan and may qualify you for a larger top-up loan.
+        </div>
+    </div>
+    @elseif($typeInfo && $prepayType === 'full')
+    <div class="alert alert-info" style="margin-bottom: 20px;">
+        <i class="fas fa-check-double"></i>
+        <div>
+            <strong>Full Prepayment</strong> — You are paying off the entire outstanding balance.
+            Once confirmed, this loan will be marked as completed and you can apply for a new loan immediately.
+        </div>
+    </div>
+    @elseif($nextSchedule)
     <div class="alert alert-info" style="margin-bottom: 20px;">
         <i class="fas fa-info-circle"></i>
         <div>
@@ -64,12 +104,16 @@
         <form method="POST" action="{{ route('portal.loan.pay.submit', $loan) }}" id="paymentForm">
             @csrf
 
+            @if($typeInfo)
+            <input type="hidden" name="prepay_type" value="{{ $prepayType }}">
+            @endif
+
             <div class="form-group">
                 <label class="form-label">Payment Amount (KSH) <span style="color: var(--danger);">*</span></label>
                 <input type="number"
                        name="amount"
                        class="form-control @error('amount') is-invalid @enderror"
-                       value="{{ old('amount', number_format($nextSchedule ? $nextSchedule->total_amount - $nextSchedule->total_paid : $loan->weekly_installment, 2, '.', '')) }}"
+                       value="{{ old('amount', number_format($suggestedAmount, 2, '.', '')) }}"
                        min="1"
                        max="{{ $loan->outstanding_balance }}"
                        step="0.01"
@@ -78,7 +122,15 @@
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
                 <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
-                    Maximum: KSH {{ number_format($loan->outstanding_balance, 0) }} (full outstanding balance)
+                    @if($prepayType === 'full')
+                        Full outstanding balance: KSH {{ number_format($loan->outstanding_balance, 0) }}
+                    @elseif($prepayType === 'topup')
+                        Suggested top-up amount. You can adjust this.
+                    @elseif($prepayType === 'early')
+                        Next installment amount. You can adjust this.
+                    @else
+                        Maximum: KSH {{ number_format($loan->outstanding_balance, 0) }} (full outstanding balance)
+                    @endif
                 </div>
             </div>
 
