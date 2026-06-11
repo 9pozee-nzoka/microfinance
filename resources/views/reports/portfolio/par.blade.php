@@ -109,7 +109,12 @@
             <tbody>
                 @forelse($loans as $i => $loan)
                 @php
-                    $dColor = $loan->days_in_arrears > 90 ? 'var(--danger)' : ($loan->days_in_arrears > 30 ? 'var(--warning)' : '#FF9800');
+                    $dColor = match(true) {
+                        $loan->days_in_arrears > 30 => '#B71C1C',
+                        $loan->days_in_arrears > 14 => '#FF5722',
+                        $loan->days_in_arrears > 7  => '#FF9800',
+                        default => '#FF9800',
+                    };
                 @endphp
                 <tr>
                     <td style="font-size:12px; color:var(--text-secondary);">{{ ($loans->currentPage()-1)*$loans->perPage()+$i+1 }}</td>

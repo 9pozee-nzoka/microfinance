@@ -81,12 +81,12 @@ class ReportController extends Controller
 
         $loans = $query->orderByDesc('days_in_arrears')->paginate(config('pagination.per_page'))->withQueryString();
 
-        // PAR buckets
+        // PAR buckets — tailored for short-term weekly loans
         $buckets = collect([
-            ['label' => 'PAR 1–30',   'min' => 1,   'max' => 30],
-            ['label' => 'PAR 31–60',  'min' => 31,  'max' => 60],
-            ['label' => 'PAR 61–90',  'min' => 61,  'max' => 90],
-            ['label' => 'PAR > 90',   'min' => 91,  'max' => 99999],
+            ['label' => 'PAR 1–7',    'min' => 1,   'max' => 7],
+            ['label' => 'PAR 8–14',   'min' => 8,   'max' => 14],
+            ['label' => 'PAR 15–30',  'min' => 15,  'max' => 30],
+            ['label' => 'PAR > 30',   'min' => 31,  'max' => 99999],
         ])->map(function ($b) {
             $row = Loan::whereIn('status', ['disbursed', 'active'])
                 ->whereBetween('days_in_arrears', [$b['min'], $b['max']])

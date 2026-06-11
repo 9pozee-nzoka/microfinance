@@ -42,7 +42,9 @@ class DashboardController extends Controller
             ->whereRaw('total_paid > (total_repayable * 0.5)')
             ->count();
 
-        // Risk Metrics
+        // Risk Metrics — use dynamic overdue check (not just cached days_in_arrears)
+        $overdueLoanIds = Loan::active()->hasOverdueSchedules()->pluck('id');
+
         $totalArrears = Loan::active()->sum('arrears_amount');
         $arrearsCollectedToday = LoanRepayment::whereDate('created_at', $today)
             ->whereHas('loan', function ($q) {
@@ -53,9 +55,9 @@ class DashboardController extends Controller
         $totalPortfolio = Loan::active()->sum('outstanding_balance');
         $parPercentage = $totalPortfolio > 0 ? round(($portfolioAtRisk / $totalPortfolio) * 100, 1) : 0;
 
-        // Overdue loans count (active loans with days_in_arrears > 0)
-        $overdueLoansCount = Loan::active()->where('days_in_arrears', '>', 0)->count();
-        $overdueAmount = Loan::active()->where('days_in_arrears', '>', 0)->sum('outstanding_balance');
+        // Overdue loans count — dynamic check via schedules (works even if arrears command hasn't run)
+        $overdueLoansCount = Loan::active()->hasOverdueSchedules()->count();
+        $overdueAmount = Loan::active()->hasOverdueSchedules()->sum('outstanding_balance');
 
         // NPL Breakdown (Non-Performing Loans: defaulted + written_off)
         $nplStatuses = ['defaulted', 'written_off'];

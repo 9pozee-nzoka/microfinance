@@ -30,16 +30,22 @@
         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">Total Arrears</div>
         <div style="font-size:20px;font-weight:700;color:var(--warning);">KSH {{ number_format($totalArrears, 0) }}</div>
     </div>
+    <div class="card" style="border-left:4px solid #FF9800;padding:16px 20px;">
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">PAR 8–14 days</div>
+        <div style="font-size:24px;font-weight:700;color:#FF9800;">
+            {{ $loans->getCollection()->whereBetween('days_in_arrears', [8, 14])->count() }}
+        </div>
+    </div>
     <div class="card" style="border-left:4px solid #FF5722;padding:16px 20px;">
-        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">PAR 30+ days</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">PAR 15–30 days</div>
         <div style="font-size:24px;font-weight:700;color:#FF5722;">
-            {{ $loans->getCollection()->where('days_in_arrears', '>', 30)->count() }}
+            {{ $loans->getCollection()->whereBetween('days_in_arrears', [15, 30])->count() }}
         </div>
     </div>
     <div class="card" style="border-left:4px solid #B71C1C;padding:16px 20px;">
-        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">PAR 90+ days</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">PAR 30+ days</div>
         <div style="font-size:24px;font-weight:700;color:#B71C1C;">
-            {{ $loans->getCollection()->where('days_in_arrears', '>', 90)->count() }}
+            {{ $loans->getCollection()->where('days_in_arrears', '>', 30)->count() }}
         </div>
     </div>
 </div>
@@ -209,9 +215,10 @@
                 <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Target Group</label>
                 <select name="target" class="filter-select" style="width:100%;">
                     <option value="overdue">All Overdue</option>
-                    <option value="par30">PAR 1–30 days</option>
-                    <option value="par60">PAR 31–60 days</option>
-                    <option value="par90plus">PAR 90+ days</option>
+                    <option value="par1_7">PAR 1–7 days</option>
+                    <option value="par8_14">PAR 8–14 days</option>
+                    <option value="par15_30">PAR 15–30 days</option>
+                    <option value="par30plus">PAR 30+ days</option>
                 </select>
             </div>
             <div style="margin-bottom:14px;">

@@ -92,27 +92,27 @@
 {{-- ── PAR Buckets + Quick Actions ── --}}
 <div class="grid-2" style="margin-bottom:24px;gap:20px;">
 
-    {{-- PAR Buckets --}}
+    {{-- PAR Buckets — tailored for short-term weekly loans --}}
     <div class="card">
         <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:16px;">
             <i class="fas fa-chart-bar" style="color:var(--danger);margin-right:6px;"></i>Portfolio at Risk
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <div class="par-badge" style="background:#FFF8E1;color:#F57C00;">
+                <span style="font-size:22px;font-weight:800;">{{ $par1_7 }}</span>
+                <span style="font-size:10px;font-weight:600;">PAR 1–7d</span>
+            </div>
             <div class="par-badge" style="background:#FFF3E0;color:#E65100;">
-                <span style="font-size:22px;font-weight:800;">{{ $par30 }}</span>
-                <span style="font-size:10px;font-weight:600;">PAR 1–30</span>
+                <span style="font-size:22px;font-weight:800;">{{ $par8_14 }}</span>
+                <span style="font-size:10px;font-weight:600;">PAR 8–14d</span>
             </div>
             <div class="par-badge" style="background:#FBE9E7;color:#BF360C;">
-                <span style="font-size:22px;font-weight:800;">{{ $par60 }}</span>
-                <span style="font-size:10px;font-weight:600;">PAR 31–60</span>
-            </div>
-            <div class="par-badge" style="background:#FFEBEE;color:#C62828;">
-                <span style="font-size:22px;font-weight:800;">{{ $par90 }}</span>
-                <span style="font-size:10px;font-weight:600;">PAR 61–90</span>
+                <span style="font-size:22px;font-weight:800;">{{ $par15_30 }}</span>
+                <span style="font-size:10px;font-weight:600;">PAR 15–30d</span>
             </div>
             <div class="par-badge" style="background:#B71C1C;color:#fff;">
-                <span style="font-size:22px;font-weight:800;">{{ $par90p }}</span>
-                <span style="font-size:10px;font-weight:600;">PAR 90+</span>
+                <span style="font-size:22px;font-weight:800;">{{ $par30p }}</span>
+                <span style="font-size:10px;font-weight:600;">PAR 30+d</span>
             </div>
         </div>
         <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
@@ -260,7 +260,14 @@
         </div>
         <div style="max-height:320px;overflow-y:auto;">
             @forelse($overdueLoans as $loan)
-            @php $dColor = $loan->days_in_arrears > 90 ? 'var(--danger)' : ($loan->days_in_arrears > 30 ? '#FF5722' : 'var(--warning)'); @endphp
+            @php
+                $dColor = match(true) {
+                    $loan->days_in_arrears > 30 => '#B71C1C',
+                    $loan->days_in_arrears > 14 => '#FF5722',
+                    $loan->days_in_arrears > 7  => '#FF9800',
+                    default => 'var(--warning)',
+                };
+            @endphp
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
                 <div>
                     <div style="font-weight:600;font-size:13px;">{{ $loan->customer->full_name }}</div>
@@ -384,9 +391,10 @@
                 <select name="target" class="filter-select" style="width:100%;" required>
                     <option value="due_today">Due Today</option>
                     <option value="overdue">All Overdue</option>
-                    <option value="par30">PAR 1–30 days</option>
-                    <option value="par60">PAR 31–60 days</option>
-                    <option value="par90plus">PAR 90+ days</option>
+                    <option value="par1_7">PAR 1–7 days</option>
+                    <option value="par8_14">PAR 8–14 days</option>
+                    <option value="par15_30">PAR 15–30 days</option>
+                    <option value="par30plus">PAR 30+ days</option>
                     <option value="all_active">All Active Loans</option>
                 </select>
             </div>

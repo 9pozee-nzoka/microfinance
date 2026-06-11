@@ -122,6 +122,18 @@ class Loan extends Model
         return $query->active()->where('days_in_arrears', '>=', $days);
     }
 
+    /**
+     * Scope to find loans with overdue installments by checking schedules directly.
+     * This works even when the scheduled arrears update command hasn't run.
+     */
+    public function scopeHasOverdueSchedules($query)
+    {
+        return $query->whereHas('repaymentSchedules', function ($q) {
+            $q->where('due_date', '<', today())
+              ->whereIn('status', ['pending', 'partial', 'overdue']);
+        });
+    }
+
     // Accessors
     public function getProgressPercentageAttribute(): float
     {
