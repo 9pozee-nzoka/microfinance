@@ -110,7 +110,7 @@ class CustomerPortalController extends Controller
         $loans = $customer->loans()
             ->with('product')
             ->latest()
-            ->paginate(10);
+            ->paginate(config('pagination.per_page'));
 
         return view('portal.loans', compact('customer', 'loans'));
     }
@@ -433,7 +433,7 @@ class CustomerPortalController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        $transactions = $query->paginate(20)->withQueryString();
+        $transactions = $query->paginate(config('pagination.per_page'))->withQueryString();
 
         return view('portal.transactions', compact('customer', 'transactions'));
     }

@@ -312,7 +312,7 @@ class MpesaController extends Controller
         if ($request->filled('date_from')) $query->whereDate('created_at', '>=', $request->date_from);
         if ($request->filled('date_to'))   $query->whereDate('created_at', '<=', $request->date_to);
 
-        $transactions = $query->paginate(25)->withQueryString();
+        $transactions = $query->paginate(config('pagination.per_page'))->withQueryString();
 
         $totalStkPush    = MpesaTransaction::where('type', 'stk_push')->count();
         $totalB2c        = MpesaTransaction::where('type', 'b2c')->count();

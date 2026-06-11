@@ -44,7 +44,7 @@ class StaffController extends Controller
             $query->where('branch_id', $request->branch);
         }
 
-        $staff = $query->latest()->paginate(20)->withQueryString();
+        $staff = $query->latest()->paginate(config('pagination.per_page'))->withQueryString();
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
 
         // Summary stats

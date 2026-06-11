@@ -25,7 +25,7 @@ class LoanProductAdminController extends Controller
             $query->where('status', $request->status);
         }
 
-        $products = $query->latest()->paginate(20)->withQueryString();
+        $products = $query->latest()->paginate(config('pagination.per_page'))->withQueryString();
 
         return view('loan-products.index', compact('products'));
     }

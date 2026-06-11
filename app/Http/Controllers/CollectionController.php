@@ -118,7 +118,7 @@ class CollectionController extends Controller
             });
         }
 
-        $loans    = $query->orderByDesc('days_in_arrears')->paginate(25)->withQueryString();
+        $loans = $query->orderByDesc('days_in_arrears')->paginate(config('pagination.per_page'))->withQueryString();
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
         $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
 
@@ -151,7 +151,7 @@ class CollectionController extends Controller
             });
         }
 
-        $logs = $query->latest()->paginate(25)->withQueryString();
+        $logs = $query->latest()->paginate(config('pagination.per_page'))->withQueryString();
 
         // Stats
         $sentCount        = SmsLog::where('status', 'sent')->count();

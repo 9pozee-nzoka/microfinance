@@ -15,6 +15,9 @@ class StaffMiddleware
     public function handle(Request $request, Closure $next): Response
     {
         if (!auth()->check()) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Unauthenticated.'], 401);
+            }
             return redirect()->route('login');
         }
 
@@ -23,6 +26,9 @@ class StaffMiddleware
         // Block customers from staff routes
         if ($user->hasRole('customer')) {
             auth()->logout();
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Customers cannot access staff routes.'], 403);
+            }
             return redirect()->route('portal.login')
                 ->withErrors(['email' => 'Please use the customer portal to login.']);
         }

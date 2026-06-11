@@ -190,19 +190,33 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Approving…';
 
+        const approvedDate = document.getElementById('approvalDate').value;
+        console.log('Approving loan:', currentLoanId, 'with date:', approvedDate);
+
         fetch(`/loans/${currentLoanId}/approve`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
             },
             body: JSON.stringify({
                 notes: document.getElementById('approvalNotes').value,
-                approved_at_date: document.getElementById('approvalDate').value
+                approved_at_date: approvedDate
             })
         })
-        .then(r => r.json())
+        .then(async r => {
+            const text = await r.text();
+            console.log('Response status:', r.status, 'body:', text.substring(0, 500));
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                // Server returned HTML error page
+                console.error('Server returned non-JSON response:', text.substring(0, 500));
+                throw new Error('Server error ' + r.status + ': ' + text.substring(0, 200));
+            }
+        })
         .then(data => {
             if (data.success) {
                 closeModal();
@@ -213,8 +227,9 @@
                 btn.innerHTML = 'Confirm Approval';
             }
         })
-        .catch(() => {
-            alert('Network error. Please try again.');
+        .catch(err => {
+            console.error('Approval error:', err);
+            alert('Error: ' + err.message);
             btn.disabled = false;
             btn.innerHTML = 'Confirm Approval';
         });

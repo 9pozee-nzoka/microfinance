@@ -11,7 +11,7 @@ class BranchController extends Controller
     // ── List All Branches ────────────────────────────────────────────
     public function index()
     {
-        $branches = Branch::orderBy('name')->paginate(20);
+        $branches = Branch::orderBy('name')->paginate(config('pagination.per_page'));
         $totalBranches = Branch::count();
         $activeBranches = Branch::where('status', 'active')->count();
         $inactiveBranches = Branch::where('status', 'inactive')->count();

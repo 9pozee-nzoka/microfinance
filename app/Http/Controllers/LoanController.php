@@ -237,7 +237,7 @@ class LoanController extends Controller
             });
         }
 
-        $loans = $query->latest()->paginate(20)->withQueryString();
+        $loans = $query->latest()->paginate(config('pagination.per_page'))->withQueryString();
 
         return view('loans.approve', compact('loans'));
     }
@@ -263,7 +263,7 @@ class LoanController extends Controller
         if ($request->filled('date_from')) $query->whereDate('created_at', '>=', $request->date_from);
         if ($request->filled('date_to'))   $query->whereDate('created_at', '<=', $request->date_to);
 
-        $loans = $query->latest()->paginate(20)->withQueryString();
+        $loans = $query->latest()->paginate(config('pagination.per_page'))->withQueryString();
 
         // Summary counts
         $totalLoans       = Loan::count();
@@ -301,33 +301,62 @@ class LoanController extends Controller
     // ── Approve ──────────────────────────────────────────────────
     public function approve(Request $request, Loan $loan)
     {
-        $request->validate([
-            'notes' => 'nullable|string|max:1000',
-            'approved_at_date' => 'nullable|date|before_or_equal:today',
+        // Debug log
+        Log::info('Loan approval request received', [
+            'loan_id' => $loan->id,
+            'loan_status' => $loan->status,
+            'user_id' => auth()->id(),
+            'is_json' => $request->expectsJson(),
+            'approved_at_date' => $request->approved_at_date,
         ]);
 
-        // Prevent approving loans that are already approved, disbursed, active, or rejected
-        if (!in_array($loan->status, ['pending', 'under_review', 'partially_approved'])) {
-            $message = "Cannot approve loan with status: {$loan->status}";
+        try {
+            $validated = $request->validate([
+                'notes' => 'nullable|string|max:1000',
+                'approved_at_date' => 'nullable|date|before_or_equal:' . now()->toDateString(),
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $message = 'Validation failed: ' . collect($e->errors())->flatten()->first();
+            Log::warning('Loan approval validation failed', [
+                'loan_id' => $loan->id,
+                'errors' => $e->errors(),
+                'server_date' => now()->toDateString(),
+                'submitted_date' => $request->approved_at_date,
+            ]);
             if ($request->expectsJson()) {
                 return response()->json(['success' => false, 'message' => $message], 422);
             }
             return back()->with('error', $message);
         }
 
-        $approvedAt = $request->filled('approved_at_date')
-            ? $request->approved_at_date . ' 00:00:00'
-            : now();
+        // Prevent approving loans that are already approved, disbursed, active, or rejected
+        if (!in_array($loan->status, ['pending', 'under_review', 'partially_approved'])) {
+            $message = "Cannot approve loan with status: {$loan->status}";
+            Log::warning('Loan approval blocked - invalid status', ['loan_id' => $loan->id, 'status' => $loan->status]);
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            return back()->with('error', $message);
+        }
 
         try {
-            $loan->update([
-                'status'         => 'approved',
-                'approved_by'    => auth()->id(),
-                'approved_at'    => $approvedAt,
-                'approval_notes' => $request->notes,
+            $loan->status = 'approved';
+            $loan->approved_by = auth()->id();
+            $loan->approved_at = $request->filled('approved_at_date')
+                ? $request->approved_at_date . ' 00:00:00'
+                : now();
+            $loan->approval_notes = $request->notes;
+            $loan->save();
+
+            Log::info('Loan approved successfully', [
+                'loan_id' => $loan->id,
+                'approved_at' => $loan->approved_at,
             ]);
         } catch (\Exception $e) {
-            \Log::error('Loan approval failed: ' . $e->getMessage(), ['loan_id' => $loan->id]);
+            Log::error('Loan approval failed: ' . $e->getMessage(), [
+                'loan_id' => $loan->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
             $message = 'Approval failed: ' . $e->getMessage();
             if ($request->expectsJson()) {
                 return response()->json(['success' => false, 'message' => $message], 500);

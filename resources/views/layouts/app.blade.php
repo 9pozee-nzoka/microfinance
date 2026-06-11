@@ -830,6 +830,77 @@
             .calc-row { flex-direction: column; align-items: flex-start; gap: 2px; }
         }
 
+        /* ── Pagination ────────────────────────────────────────────────────── */
+        .pagination-nav {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-top: 24px;
+            padding: 16px;
+        }
+        .pagination-info {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .pagination-info .font-medium {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .pagination-buttons {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .pagination-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            border: 1px solid var(--border);
+        }
+        .pagination-btn-prev,
+        .pagination-btn-next {
+            background: white;
+            color: var(--text-primary);
+        }
+        .pagination-btn-prev:hover,
+        .pagination-btn-next:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .pagination-btn-disabled {
+            background: #f5f5f5;
+            color: #bbb;
+            cursor: not-allowed;
+            border-color: var(--border);
+        }
+        .pagination-icon {
+            width: 16px;
+            height: 16px;
+        }
+        .pagination-page-indicator {
+            font-size: 13px;
+            color: var(--text-secondary);
+            padding: 0 8px;
+        }
+        .pagination-page-indicator .font-medium {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        @media (max-width: 480px) {
+            .pagination-nav { padding: 12px 8px; }
+            .pagination-btn { padding: 6px 12px; font-size: 12px; }
+            .pagination-page-indicator { font-size: 12px; }
+        }
+
     </style>
 
     @yield('styles')

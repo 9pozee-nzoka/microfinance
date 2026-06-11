@@ -18,6 +18,9 @@ class EnsureSingleSession
             if ($user->status !== 'active') {
                 auth()->logout();
                 $request->session()->invalidate();
+                if ($request->expectsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Your account has been ' . $user->status . '. Please contact your administrator.'], 403);
+                }
                 return redirect('/login')->withErrors([
                     'email' => 'Your account has been ' . $user->status . '. Please contact your administrator.',
                 ]);
@@ -27,6 +30,9 @@ class EnsureSingleSession
             if ($user->session_id && $user->session_id !== session()->getId()) {
                 auth()->logout();
                 $request->session()->invalidate();
+                if ($request->expectsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Your session was terminated because you logged in from another device.'], 401);
+                }
                 return redirect('/login')->withErrors([
                     'email' => 'Your session was terminated because you logged in from another device.',
                 ]);

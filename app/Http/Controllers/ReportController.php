@@ -34,7 +34,7 @@ class ReportController extends Controller
 
         $this->applyCommonLoanFilters($query, $request);
 
-        $loans = $query->orderBy('disbursement_date', 'desc')->paginate(25)->withQueryString();
+        $loans = $query->orderBy('disbursement_date', 'desc')->paginate(config('pagination.per_page'))->withQueryString();
 
         // Aggregates
         $totals = Loan::whereIn('status', ['disbursed', 'active'])
@@ -79,7 +79,7 @@ class ReportController extends Controller
 
         $this->applyCommonLoanFilters($query, $request);
 
-        $loans = $query->orderByDesc('days_in_arrears')->paginate(25)->withQueryString();
+        $loans = $query->orderByDesc('days_in_arrears')->paginate(config('pagination.per_page'))->withQueryString();
 
         // PAR buckets
         $buckets = collect([
@@ -125,7 +125,7 @@ class ReportController extends Controller
 
         $this->applyCommonLoanFilters($query, $request);
 
-        $loans = $query->orderByDesc('disbursement_date')->paginate(25)->withQueryString();
+        $loans = $query->orderByDesc('disbursement_date')->paginate(config('pagination.per_page'))->withQueryString();
 
         $totals = Loan::whereNotNull('disbursement_date')
             ->whereBetween('disbursement_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
@@ -168,7 +168,7 @@ class ReportController extends Controller
             $earlyPaymentsQuery->where('loan_repayments.branch_id', $request->branch);
         }
 
-        $earlyPayments = $earlyPaymentsQuery->orderByDesc('loan_repayments.created_at')->paginate(25, ['*'], 'payments_page')->withQueryString();
+        $earlyPayments = $earlyPaymentsQuery->orderByDesc('loan_repayments.created_at')->paginate(config('pagination.per_page'), ['*'], 'payments_page')->withQueryString();
 
         // Compute days early for each payment
         $earlyPayments->getCollection()->transform(function ($repayment) {
@@ -210,7 +210,7 @@ class ReportController extends Controller
             $closuresQuery->where('branch_id', $request->branch);
         }
 
-        $closures = $closuresQuery->orderByDesc('updated_at')->paginate(25, ['*'], 'closures_page')->withQueryString();
+        $closures = $closuresQuery->orderByDesc('updated_at')->paginate(config('pagination.per_page'), ['*'], 'closures_page')->withQueryString();
 
         $closures->getCollection()->transform(function ($loan) {
             $loan->closure_type = 'other';
@@ -365,7 +365,7 @@ class ReportController extends Controller
             $query->where('payment_method', $request->method);
         }
 
-        $repayments = $query->orderByDesc('created_at')->paginate(25)->withQueryString();
+        $repayments = $query->orderByDesc('created_at')->paginate(config('pagination.per_page'))->withQueryString();
 
         $totalsQuery = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo]);
         if ($statusFilter) {
@@ -599,7 +599,7 @@ class ReportController extends Controller
             return $this->exportTransactionCsv($query->orderByDesc('created_at')->get(), $dateFrom, $dateTo);
         }
 
-        $transactions = $query->orderByDesc('created_at')->paginate(30)->withQueryString();
+        $transactions = $query->orderByDesc('created_at')->paginate(config('pagination.per_page'))->withQueryString();
 
         $summary = Transaction::whereBetween('created_at', [$dateFrom, $dateTo])
             ->selectRaw('direction, SUM(amount) as total, COUNT(*) as cnt')
@@ -638,7 +638,7 @@ class ReportController extends Controller
             return $this->exportCustomerCsv($query->orderBy('full_name')->get());
         }
 
-        $customers = $query->orderBy('full_name')->paginate(25)->withQueryString();
+        $customers = $query->orderBy('full_name')->paginate(config('pagination.per_page'))->withQueryString();
 
         $stats = Customer::selectRaw('status, COUNT(*) as cnt')->groupBy('status')->get()->keyBy('status');
 

@@ -37,7 +37,7 @@ class CustomerController extends Controller
         if ($request->filled('employment_type')) $query->where('employment_type', $request->employment_type);
         if ($request->filled('customer_type'))   $query->where('customer_type', $request->customer_type);
 
-        $customers       = $query->latest()->paginate(20)->withQueryString();
+        $customers = $query->latest()->paginate(config('pagination.per_page'))->withQueryString();
         $totalCustomers  = Customer::count();
         $activeCustomers = Customer::where('status', 'active')->count();
         $pendingCustomers= Customer::where('status', 'pending')->count();
@@ -197,7 +197,7 @@ class CustomerController extends Controller
         }
         if ($request->filled('branch')) $query->where('branch_id', $request->branch);
 
-        $customers = $query->latest()->paginate(20)->withQueryString();
+        $customers = $query->latest()->paginate(config('pagination.per_page'))->withQueryString();
         $branches  = Branch::where('status', 'active')->orderBy('name')->get();
 
         return view('customers.new', compact('customers', 'branches'));
@@ -297,7 +297,7 @@ class CustomerController extends Controller
             $query->where('rejection_reason', 'like', '%' . $request->reason . '%');
         }
 
-        $customers = $query->latest()->paginate(20)->withQueryString();
+        $customers = $query->latest()->paginate(config('pagination.per_page'))->withQueryString();
 
         return view('customers.rejected', compact('customers'));
     }
@@ -353,7 +353,7 @@ class CustomerController extends Controller
             }
         }
 
-        $customers = $query->latest()->paginate(20)->withQueryString();
+        $customers = $query->latest()->paginate(config('pagination.per_page'))->withQueryString();
 
         return view('customers.credit-history', compact('customers'));
     }
@@ -439,7 +439,7 @@ class CustomerController extends Controller
             });
         }
 
-        $customers = $query->where('status', 'active')->latest()->paginate(20)->withQueryString();
+        $customers = $query->where('status', 'active')->latest()->paginate(config('pagination.per_page'))->withQueryString();
 
         // Aggregate stats from DB (not paginator)
         $totalLimits   = Customer::where('status', 'active')->sum('credit_limit');

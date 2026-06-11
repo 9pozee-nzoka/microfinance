@@ -17,6 +17,9 @@ class RoleMiddleware
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         if (!auth()->check()) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Unauthenticated.'], 401);
+            }
             return redirect()->route('login');
         }
 
@@ -46,6 +49,10 @@ class RoleMiddleware
                 'url' => $request->url(),
                 'ip' => $request->ip(),
             ]);
+
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'You do not have permission to perform this action.'], 403);
+            }
 
             // Redirect based on user role
             if ($user->hasRole('customer')) {

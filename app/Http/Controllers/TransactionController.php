@@ -48,7 +48,7 @@ class TransactionController extends Controller
             });
         }
 
-        $transactions = $query->latest()->paginate(25);
+        $transactions = $query->latest()->paginate(config('pagination.per_page'));
 
         // Summary totals for the filtered period
         $baseQuery = Transaction::whereIn('transaction_type', ['loan_repayment', 'savings_deposit', 'share_capital'])
@@ -163,7 +163,7 @@ class TransactionController extends Controller
             });
         }
 
-        $suspenseEntries = $query->latest()->paginate(25);
+        $suspenseEntries = $query->latest()->paginate(config('pagination.per_page'));
 
         // Summary stats
         $unmatchedCount  = SuspenseAccount::where('status', 'unmatched')->count();
@@ -333,7 +333,7 @@ class TransactionController extends Controller
             return $this->exportCsv($query->get());
         }
 
-        $transactions = $query->latest()->paginate(25);
+        $transactions = $query->latest()->paginate(config('pagination.per_page'));
 
         // Summary stats (unfiltered for cards)
         $totalCount    = Transaction::count();
