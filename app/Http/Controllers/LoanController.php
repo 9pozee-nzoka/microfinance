@@ -9,6 +9,7 @@ use App\Models\LoanProduct;
 use App\Models\Branch;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class LoanController extends Controller
 {
@@ -305,16 +306,34 @@ class LoanController extends Controller
             'approved_at_date' => 'nullable|date|before_or_equal:today',
         ]);
 
+        // Prevent approving loans that are already approved, disbursed, active, or rejected
+        if (!in_array($loan->status, ['pending', 'under_review', 'partially_approved'])) {
+            $message = "Cannot approve loan with status: {$loan->status}";
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            return back()->with('error', $message);
+        }
+
         $approvedAt = $request->filled('approved_at_date')
             ? $request->approved_at_date . ' 00:00:00'
             : now();
 
-        $loan->update([
-            'status'         => 'approved',
-            'approved_by'    => auth()->id(),
-            'approved_at'    => $approvedAt,
-            'approval_notes' => $request->notes,
-        ]);
+        try {
+            $loan->update([
+                'status'         => 'approved',
+                'approved_by'    => auth()->id(),
+                'approved_at'    => $approvedAt,
+                'approval_notes' => $request->notes,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Loan approval failed: ' . $e->getMessage(), ['loan_id' => $loan->id]);
+            $message = 'Approval failed: ' . $e->getMessage();
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 500);
+            }
+            return back()->with('error', $message);
+        }
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true, 'message' => 'Loan approved successfully.']);

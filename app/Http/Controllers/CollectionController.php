@@ -225,16 +225,18 @@ class CollectionController extends Controller
             'scheduled_at' => 'nullable|date|after:now',
         ]);
 
-        $loans = $this->resolveTarget($request->target);
+        $query = $this->resolveTargetQuery($request->target);
+        $totalLoans = $query->count();
 
-        if ($loans->isEmpty()) {
+        if ($totalLoans === 0) {
             return back()->with('error', 'No loans matched the selected target.');
         }
 
         $batchId = Str::uuid()->toString();
         $count   = 0;
 
-        DB::transaction(function () use ($loans, $request, $batchId, &$count) {
+        // Process in chunks to avoid memory and connection issues
+        $query->chunk(100, function ($loans) use ($request, $batchId, &$count) {
             foreach ($loans as $loan) {
                 if (!$loan->customer?->phone_number) continue;
 
@@ -360,17 +362,17 @@ class CollectionController extends Controller
     // HELPERS
     // ══════════════════════════════════════════════════════════════
 
-    private function resolveTarget(string $target)
+    private function resolveTargetQuery(string $target)
     {
         $query = Loan::with('customer')->whereIn('status', ['disbursed', 'active']);
 
         return match($target) {
-            'overdue'    => $query->where('days_in_arrears', '>', 0)->get(),
-            'due_today'  => $query->whereDate('next_due_date', today())->get(),
-            'par30'      => $query->whereBetween('days_in_arrears', [1, 30])->get(),
-            'par60'      => $query->whereBetween('days_in_arrears', [31, 60])->get(),
-            'par90plus'  => $query->where('days_in_arrears', '>', 90)->get(),
-            default      => $query->get(),
+            'overdue'    => $query->where('days_in_arrears', '>', 0),
+            'due_today'  => $query->whereDate('next_due_date', today()),
+            'par30'      => $query->whereBetween('days_in_arrears', [1, 30]),
+            'par60'      => $query->whereBetween('days_in_arrears', [31, 60]),
+            'par90plus'  => $query->where('days_in_arrears', '>', 90),
+            default      => $query,
         };
     }
 }

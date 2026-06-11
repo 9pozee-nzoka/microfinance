@@ -27,59 +27,77 @@ class ProcessSmsScheduleJob implements ShouldQueue
     {
         $schedule = $this->schedule;
         $batchId  = Str::uuid()->toString();
-        $loans    = $this->resolveTargetLoans($schedule);
 
-        $logs = [];
-        $skippedBlacklist = 0;
-        foreach ($loans as $loan) {
-            if (!$loan->customer || !$loan->customer->phone_number) continue;
+        $totalSent = 0;
+        $totalSkipped = 0;
+        $totalProcessed = 0;
 
-            // Skip known blacklisted numbers to avoid wasting API calls
-            if ($at->isBlacklisted($loan->customer->phone_number)) {
-                SmsLog::create([
+        // Process in chunks to avoid memory issues and connection exhaustion
+        $this->resolveTargetLoans($schedule)->chunk(100, function ($loans) use ($at, $schedule, $batchId, &$totalSent, &$totalSkipped, &$totalProcessed) {
+            $logs = [];
+
+            foreach ($loans as $loan) {
+                $totalProcessed++;
+
+                if (!$loan->customer || !$loan->customer->phone_number) continue;
+
+                // Skip known blacklisted numbers to avoid wasting API calls
+                if ($at->isBlacklisted($loan->customer->phone_number)) {
+                    SmsLog::create([
+                        'customer_id'    => $loan->customer_id,
+                        'loan_id'        => $loan->id,
+                        'phone_number'   => $loan->customer->phone_number,
+                        'message'        => $schedule->resolveMessage($loan),
+                        'message_type'   => $this->mapTriggerToType($schedule->trigger_type),
+                        'status'         => 'blacklisted',
+                        'failure_reason' => 'Number is cached as blacklisted on Africa\'s Talking.',
+                        'is_bulk'        => true,
+                        'bulk_batch_id'  => $batchId,
+                        'created_by'     => $schedule->created_by,
+                    ]);
+                    $totalSkipped++;
+                    continue;
+                }
+
+                $log = SmsLog::create([
                     'customer_id'    => $loan->customer_id,
                     'loan_id'        => $loan->id,
                     'phone_number'   => $loan->customer->phone_number,
                     'message'        => $schedule->resolveMessage($loan),
                     'message_type'   => $this->mapTriggerToType($schedule->trigger_type),
-                    'status'         => 'blacklisted',
-                    'failure_reason' => 'Number is cached as blacklisted on Africa\'s Talking.',
+                    'status'         => 'pending',
                     'is_bulk'        => true,
                     'bulk_batch_id'  => $batchId,
                     'created_by'     => $schedule->created_by,
                 ]);
-                $skippedBlacklist++;
-                continue;
+
+                $logs[] = $log;
             }
 
-            $log = SmsLog::create([
-                'customer_id'    => $loan->customer_id,
-                'loan_id'        => $loan->id,
-                'phone_number'   => $loan->customer->phone_number,
-                'message'        => $schedule->resolveMessage($loan),
-                'message_type'   => $this->mapTriggerToType($schedule->trigger_type),
-                'status'         => 'pending',
-                'is_bulk'        => true,
-                'bulk_batch_id'  => $batchId,
-                'created_by'     => $schedule->created_by,
-            ]);
+            if (!empty($logs)) {
+                $totalSent += $at->sendBulk($logs);
+            }
+        });
 
-            $logs[] = $log;
-        }
-
-        $sent = $at->sendBulk($logs);
-
-        if ($skippedBlacklist > 0) {
+        if ($totalSkipped > 0) {
             Log::info('SMS schedule skipped blacklisted numbers', [
-                'schedule_id' => $schedule->id,
+                'schedule_id'   => $schedule->id,
                 'schedule_name' => $schedule->name,
-                'skipped' => $skippedBlacklist,
+                'skipped'       => $totalSkipped,
             ]);
         }
 
         $schedule->update([
-            'last_run_at' => now(),
-            'total_sent'  => $schedule->total_sent + $sent,
+            'last_run_at'  => now(),
+            'total_sent'   => $schedule->total_sent + $totalSent,
+        ]);
+
+        Log::info('SMS schedule completed', [
+            'schedule_id'     => $schedule->id,
+            'schedule_name'   => $schedule->name,
+            'total_processed' => $totalProcessed,
+            'total_sent'      => $totalSent,
+            'total_skipped'   => $totalSkipped,
         ]);
     }
 
@@ -124,7 +142,8 @@ class ProcessSmsScheduleJob implements ShouldQueue
             $query->whereDate('next_due_date', today());
         }
 
-        return $query->get();
+        // Return query builder for chunking — do NOT execute here
+        return $query;
     }
 
     private function mapTriggerToType(string $triggerType): string
