@@ -358,26 +358,19 @@ class TransactionController extends Controller
     {
         $loan = Loan::findOrFail($request->loan_id);
 
-        // Find the next unpaid schedule entry
-        $schedule = RepaymentSchedule::where('loan_id', $loan->id)
-            ->whereIn('status', ['pending', 'partial', 'overdue'])
-            ->orderBy('installment_number')
-            ->first();
+        // Distribute payment across schedules (supports partial payments and early prepayment)
+        $distribution = $this->distributeRepaymentAcrossSchedules($loan, $amount);
 
-        $principalPortion = $schedule ? min($amount, $schedule->principal_amount - $schedule->principal_paid) : 0;
-        $interestPortion  = $schedule ? min($amount - $principalPortion, $schedule->interest_amount - $schedule->interest_paid) : 0;
-        $excess           = max(0, $amount - $principalPortion - $interestPortion);
-
-        // Create repayment record
+        // Create repayment record (aggregate across all schedules touched)
         $repayment = LoanRepayment::create([
             'loan_id'             => $loan->id,
-            'schedule_id'         => $schedule?->id,
+            'schedule_id'         => $distribution['primary_schedule_id'],
             'customer_id'         => $customer->id,
             'amount'              => $amount,
-            'principal_portion'   => $principalPortion,
-            'interest_portion'    => $interestPortion,
+            'principal_portion'   => $distribution['total_principal'],
+            'interest_portion'    => $distribution['total_interest'],
             'penalty_portion'     => 0,
-            'excess_amount'       => $excess,
+            'excess_amount'       => $distribution['excess'],
             'payment_method'      => $request->source === 'mpesa' ? 'mpesa' : ($request->source === 'bank' ? 'bank_transfer' : 'cash'),
             'transaction_reference' => $request->mpesa_receipt ?? $request->bank_reference,
             'mpesa_receipt_number'  => $request->mpesa_receipt,
@@ -390,27 +383,11 @@ class TransactionController extends Controller
             'notes'                 => $request->notes,
         ]);
 
-        // Update schedule entry
-        if ($schedule) {
-            $newPrincipalPaid = $schedule->principal_paid + $principalPortion;
-            $newInterestPaid  = $schedule->interest_paid + $interestPortion;
-            $newTotalPaid     = $schedule->total_paid + $amount - $excess;
-            $isPaid           = $newTotalPaid >= $schedule->total_amount;
-
-            $schedule->update([
-                'principal_paid' => $newPrincipalPaid,
-                'interest_paid'  => $newInterestPaid,
-                'total_paid'     => $newTotalPaid,
-                'status'         => $isPaid ? 'paid' : 'partial',
-                'paid_date'      => $isPaid ? today() : null,
-            ]);
-        }
-
         // Update loan totals
-        $loan->increment('total_paid', $amount - $excess);
-        $loan->increment('total_paid_principal', $principalPortion);
-        $loan->increment('total_paid_interest', $interestPortion);
-        $loan->decrement('outstanding_balance', $principalPortion);
+        $loan->increment('total_paid', $amount - $distribution['excess']);
+        $loan->increment('total_paid_principal', $distribution['total_principal']);
+        $loan->increment('total_paid_interest', $distribution['total_interest']);
+        $loan->decrement('outstanding_balance', $distribution['total_principal']);
         $loan->update([
             'last_payment_date' => today(),
             'next_due_date'     => $this->getNextDueDate($loan),
@@ -472,6 +449,71 @@ class TransactionController extends Controller
         ]);
     }
 
+    /**
+     * Distribute a repayment across loan schedules.
+     *
+     * Rules:
+     * 1. Current/overdue installments can receive partial payments.
+     * 2. Future installments can only be prepaid if the payment amount
+     *    is at least equal to that installment's total amount.
+     * 3. Excess after paying off an installment rolls over to the next.
+     */
+    private function distributeRepaymentAcrossSchedules(Loan $loan, float $amount): array
+    {
+        $remaining = $amount;
+        $totalPrincipal = 0;
+        $totalInterest = 0;
+        $primaryScheduleId = null;
+
+        $schedules = RepaymentSchedule::where('loan_id', $loan->id)
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->orderBy('installment_number')
+            ->get();
+
+        foreach ($schedules as $schedule) {
+            if ($remaining <= 0) break;
+
+            $duePrincipal = $schedule->principal_amount - $schedule->principal_paid;
+            $dueInterest  = $schedule->interest_amount - $schedule->interest_paid;
+            $dueTotal     = $duePrincipal + $dueInterest;
+
+            // Track the first schedule touched for the repayment record
+            if ($primaryScheduleId === null) {
+                $primaryScheduleId = $schedule->id;
+            }
+
+            // Apply payment to this schedule (partial payments allowed, including early prepayments)
+            $principalPaid = min($remaining, $duePrincipal);
+            $remaining -= $principalPaid;
+
+            $interestPaid = min($remaining, $dueInterest);
+            $remaining -= $interestPaid;
+
+            $totalPrincipal += $principalPaid;
+            $totalInterest += $interestPaid;
+
+            $newPrincipalPaid = $schedule->principal_paid + $principalPaid;
+            $newInterestPaid  = $schedule->interest_paid + $interestPaid;
+            $newTotalPaid     = $schedule->total_paid + $principalPaid + $interestPaid;
+            $isPaid           = $newTotalPaid >= $schedule->total_amount;
+
+            $schedule->update([
+                'principal_paid' => $newPrincipalPaid,
+                'interest_paid'  => $newInterestPaid,
+                'total_paid'     => $newTotalPaid,
+                'status'         => $isPaid ? 'paid' : 'partial',
+                'paid_date'      => $isPaid ? today() : null,
+            ]);
+        }
+
+        return [
+            'total_principal'     => $totalPrincipal,
+            'total_interest'      => $totalInterest,
+            'excess'              => $remaining,
+            'primary_schedule_id' => $primaryScheduleId,
+        ];
+    }
+
     private function processShareCapital(Request $request, Customer $customer, float $amount): void
     {
         $customer->increment('share_capital', $amount);
@@ -502,23 +544,17 @@ class TransactionController extends Controller
         $loan     = Loan::findOrFail($loanId);
         $customer = $loan->customer;
 
-        $schedule = RepaymentSchedule::where('loan_id', $loan->id)
-            ->whereIn('status', ['pending', 'partial', 'overdue'])
-            ->orderBy('installment_number')
-            ->first();
-
-        $principalPortion = $schedule ? min($amount, $schedule->principal_amount - $schedule->principal_paid) : 0;
-        $interestPortion  = $schedule ? min($amount - $principalPortion, $schedule->interest_amount - $schedule->interest_paid) : 0;
+        $distribution = $this->distributeRepaymentAcrossSchedules($loan, $amount);
 
         LoanRepayment::create([
             'loan_id'               => $loan->id,
-            'schedule_id'           => $schedule?->id,
+            'schedule_id'           => $distribution['primary_schedule_id'],
             'customer_id'           => $customer->id,
             'amount'                => $amount,
-            'principal_portion'     => $principalPortion,
-            'interest_portion'      => $interestPortion,
+            'principal_portion'     => $distribution['total_principal'],
+            'interest_portion'      => $distribution['total_interest'],
             'penalty_portion'       => 0,
-            'excess_amount'         => 0,
+            'excess_amount'         => $distribution['excess'],
             'payment_method'        => $source === 'mpesa' ? 'mpesa' : ($source === 'bank' ? 'bank_transfer' : 'cash'),
             'transaction_reference' => $extRef,
             'received_by'           => auth()->id(),
@@ -528,21 +564,10 @@ class TransactionController extends Controller
             'confirmed_by'          => auth()->id(),
         ]);
 
-        if ($schedule) {
-            $newTotalPaid = $schedule->total_paid + $amount;
-            $schedule->update([
-                'principal_paid' => $schedule->principal_paid + $principalPortion,
-                'interest_paid'  => $schedule->interest_paid + $interestPortion,
-                'total_paid'     => $newTotalPaid,
-                'status'         => $newTotalPaid >= $schedule->total_amount ? 'paid' : 'partial',
-                'paid_date'      => $newTotalPaid >= $schedule->total_amount ? today() : null,
-            ]);
-        }
-
-        $loan->increment('total_paid', $amount);
-        $loan->increment('total_paid_principal', $principalPortion);
-        $loan->increment('total_paid_interest', $interestPortion);
-        $loan->decrement('outstanding_balance', $principalPortion);
+        $loan->increment('total_paid', $amount - $distribution['excess']);
+        $loan->increment('total_paid_principal', $distribution['total_principal']);
+        $loan->increment('total_paid_interest', $distribution['total_interest']);
+        $loan->decrement('outstanding_balance', $distribution['total_principal']);
         $loan->update(['last_payment_date' => today()]);
 
         if ($loan->fresh()->outstanding_balance <= 0) {

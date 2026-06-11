@@ -105,5 +105,11 @@
         </tbody>
     </table>
     </div>
+
+    @if($customers->hasPages())
+    <div style="margin-top: 16px;">
+        {{ $customers->withQueryString()->links() }}
+    </div>
+    @endif
 </div>
 @endsection

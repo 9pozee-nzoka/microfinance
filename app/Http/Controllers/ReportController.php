@@ -530,51 +530,80 @@ class ReportController extends Controller
         $dateFrom = $request->date_from ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->startOfMonth();
         $dateTo   = $request->date_to   ? Carbon::parse($request->date_to)->endOfDay()     : Carbon::now()->endOfDay();
 
-        // Interest income collected
+        // ═══════════════════════════════════════════════════════════════
+        // INCOME — from actual transactions (real cash collected)
+        // ═══════════════════════════════════════════════════════════════
+
+        // Interest income — from loan repayments (actual cash collected)
         $interestIncome = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
             ->whereIn('status', ['confirmed', 'pending'])
             ->sum('interest_portion');
 
-        // Processing fees (from disbursed loans in period)
-        $processingFees = Loan::whereBetween('disbursement_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
-            ->sum('processing_fee');
+        // Processing fees — from transactions where fee was actually paid
+        // These are recorded when staff manually records processing fee payment
+        $processingFees = Transaction::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->where('transaction_type', 'processing_fee')
+            ->where('status', 'completed')
+            ->sum('amount');
 
-        // Insurance fees
-        $insuranceFees = Loan::whereBetween('disbursement_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
-            ->sum('insurance_fee');
+        // Insurance fees — from transactions where insurance was actually paid
+        $insuranceFees = Transaction::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->where('transaction_type', 'insurance_fee')
+            ->where('status', 'completed')
+            ->sum('amount');
 
-        // Penalty income
+        // Penalty income — from loan repayments
         $penaltyIncome = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
             ->whereIn('status', ['confirmed', 'pending'])
             ->sum('penalty_portion');
 
-        // Total disbursed (funds out)
-        $totalDisbursed = Loan::whereBetween('disbursement_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
-            ->sum('principal_amount');
+        // Other income — interest_income transaction type (if recorded separately)
+        $otherIncome = Transaction::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->where('transaction_type', 'interest_income')
+            ->where('status', 'completed')
+            ->sum('amount');
 
-        // Total principal collected (funds in)
+        // ═══════════════════════════════════════════════════════════════
+        // FUND FLOW — principal movements
+        // ═══════════════════════════════════════════════════════════════
+
+        // Total disbursed (funds out) — from transaction records
+        $totalDisbursed = Transaction::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->where('transaction_type', 'loan_disbursement')
+            ->where('status', 'completed')
+            ->sum('amount');
+
+        // Total principal collected (funds in) — from repayments
         $principalCollected = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
             ->whereIn('status', ['confirmed', 'pending'])
             ->sum('principal_portion');
 
-        // Monthly trend (last 6 months)
+        // ═══════════════════════════════════════════════════════════════
+        // MONTHLY TREND (last 6 months)
+        // ═══════════════════════════════════════════════════════════════
         $trend = collect();
         for ($i = 5; $i >= 0; $i--) {
             $m     = Carbon::now()->subMonths($i);
             $start = $m->copy()->startOfMonth();
             $end   = $m->copy()->endOfMonth();
+
             $trend->push([
-                'month'    => $m->format('M Y'),
-                'interest' => LoanRepayment::whereBetween('created_at', [$start, $end])->whereIn('status', ['confirmed', 'pending'])->sum('interest_portion'),
-                'fees'     => Loan::whereBetween('disbursement_date', [$start->toDateString(), $end->toDateString()])
-                                ->selectRaw('COALESCE(SUM(processing_fee + insurance_fee), 0) as total')
-                                ->value('total') ?? 0,
-                'penalty'  => LoanRepayment::whereBetween('created_at', [$start, $end])->whereIn('status', ['confirmed', 'pending'])->sum('penalty_portion'),
+                'month'     => $m->format('M Y'),
+                'interest'  => LoanRepayment::whereBetween('created_at', [$start, $end])
+                                ->whereIn('status', ['confirmed', 'pending'])
+                                ->sum('interest_portion'),
+                'fees'      => Transaction::whereBetween('created_at', [$start, $end])
+                                ->whereIn('transaction_type', ['processing_fee', 'insurance_fee'])
+                                ->where('status', 'completed')
+                                ->sum('amount'),
+                'penalty'   => LoanRepayment::whereBetween('created_at', [$start, $end])
+                                ->whereIn('status', ['confirmed', 'pending'])
+                                ->sum('penalty_portion'),
             ]);
         }
 
         return view('reports.financial.income-statement', compact(
-            'interestIncome', 'processingFees', 'insuranceFees', 'penaltyIncome',
+            'interestIncome', 'processingFees', 'insuranceFees', 'penaltyIncome', 'otherIncome',
             'totalDisbursed', 'principalCollected', 'trend', 'dateFrom', 'dateTo'
         ));
     }
@@ -671,8 +700,8 @@ class ReportController extends Controller
         $topCustomers = Customer::with('branch')
             ->where('credit_score', '>', 0)
             ->orderByDesc('credit_score')
-            ->limit(20)
-            ->get();
+            ->paginate(config('pagination.per_page'))
+            ->withQueryString();
 
         $avgScore = Customer::where('credit_score', '>', 0)->avg('credit_score') ?? 0;
 

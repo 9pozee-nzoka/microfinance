@@ -52,7 +52,7 @@
 {{-- Top Customers --}}
 <div class="card">
     <div style="font-size:14px; font-weight:700; color:var(--text-primary); margin-bottom:16px;">
-        <i class="fas fa-trophy" style="color:#FF9800;"></i> Top 20 by Credit Score
+        <i class="fas fa-trophy" style="color:#FF9800;"></i> Customers by Credit Score
     </div>
     <div class="table-wrap">
         <div class="table-wrap">
@@ -91,6 +91,12 @@
             </tbody>
         </table>
         </div>
+
+        @if($topCustomers->hasPages())
+        <div style="margin-top: 16px;">
+            {{ $topCustomers->withQueryString()->links() }}
+        </div>
+        @endif
     </div>
 </div>
 @endsection

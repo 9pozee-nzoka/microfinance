@@ -21,7 +21,7 @@
 </div>
 
 @php
-    $totalIncome = $interestIncome + $processingFees + $insuranceFees + $penaltyIncome;
+    $totalIncome = $interestIncome + $processingFees + $insuranceFees + $penaltyIncome + $otherIncome;
 @endphp
 
 <div style="font-size:13px; color:var(--text-secondary); margin-bottom:20px;">
@@ -42,6 +42,9 @@
                 ['Insurance Fees',     $insuranceFees,    '#9C27B0',        'fa-shield-alt'],
                 ['Penalty Income',     $penaltyIncome,    'var(--danger)',  'fa-exclamation'],
             ];
+            if ($otherIncome > 0) {
+                $lines[] = ['Other Income', $otherIncome, '#FF9800', 'fa-coins'];
+            }
         @endphp
 
         @foreach($lines as [$label, $amount, $color, $icon])

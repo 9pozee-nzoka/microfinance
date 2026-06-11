@@ -394,11 +394,16 @@
                     <div class="grid-2" style="gap:12px;">
                         <div class="form-group">
                             <label class="form-label">Amount Received (KSH) <span class="req">*</span></label>
+                            @php
+                                $remainingInstallments = $loan->repaymentSchedules()
+                                    ->whereIn('status', ['pending', 'partial', 'overdue'])
+                                    ->sum('total_amount');
+                            @endphp
                             <input type="number" name="payment_amount" id="closePaymentAmount"
                                    class="form-control" step="0.01" min="0"
-                                   placeholder="{{ $loan->outstanding_balance }}"
-                                   value="{{ $loan->outstanding_balance }}">
-                            <div class="form-hint">Outstanding: KSH {{ number_format($loan->outstanding_balance, 0) }}</div>
+                                   placeholder="{{ $remainingInstallments }}"
+                                   value="{{ $remainingInstallments }}">
+                            <div class="form-hint">Total remaining installments: KSH {{ number_format($remainingInstallments, 0) }}</div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Payment Method <span class="req">*</span></label>

@@ -337,28 +337,17 @@ class MpesaController extends Controller
     {
         if (! $loan) return;
 
-        $schedule = RepaymentSchedule::where('loan_id', $loan->id)
-            ->whereIn('status', ['pending', 'partial', 'overdue'])
-            ->orderBy('installment_number')
-            ->first();
-
-        $principalPortion = $schedule
-            ? min($amount, (float) $schedule->principal_amount - (float) $schedule->principal_paid)
-            : 0;
-        $interestPortion = $schedule
-            ? min($amount - $principalPortion, (float) $schedule->interest_amount - (float) $schedule->interest_paid)
-            : 0;
-        $excess = max(0, $amount - $principalPortion - $interestPortion);
+        $distribution = $this->distributeRepaymentAcrossSchedules($loan, $amount);
 
         $repayment = LoanRepayment::create([
             'loan_id'               => $loan->id,
-            'schedule_id'           => $schedule?->id,
+            'schedule_id'           => $distribution['primary_schedule_id'],
             'customer_id'           => $loan->customer_id,
             'amount'                => $amount,
-            'principal_portion'     => $principalPortion,
-            'interest_portion'      => $interestPortion,
+            'principal_portion'     => $distribution['total_principal'],
+            'interest_portion'      => $distribution['total_interest'],
             'penalty_portion'       => 0,
-            'excess_amount'         => $excess,
+            'excess_amount'         => $distribution['excess'],
             'payment_method'        => 'mpesa',
             'transaction_reference' => $receipt,
             'mpesa_receipt_number'  => $receipt,
@@ -371,25 +360,10 @@ class MpesaController extends Controller
             'notes'                 => 'Auto-confirmed via M-Pesa STK callback',
         ]);
 
-        if ($schedule) {
-            $newPrincipalPaid = (float) $schedule->principal_paid + $principalPortion;
-            $newInterestPaid  = (float) $schedule->interest_paid + $interestPortion;
-            $newTotalPaid     = (float) $schedule->total_paid + ($amount - $excess);
-            $isPaid           = $newTotalPaid >= (float) $schedule->total_amount;
-
-            $schedule->update([
-                'principal_paid' => $newPrincipalPaid,
-                'interest_paid'  => $newInterestPaid,
-                'total_paid'     => $newTotalPaid,
-                'status'         => $isPaid ? 'paid' : 'partial',
-                'paid_date'      => $isPaid ? today() : null,
-            ]);
-        }
-
-        $loan->increment('total_paid', $amount - $excess);
-        $loan->increment('total_paid_principal', $principalPortion);
-        $loan->increment('total_paid_interest', $interestPortion);
-        $loan->decrement('outstanding_balance', $principalPortion);
+        $loan->increment('total_paid', $amount - $distribution['excess']);
+        $loan->increment('total_paid_principal', $distribution['total_principal']);
+        $loan->increment('total_paid_interest', $distribution['total_interest']);
+        $loan->decrement('outstanding_balance', $distribution['total_principal']);
         $loan->update([
             'last_payment_date' => today(),
             'next_due_date'     => $this->getNextDueDate($loan),
@@ -427,5 +401,70 @@ class MpesaController extends Controller
             ->whereIn('status', ['pending', 'partial', 'overdue'])
             ->orderBy('due_date')
             ->value('due_date');
+    }
+
+    /**
+     * Distribute a repayment across loan schedules.
+     *
+     * Rules:
+     * 1. Current/overdue installments can receive partial payments.
+     * 2. Future installments can only be prepaid if the payment amount
+     *    is at least equal to that installment's total amount.
+     * 3. Excess after paying off an installment rolls over to the next.
+     */
+    private function distributeRepaymentAcrossSchedules(Loan $loan, float $amount): array
+    {
+        $remaining = $amount;
+        $totalPrincipal = 0;
+        $totalInterest = 0;
+        $primaryScheduleId = null;
+
+        $schedules = RepaymentSchedule::where('loan_id', $loan->id)
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->orderBy('installment_number')
+            ->get();
+
+        foreach ($schedules as $schedule) {
+            if ($remaining <= 0) break;
+
+            $duePrincipal = $schedule->principal_amount - $schedule->principal_paid;
+            $dueInterest  = $schedule->interest_amount - $schedule->interest_paid;
+            $dueTotal     = $duePrincipal + $dueInterest;
+
+            // Track the first schedule touched for the repayment record
+            if ($primaryScheduleId === null) {
+                $primaryScheduleId = $schedule->id;
+            }
+
+            // Apply payment to this schedule (partial payments allowed, including early prepayments)
+            $principalPaid = min($remaining, $duePrincipal);
+            $remaining -= $principalPaid;
+
+            $interestPaid = min($remaining, $dueInterest);
+            $remaining -= $interestPaid;
+
+            $totalPrincipal += $principalPaid;
+            $totalInterest += $interestPaid;
+
+            $newPrincipalPaid = $schedule->principal_paid + $principalPaid;
+            $newInterestPaid  = $schedule->interest_paid + $interestPaid;
+            $newTotalPaid     = $schedule->total_paid + $principalPaid + $interestPaid;
+            $isPaid           = $newTotalPaid >= $schedule->total_amount;
+
+            $schedule->update([
+                'principal_paid' => $newPrincipalPaid,
+                'interest_paid'  => $newInterestPaid,
+                'total_paid'     => $newTotalPaid,
+                'status'         => $isPaid ? 'paid' : 'partial',
+                'paid_date'      => $isPaid ? today() : null,
+            ]);
+        }
+
+        return [
+            'total_principal'     => $totalPrincipal,
+            'total_interest'      => $totalInterest,
+            'excess'              => $remaining,
+            'primary_schedule_id' => $primaryScheduleId,
+        ];
     }
 }

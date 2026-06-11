@@ -445,6 +445,30 @@ class LoanController extends Controller
             return back()->with('error', 'Only active or disbursed loans can be closed early.');
         }
 
+        // Calculate total remaining installment amount from unpaid schedules
+        $remainingInstallments = $loan->repaymentSchedules()
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->sum('total_amount');
+
+        // For payment-based closures, ensure payment covers remaining installments
+        if (in_array($request->closure_type, ['prepayment', 'topup', 'full_early_settlement'])) {
+            $paymentAmount = (float) $request->payment_amount;
+
+            if ($paymentAmount <= 0) {
+                return back()->with('error', 'Payment amount is required for ' . ucfirst(str_replace('_', ' ', $request->closure_type)) . '.');
+            }
+
+            if ($paymentAmount < $remainingInstallments) {
+                return back()->with(
+                    'error',
+                    'Payment amount (KSH ' . number_format($paymentAmount, 0) .
+                    ') is insufficient. The total remaining installment amount is KSH ' .
+                    number_format($remainingInstallments, 0) .
+                    '. The loan cannot be closed.'
+                );
+            }
+        }
+
         $closureLabels = [
             'prepayment'            => 'Prepayment',
             'topup'                 => 'Top-Up (balance cleared for new loan)',

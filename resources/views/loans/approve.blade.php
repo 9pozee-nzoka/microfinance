@@ -140,6 +140,12 @@
         </tbody>
     </table>
     </div>
+
+    @if($loans->hasPages())
+    <div style="margin-top: 16px;">
+        {{ $loans->withQueryString()->links() }}
+    </div>
+    @endif
 </div>
 
 {{-- Approval Modal --}}
