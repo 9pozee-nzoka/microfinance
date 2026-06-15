@@ -93,6 +93,29 @@ max_input_time = 300
 allow_url_fopen = On
 ```
 
+### 2.4 Enable OPcache (critical for speed)
+
+In cPanel **Select PHP Version → Options**, enable and tune `opcache`:
+
+```ini
+opcache.enable = 1
+opcache.enable_cli = 1
+opcache.memory_consumption = 256
+opcache.interned_strings_buffer = 16
+opcache.max_accelerated_files = 20000
+opcache.revalidate_freq = 60
+opcache.validate_timestamps = 1
+```
+
+On cPanel, tick the **opcache** checkbox if available. If the fields are not exposed in the UI, add them via a `.user.ini` file in `public_html/`:
+
+```ini
+opcache.enable=1
+opcache.memory_consumption=256
+opcache.max_accelerated_files=20000
+opcache.revalidate_freq=60
+```
+
 Click **Save**
 
 ---
@@ -217,16 +240,17 @@ LOG_DEPRECATIONS_CHANNEL=null
 LOG_LEVEL=debug
 
 DB_CONNECTION=mysql
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=mweelacr_mweelacredit
 DB_USERNAME=mweelacr_pauljohns730
 DB_PASSWORD=YOUR_ACTUAL_DB_PASSWORD
+DB_PERSISTENT=false
 
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
 SESSION_ENCRYPT=false
-SESSION_PATH=/
+SESSION_PATH=
 SESSION_DOMAIN=null
 
 BROADCAST_CONNECTION=log
@@ -247,7 +271,7 @@ MAIL_MAILER=smtp
 MAIL_HOST=mail.mweelacredit.co.ke
 MAIL_PORT=587
 MAIL_USERNAME=noreply@mweelacredit.co.ke
-MAIL_PASSWORD=null
+MAIL_PASSWORD=YOUR_MAIL_PASSWORD
 MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=noreply@mweelacredit.co.ke
 MAIL_FROM_NAME="Mweela Cash Capital"
@@ -260,6 +284,16 @@ AWS_USE_PATH_STYLE_ENDPOINT=false
 
 VITE_APP_NAME="Mweela Cash Capital"
 ```
+
+**Performance tip:** If public pages are still slow and Redis is not available, change only the live `.env` (not this template) to:
+
+```env
+SESSION_DRIVER=file
+CACHE_STORE=file
+LOG_LEVEL=warning
+```
+
+Then re-run `php artisan config:cache`.
 
 ### 5.3 Update Database Credentials
 
@@ -339,7 +373,9 @@ chmod 644 .env
 chmod -R 755 public
 ```
 
-### 6.6 Cache Configuration (Optional - for performance)
+### 6.6 Cache Configuration (Required for production performance)
+
+Run these after every code/deploy update. They compile config, routes, views and events so Laravel does not re-read files on every request.
 
 ```bash
 cd /home/mweelacr/public_html
@@ -348,9 +384,27 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 php artisan event:cache
+php artisan optimize
 ```
 
-**Note:** Only run these AFTER everything is working. If you change `.env` later, run `php artisan config:clear` first.
+**Important:**
+- Only run these AFTER the site is working.
+- If you change `.env` later, run `php artisan config:clear` first, then `php artisan config:cache` again.
+- Dashboard aggregates are now cached for 5 minutes. If you need to force fresh dashboard numbers, run `php artisan cache:clear`.
+
+### 6.7 Apply Performance Indexes
+
+After migrations are up to date, run the latest migration to add indexes used by the dashboard and collection screens:
+
+```bash
+php artisan migrate --force
+```
+
+The new indexes are on:
+- `loans.next_due_date + status`
+- `loans.status + next_due_date`
+- `loans.days_in_arrears`
+- `repayment_schedules.loan_id + status + due_date`
 
 ---
 
@@ -574,6 +628,24 @@ Your `mweela_production_deploy.zip` contains:
 
 ---
 
+## Phase 12: Google Search Console & Indexing
+
+If Google shows **"No information is available for this page"**, the site is crawlable but has not been indexed yet. The domain was registered recently, so Google needs an explicit nudge.
+
+1. Go to https://search.google.com/search-console
+2. Add property: `mweelacredit.co.ke`
+3. Verify ownership (HTML tag or DNS TXT record)
+4. Submit sitemap: `https://mweelacredit.co.ke/sitemap.xml`
+5. Request indexing for each public page:
+   - `https://mweelacredit.co.ke/`
+   - `https://mweelacredit.co.ke/about`
+   - `https://mweelacredit.co.ke/our-loans`
+   - `https://mweelacredit.co.ke/contact`
+
+The "No information" message usually disappears within a few days to two weeks after a successful recrawl.
+
+---
+
 ## Support Contacts
 
 | Issue | Contact |
@@ -606,8 +678,12 @@ Your `mweela_production_deploy.zip` contains:
 - [ ] Site loads at `https://mweelacredit.co.ke`
 - [ ] Login works
 - [ ] M-Pesa callbacks updated
+- [ ] Laravel caches warmed (`config:cache`, `route:cache`, `view:cache`, `event:cache`, `optimize`)
+- [ ] OPcache enabled in cPanel
+- [ ] `SESSION_DRIVER` and `CACHE_STORE` verified (production uses `database`; switch to `file` or Redis if pages are slow)
+- [ ] Google Search Console property added and sitemap submitted
 
 ---
 
-**Last Updated:** 2026-06-03  
+**Last Updated:** 2026-06-15  
 **Application Version:** Mweela Cash Capital v1.0
