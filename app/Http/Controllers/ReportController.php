@@ -499,8 +499,25 @@ class ReportController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'designation']);
 
+        // Summary analytics
+        $totalOlb      = $activePortfolio->sum('olb');
+        $totalArrears  = $activePortfolio->sum('arrears');
+        $officerCount  = $officers->count();
+        $summary = [
+            'total_officers'             => $officerCount,
+            'total_loans_created'        => $officers->sum('loans_created'),
+            'total_disbursed'            => $officers->sum('total_disbursed'),
+            'total_collections_count'    => $officers->sum('collections_count'),
+            'total_collections_amount'   => $officers->sum('collections_amount'),
+            'total_active_portfolio'     => $totalOlb,
+            'total_active_arrears'       => $totalArrears,
+            'par_percentage'             => $totalOlb > 0 ? round(($totalArrears / $totalOlb) * 100, 1) : 0,
+            'avg_loans_per_officer'      => $officerCount > 0 ? round($officers->sum('loans_created') / $officerCount, 1) : 0,
+            'avg_collections_per_officer'=> $officerCount > 0 ? round($officers->sum('collections_amount') / $officerCount, 2) : 0,
+        ];
+
         return view('reports.operational.officer-performance', compact(
-            'officers', 'activePortfolio', 'dateFrom', 'dateTo', 'staffList', 'selectedOfficer'
+            'officers', 'activePortfolio', 'dateFrom', 'dateTo', 'staffList', 'selectedOfficer', 'summary'
         ));
     }
 
@@ -533,8 +550,25 @@ class ReportController extends Controller
             return $branch;
         });
 
+        // Summary analytics
+        $totalOlb     = $branches->sum('olb');
+        $totalArrears = $branches->sum('arrears');
+        $branchCount  = $branches->count();
+        $summary = [
+            'total_branches'          => $branchCount,
+            'total_customers'         => $branches->sum('customers_count'),
+            'total_active_customers'  => $branches->sum('active_customers_count'),
+            'total_active_loans'      => $branches->sum('active_loans_count'),
+            'total_olb'               => $totalOlb,
+            'total_arrears'           => $totalArrears,
+            'par_percentage'          => $totalOlb > 0 ? round(($totalArrears / $totalOlb) * 100, 1) : 0,
+            'total_disbursed_period'  => $branches->sum('disbursed_period'),
+            'total_collected_period'  => $branches->sum('collected_period'),
+            'avg_olb_per_branch'      => $branchCount > 0 ? round($totalOlb / $branchCount, 2) : 0,
+        ];
+
         return view('reports.operational.branch-performance', compact(
-            'branches', 'dateFrom', 'dateTo'
+            'branches', 'dateFrom', 'dateTo', 'summary'
         ));
     }
 

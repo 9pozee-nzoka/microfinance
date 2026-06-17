@@ -253,16 +253,25 @@
 
         /* ── Cards ─────────────────────────────────────────────────────────── */
         .card {
-            background: var(--card-bg);
-            border-radius: 12px; padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            border: 1px solid var(--border);
+            background:
+                radial-gradient(circle at top right, rgba(0,188,212,0.04), transparent 25%),
+                linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 16px; padding: 22px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+            border: 1px solid rgba(232,236,241,0.8);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.10);
         }
 
         .card-header {
             display: flex; align-items: center;
             justify-content: space-between;
+            padding-bottom: 12px;
             margin-bottom: 15px; flex-wrap: wrap; gap: 8px;
+            border-bottom: 1px solid var(--border);
         }
 
         .card-title {
@@ -270,6 +279,103 @@
             text-transform: uppercase; letter-spacing: 0.5px;
             color: var(--text-secondary);
         }
+
+        /* ── Coloured card variants (full background) ──────────────────────── */
+        .card-primary,
+        .card-success,
+        .card-warning,
+        .card-danger,
+        .card-info,
+        .card-secondary,
+        .card-dark { color: #fff; border: none; }
+
+        .card-primary { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); }
+        .card-success { background: linear-gradient(135deg, var(--success) 0%, #388E3C 100%); }
+        .card-warning { background: linear-gradient(135deg, var(--warning) 0%, #F57C00 100%); }
+        .card-danger  { background: linear-gradient(135deg, var(--danger) 0%, #D32F2F 100%); }
+        .card-info    { background: linear-gradient(135deg, #00BCD4 0%, #0097A7 100%); }
+        .card-secondary { background: linear-gradient(135deg, #607D8B 0%, #455A64 100%); }
+        .card-dark    { background: linear-gradient(135deg, #2C3E50 0%, #1A252F 100%); }
+
+        .card-primary .card-header,
+        .card-success .card-header,
+        .card-warning .card-header,
+        .card-danger .card-header,
+        .card-info .card-header,
+        .card-secondary .card-header,
+        .card-dark .card-header { border-bottom-color: rgba(255,255,255,0.15); }
+
+        .card-primary .card-title,
+        .card-success .card-title,
+        .card-warning .card-title,
+        .card-danger .card-title,
+        .card-info .card-title,
+        .card-secondary .card-title,
+        .card-dark .card-title { color: rgba(255,255,255,0.85); }
+
+        .card-primary .metric-value,
+        .card-success .metric-value,
+        .card-warning .metric-value,
+        .card-danger .metric-value,
+        .card-info .metric-value,
+        .card-secondary .metric-value,
+        .card-dark .metric-value { color: #fff; }
+
+        .card-primary .metric-label,
+        .card-success .metric-label,
+        .card-warning .metric-label,
+        .card-danger .metric-label,
+        .card-info .metric-label,
+        .card-secondary .metric-label,
+        .card-dark .metric-label { color: rgba(255,255,255,0.80); }
+
+        .card-primary .circle-percent,
+        .card-success .circle-percent,
+        .card-warning .circle-percent,
+        .card-danger .circle-percent,
+        .card-info .circle-percent,
+        .card-secondary .circle-percent,
+        .card-dark .circle-percent { color: #fff; }
+
+        .card-primary .circle-label,
+        .card-success .circle-label,
+        .card-warning .circle-label,
+        .card-danger .circle-label,
+        .card-info .circle-label,
+        .card-secondary .circle-label,
+        .card-dark .circle-label { color: rgba(255,255,255,0.80); }
+
+        .card-primary .circle-bg,
+        .card-success .circle-bg,
+        .card-warning .circle-bg,
+        .card-danger .circle-bg,
+        .card-info .circle-bg,
+        .card-secondary .circle-bg,
+        .card-dark .circle-bg { stroke: rgba(255,255,255,0.25); }
+
+        .card-primary .circle-fill,
+        .card-success .circle-fill,
+        .card-warning .circle-fill,
+        .card-danger .circle-fill,
+        .card-info .circle-fill,
+        .card-secondary .circle-fill,
+        .card-dark .circle-fill { stroke: rgba(255,255,255,0.95); }
+
+        .card-primary .progress-fill,
+        .card-success .progress-fill,
+        .card-warning .progress-fill,
+        .card-danger .progress-fill,
+        .card-info .progress-fill,
+        .card-secondary .progress-fill,
+        .card-dark .progress-fill { background: rgba(255,255,255,0.9) !important; }
+
+        .card-primary .progress-track,
+        .card-success .progress-track,
+        .card-warning .progress-track,
+        .card-danger .progress-track,
+        .card-info .progress-track,
+        .card-secondary .progress-track,
+        .card-dark .progress-track { background: rgba(255,255,255,0.25) !important; }
 
         /* ── Badges ────────────────────────────────────────────────────────── */
         .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }

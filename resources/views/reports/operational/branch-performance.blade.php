@@ -24,6 +24,80 @@
     Period: <strong>{{ $dateFrom->format('d M Y') }}</strong> — <strong>{{ $dateTo->format('d M Y') }}</strong>
 </div>
 
+{{-- Summary Metrics --}}
+<div class="grid-4" style="margin-bottom:20px;">
+    <div class="card card-primary">
+        <div class="metric-label" style="margin-bottom:4px;">Total Branches</div>
+        <div class="metric-value" style="font-size:22px;">{{ number_format($summary['total_branches']) }}</div>
+    </div>
+    <div class="card card-secondary">
+        <div class="metric-label" style="margin-bottom:4px;">Total Customers</div>
+        <div class="metric-value" style="font-size:22px;">{{ number_format($summary['total_customers']) }}</div>
+        <div class="metric-label">{{ number_format($summary['total_active_customers']) }} active</div>
+    </div>
+    <div class="card card-success">
+        <div class="metric-label" style="margin-bottom:4px;">Active Loans</div>
+        <div class="metric-value" style="font-size:22px;">{{ number_format($summary['total_active_loans']) }}</div>
+    </div>
+    <div class="card card-info">
+        <div class="metric-label" style="margin-bottom:4px;">Avg OLB / Branch</div>
+        <div class="metric-value" style="font-size:22px;">KSH {{ number_format($summary['avg_olb_per_branch'], 0) }}</div>
+    </div>
+</div>
+
+<div class="grid-4" style="margin-bottom:20px;">
+    <div class="card card-primary">
+        <div class="metric-label" style="margin-bottom:4px;">Outstanding Balance</div>
+        <div class="metric-value" style="font-size:22px;">KSH {{ number_format($summary['total_olb'], 0) }}</div>
+    </div>
+    <div class="card card-danger">
+        <div class="metric-label" style="margin-bottom:4px;">Total Arrears</div>
+        <div class="metric-value" style="font-size:22px;">KSH {{ number_format($summary['total_arrears'], 0) }}</div>
+    </div>
+    <div class="card card-success">
+        <div class="metric-label" style="margin-bottom:4px;">Disbursed (Period)</div>
+        <div class="metric-value" style="font-size:22px;">KSH {{ number_format($summary['total_disbursed_period'], 0) }}</div>
+    </div>
+    <div class="card card-info">
+        <div class="metric-label" style="margin-bottom:4px;">Collected (Period)</div>
+        <div class="metric-value" style="font-size:22px;">KSH {{ number_format($summary['total_collected_period'], 0) }}</div>
+    </div>
+</div>
+
+@php
+$collectionRate = $summary['total_disbursed_period'] > 0
+    ? round(($summary['total_collected_period'] / $summary['total_disbursed_period']) * 100, 1)
+    : 0;
+@endphp
+<div class="grid-2" style="margin-bottom:20px; gap:20px;">
+    <div class="card card-dark" style="display:flex; align-items:center; gap:16px;">
+        <div class="circle-progress" style="width:100px; height:100px;">
+            <svg width="100" height="100" viewBox="0 0 120 120">
+                <circle class="circle-bg" cx="60" cy="60" r="52"/>
+                <circle class="circle-fill" cx="60" cy="60" r="52"
+                    stroke-dasharray="326.73"
+                    stroke-dashoffset="{{ 326.73 * (1 - min($summary['par_percentage'], 100) / 100) }}"/>
+            </svg>
+            <div class="circle-text">
+                <div class="circle-percent">{{ $summary['par_percentage'] }}%</div>
+                <div class="circle-label">Portfolio at Risk</div>
+            </div>
+        </div>
+        <div>
+            <div style="font-size:14px; font-weight:600; color:#fff;">PAR Rate</div>
+            <div style="font-size:12px; color:rgba(255,255,255,0.80); margin-top:4px;">Arrears as a share of total OLB</div>
+        </div>
+    </div>
+    <div class="card card-success">
+        <div class="metric-label" style="margin-bottom:4px;">Collection Rate</div>
+        <div class="metric-value" style="font-size:28px;">{{ $collectionRate }}%</div>
+        <div class="progress-track" style="height:6px; border-radius:3px; margin-top:8px;">
+            <div class="progress-fill" style="width:{{ min($collectionRate, 100) }}%; height:100%; border-radius:3px;"></div>
+        </div>
+        <div class="metric-label">collected vs disbursed in period</div>
+    </div>
+</div>
+
 <div class="card">
     <div class="table-wrap">
         <div class="table-wrap">

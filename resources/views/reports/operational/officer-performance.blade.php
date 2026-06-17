@@ -44,6 +44,63 @@
     @endif
 </div>
 
+{{-- Summary Metrics --}}
+<div class="grid-4" style="margin-bottom:20px;">
+    <div class="card card-primary">
+        <div class="metric-label" style="margin-bottom:4px;">Total Officers</div>
+        <div class="metric-value" style="font-size:22px;">{{ number_format($summary['total_officers']) }}</div>
+    </div>
+    <div class="card card-secondary">
+        <div class="metric-label" style="margin-bottom:4px;">Loans Created</div>
+        <div class="metric-value" style="font-size:22px;">{{ number_format($summary['total_loans_created']) }}</div>
+        <div class="metric-label">avg {{ number_format($summary['avg_loans_per_officer'], 1) }} / officer</div>
+    </div>
+    <div class="card card-success">
+        <div class="metric-label" style="margin-bottom:4px;">Amount Disbursed</div>
+        <div class="metric-value" style="font-size:22px;">KSH {{ number_format($summary['total_disbursed'], 0) }}</div>
+    </div>
+    <div class="card card-info">
+        <div class="metric-label" style="margin-bottom:4px;">Collections</div>
+        <div class="metric-value" style="font-size:22px;">KSH {{ number_format($summary['total_collections_amount'], 0) }}</div>
+        <div class="metric-label">{{ number_format($summary['total_collections_count']) }} payments · avg KSH {{ number_format($summary['avg_collections_per_officer'], 2) }}</div>
+    </div>
+</div>
+
+@php
+$collectionRate = $summary['total_disbursed'] > 0
+    ? round(($summary['total_collections_amount'] / $summary['total_disbursed']) * 100, 1)
+    : 0;
+@endphp
+<div class="grid-3" style="margin-bottom:20px; gap:20px;">
+    <div class="card card-primary">
+        <div class="metric-label" style="margin-bottom:4px;">Active Portfolio</div>
+        <div class="metric-value" style="font-size:24px;">KSH {{ number_format($summary['total_active_portfolio'], 0) }}</div>
+    </div>
+    <div class="card card-danger">
+        <div class="metric-label" style="margin-bottom:4px;">Active Arrears</div>
+        <div class="metric-value" style="font-size:24px;">KSH {{ number_format($summary['total_active_arrears'], 0) }}</div>
+    </div>
+    <div class="card card-dark" style="display:flex; align-items:center; gap:16px;">
+        <div class="circle-progress" style="width:100px; height:100px;">
+            <svg width="100" height="100" viewBox="0 0 120 120">
+                <circle class="circle-bg" cx="60" cy="60" r="52"/>
+                <circle class="circle-fill" cx="60" cy="60" r="52"
+                    stroke-dasharray="326.73"
+                    stroke-dashoffset="{{ 326.73 * (1 - min($summary['par_percentage'], 100) / 100) }}"/>
+            </svg>
+            <div class="circle-text">
+                <div class="circle-percent">{{ $summary['par_percentage'] }}%</div>
+                <div class="circle-label">PAR</div>
+            </div>
+        </div>
+        <div>
+            <div class="metric-label" style="margin-bottom:4px;">Collection Rate</div>
+            <div class="metric-value" style="font-size:24px;">{{ $collectionRate }}%</div>
+            <div class="metric-label">of period disbursed</div>
+        </div>
+    </div>
+</div>
+
 <div class="card">
     <div class="table-wrap">
         <div class="table-wrap">
