@@ -7,6 +7,17 @@
     <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
     <form method="GET" action="{{ route('reports.operational.officers') }}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
         <div>
+            <label class="form-label">Officer</label>
+            <select name="officer" class="filter-select">
+                <option value="">All Officers</option>
+                @foreach($staffList as $staff)
+                    <option value="{{ $staff->id }}" {{ (string) $selectedOfficer === (string) $staff->id ? 'selected' : '' }}>
+                        {{ $staff->name }}{{ $staff->designation ? ' — ' . $staff->designation : '' }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        <div>
             <label class="form-label">Date From</label>
             <input type="date" name="date_from" value="{{ request('date_from', $dateFrom->toDateString()) }}" class="filter-select">
         </div>
@@ -17,11 +28,20 @@
         <div style="padding-top:18px;">
             <button type="submit" class="btn btn-primary" style="height:38px; padding:0 16px;"><i class="fas fa-search"></i> Filter</button>
         </div>
+        @if($selectedOfficer || request('date_from') || request('date_to'))
+            <div style="padding-top:18px;">
+                <a href="{{ route('reports.operational.officers') }}" class="btn btn-outline" style="height:38px; padding:0 16px; display:inline-flex; align-items:center;"><i class="fas fa-times"></i> Clear</a>
+            </div>
+        @endif
     </form>
 </div>
 
 <div style="font-size:13px; color:var(--text-secondary); margin-bottom:20px;">
     Period: <strong>{{ $dateFrom->format('d M Y') }}</strong> — <strong>{{ $dateTo->format('d M Y') }}</strong>
+    @if($selectedOfficer)
+        @php $officerName = $staffList->firstWhere('id', $selectedOfficer)?->name ?? 'Selected Officer'; @endphp
+        &nbsp;·&nbsp; Officer: <strong>{{ $officerName }}</strong>
+    @endif
 </div>
 
 <div class="card">

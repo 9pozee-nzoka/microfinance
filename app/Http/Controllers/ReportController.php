@@ -8,6 +8,7 @@ use App\Models\Loan;
 use App\Models\LoanProduct;
 use App\Models\LoanRepayment;
 use App\Models\Transaction;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -448,8 +449,17 @@ class ReportController extends Controller
     {
         $dateFrom = $request->date_from ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->startOfMonth();
         $dateTo   = $request->date_to   ? Carbon::parse($request->date_to)->endOfDay()     : Carbon::now()->endOfDay();
+        $selectedOfficer = $request->input('officer');
 
-        $officers = DB::table('users')
+        // Active staff users only — exclude customer portal accounts.
+        $staffQuery = User::where('users.status', 'active')
+            ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'customer'));
+
+        if ($selectedOfficer) {
+            $staffQuery->where('users.id', $selectedOfficer);
+        }
+
+        $officers = $staffQuery->clone()
             ->leftJoin('loans', function ($join) use ($dateFrom, $dateTo) {
                 $join->on('users.id', '=', 'loans.relationship_officer_id')
                      ->whereBetween('loans.created_at', [$dateFrom, $dateTo]);
@@ -459,7 +469,6 @@ class ReportController extends Controller
                      ->whereBetween('loan_repayments.created_at', [$dateFrom, $dateTo])
                      ->whereIn('loan_repayments.status', ['confirmed', 'pending']);
             })
-            ->where('users.status', 'active')
             ->selectRaw('
                 users.id,
                 users.name,
@@ -474,13 +483,24 @@ class ReportController extends Controller
             ->get();
 
         // Active portfolio per officer
-        $activePortfolio = Loan::whereIn('status', ['disbursed', 'active'])
+        $activePortfolioQuery = Loan::whereIn('status', ['disbursed', 'active'])
             ->selectRaw('relationship_officer_id, COUNT(*) as active_loans, SUM(outstanding_balance) as olb, SUM(arrears_amount) as arrears')
-            ->groupBy('relationship_officer_id')
-            ->get()->keyBy('relationship_officer_id');
+            ->groupBy('relationship_officer_id');
+
+        if ($selectedOfficer) {
+            $activePortfolioQuery->where('relationship_officer_id', $selectedOfficer);
+        }
+
+        $activePortfolio = $activePortfolioQuery->get()->keyBy('relationship_officer_id');
+
+        // Dropdown list of staff officers for the filter
+        $staffList = User::where('users.status', 'active')
+            ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'customer'))
+            ->orderBy('name')
+            ->get(['id', 'name', 'designation']);
 
         return view('reports.operational.officer-performance', compact(
-            'officers', 'activePortfolio', 'dateFrom', 'dateTo'
+            'officers', 'activePortfolio', 'dateFrom', 'dateTo', 'staffList', 'selectedOfficer'
         ));
     }
 
