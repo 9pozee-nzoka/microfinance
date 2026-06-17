@@ -146,6 +146,95 @@ class Loan extends Model
         return $this->days_in_arrears > 0;
     }
 
+    /**
+     * Dynamic fallback: calculate days in arrears from schedules when they are
+     * already loaded; otherwise fall back to the cached database column.
+     */
+    public function getDaysInArrearsAttribute($value): int
+    {
+        if (! $this->relationLoaded('repaymentSchedules')) {
+            return (int) $value;
+        }
+
+        $today = now()->startOfDay();
+        $firstMissed = $this->repaymentSchedules
+            ->where('due_date', '<', $today)
+            ->where('status', '!=', 'paid')
+            ->sortBy('due_date')
+            ->first();
+
+        return $firstMissed ? (int) $firstMissed->due_date->diffInDays($today) : 0;
+    }
+
+    /**
+     * Dynamic fallback: calculate arrears amount from schedules when they are
+     * already loaded; otherwise fall back to the cached database column.
+     */
+    public function getArrearsAmountAttribute($value): float
+    {
+        if (! $this->relationLoaded('repaymentSchedules')) {
+            return (float) $value;
+        }
+
+        $today = now()->startOfDay();
+        return (float) $this->repaymentSchedules
+            ->where('due_date', '<', $today)
+            ->where('status', '!=', 'paid')
+            ->sum(fn ($s) => max(0, (float) $s->total_amount - (float) $s->total_paid));
+    }
+
+    /**
+     * Recalculate arrears_amount and days_in_arrears from repayment schedules.
+     * Call this after every disbursement, repayment, or restructuring.
+     */
+    public function recalculateArrears(): void
+    {
+        $today = now()->startOfDay();
+        $schedules = $this->repaymentSchedules;
+
+        $pastDueSchedules = $schedules->filter(function ($s) use ($today) {
+            return $s->due_date->lt($today) && $s->status !== 'paid';
+        });
+
+        if ($pastDueSchedules->isEmpty()) {
+            if ($this->days_in_arrears > 0 || $this->arrears_amount > 0) {
+                $this->update([
+                    'days_in_arrears' => 0,
+                    'arrears_amount'  => 0,
+                    'risk_category'   => 'low',
+                ]);
+            }
+            return;
+        }
+
+        $firstMissed = $pastDueSchedules->sortBy('due_date')->first();
+        $daysInArrears = (int) $firstMissed->due_date->diffInDays($today);
+
+        $arrearsAmount = $pastDueSchedules->sum(function ($s) {
+            return max(0, (float) $s->total_amount - (float) $s->total_paid);
+        });
+
+        $riskCategory = match (true) {
+            $daysInArrears >= 90 => 'default',
+            $daysInArrears >= 60 => 'high',
+            $daysInArrears >= 30 => 'medium',
+            $daysInArrears >= 7  => 'watch',
+            default              => 'low',
+        };
+
+        foreach ($pastDueSchedules as $schedule) {
+            if ($schedule->status === 'pending') {
+                $schedule->update(['status' => 'overdue']);
+            }
+        }
+
+        $this->update([
+            'days_in_arrears' => $daysInArrears,
+            'arrears_amount'  => round($arrearsAmount, 2),
+            'risk_category'   => $riskCategory,
+        ]);
+    }
+
     // Generate repayment schedule
     public function generateSchedule(): void
     {

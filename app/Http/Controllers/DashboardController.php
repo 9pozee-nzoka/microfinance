@@ -11,6 +11,7 @@ use App\Models\RepaymentSchedule;
 use App\Models\Transaction;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -22,99 +23,170 @@ class DashboardController extends Controller
      */
     private const CACHE_TTL = 300;
 
-    public function index()
+    public function index(Request $request)
     {
         $today = Carbon::today();
+        $user = auth()->user();
+
+        // ── Filtering rights ─────────────────────────────────────────────
+        $canFilter = $user->hasAnyRole(['admin', 'super_admin', 'branch_manager']);
+        $isPureOfficer = $user->hasRole('loan_officer') && !$canFilter;
+
+        $selectedOfficer = $canFilter ? $request->input('officer') : null;
+        $selectedBranch = $canFilter ? $request->input('branch') : null;
+
+        if ($isPureOfficer) {
+            $selectedOfficer = (string) $user->id;
+        }
+
+        $filtersActive = $selectedOfficer || $selectedBranch;
+
+        // Cache helper: bypass cache whenever filters are active so data is fresh.
+        $cached = fn (string $key, callable $callback) => $filtersActive
+            ? $callback()
+            : Cache::remember($key, self::CACHE_TTL, $callback);
+
+        // ── Reusable filter closures ─────────────────────────────────────
+        $loanFilter = fn ($query) => $query
+            ->when($selectedOfficer, fn ($q) => $q->where('relationship_officer_id', $selectedOfficer))
+            ->when($selectedBranch, fn ($q) => $q->where('branch_id', $selectedBranch));
+
+        $customerFilter = fn ($query) => $query
+            ->when($selectedOfficer, fn ($q) => $q->where('relationship_officer_id', $selectedOfficer))
+            ->when($selectedBranch, fn ($q) => $q->where('branch_id', $selectedBranch));
+
+        $loanRelationFilter = fn ($query, string $relation = 'loan', ?callable $loanScope = null) => $query->whereHas($relation, function ($q) use ($selectedOfficer, $selectedBranch, $loanScope) {
+            if ($loanScope) {
+                $q = $loanScope($q);
+            }
+            $q->when($selectedOfficer, fn ($q2) => $q2->where('relationship_officer_id', $selectedOfficer))
+              ->when($selectedBranch, fn ($q2) => $q2->where('branch_id', $selectedBranch));
+        });
+
+        $branchDirectFilter = fn ($query) => $query
+            ->when($selectedBranch, fn ($q) => $q->where('branch_id', $selectedBranch));
 
         // Portfolio Metrics
-        $totalCustomers = Cache::remember('dash.total_customers', self::CACHE_TTL, fn () => Customer::count());
-        $activeCustomers = Cache::remember('dash.active_customers', self::CACHE_TTL, fn () => Customer::where('status', 'active')->count());
-        $inactiveCustomers = Cache::remember('dash.inactive_customers', self::CACHE_TTL, fn () => Customer::whereIn('status', ['inactive', 'dormant'])->count());
-        $olb = Cache::remember('dash.olb', self::CACHE_TTL, fn () => Loan::active()->sum('outstanding_balance'));
+        $totalCustomers = $cached('dash.total_customers', fn () => $customerFilter(Customer::query())->count());
+        $activeCustomers = $cached('dash.active_customers', fn () => $customerFilter(Customer::query()->where('status', 'active'))->count());
+        $inactiveCustomers = $cached('dash.inactive_customers', fn () => $customerFilter(Customer::query()->whereIn('status', ['inactive', 'dormant']))->count());
+        $olb = $cached('dash.olb', fn () => $loanFilter(Loan::active())->sum('outstanding_balance'));
 
         // Performance Metrics
-        $disbursedLoans = Cache::remember('dash.disbursed_loans', self::CACHE_TTL, fn () => Loan::where('status', 'disbursed')->orWhere('status', 'active')->count());
-        $disbursedAmount = Cache::remember('dash.disbursed_amount', self::CACHE_TTL, fn () => Loan::where('status', 'disbursed')->orWhere('status', 'active')->sum('principal_amount'));
-        $fundedPercentage = $disbursedLoans > 0 ? 100 : 0; // Simplified
+        $disbursedLoans = $cached('dash.disbursed_loans', fn () => $loanFilter(Loan::whereIn('status', ['disbursed', 'active']))->count());
+        $disbursedAmount = $cached('dash.disbursed_amount', fn () => $loanFilter(Loan::whereIn('status', ['disbursed', 'active']))->sum('principal_amount'));
+        $approvedAmount = $cached('dash.approved_amount', fn () => $loanFilter(Loan::where('status', 'approved'))->sum('principal_amount'));
+        $totalApprovedForFunding = $disbursedAmount + $approvedAmount;
+        $fundedPercentage = $totalApprovedForFunding > 0 ? round(($disbursedAmount / $totalApprovedForFunding) * 100, 1) : 0;
 
         // Collection Metrics
-        $loansDueToday = Cache::remember('dash.loans_due_today', self::CACHE_TTL, fn () => Loan::active()
-            ->whereDate('next_due_date', $today)
-            ->count());
-        $collectionsToday = Cache::remember('dash.collections_today', self::CACHE_TTL, fn () => LoanRepayment::whereDate('created_at', $today)
-            ->where('status', 'confirmed')
-            ->sum('amount'));
-        $loansDueCount = Cache::remember('dash.loans_due_count', self::CACHE_TTL, fn () => Loan::active()
-            ->whereDate('next_due_date', '<=', $today)
-            ->count());
-        $prepaidLoans = Cache::remember('dash.prepaid_loans', self::CACHE_TTL, fn () => Loan::where('status', 'active')
-            ->whereRaw('total_paid > (total_repayable * 0.5)')
-            ->count());
+        $loansDueToday = $cached('dash.loans_due_today', fn () => $loanFilter(Loan::active()->whereDate('next_due_date', $today))->count());
+        $loansDueTodayAmount = $cached('dash.loans_due_today_amount', fn () => $loanRelationFilter(
+            RepaymentSchedule::whereDate('due_date', $today)->where('status', '!=', 'paid'),
+            'loan',
+            fn ($q) => $q->active()
+        )->selectRaw('SUM(CASE WHEN total_amount > total_paid THEN total_amount - total_paid ELSE 0 END) as amount')
+            ->value('amount') ?? 0);
+        $collectionsToday = $cached('dash.collections_today', fn () => $loanRelationFilter(
+            $branchDirectFilter(LoanRepayment::whereDate('created_at', $today)->where('status', 'confirmed')),
+            'loan'
+        )->sum('amount'));
+        $loansDueCount = $cached('dash.loans_due_count', fn () => $loanFilter(Loan::active()->whereDate('next_due_date', '<=', $today))->count());
+        $prepaidLoans = $cached('dash.prepaid_loans', fn () => $loanFilter(Loan::where('status', 'active')->whereRaw('total_paid > (total_repayable * 0.5)'))->count());
+        $prepaidLoansAmount = $cached('dash.prepaid_loans_amount', fn () => $loanFilter(Loan::where('status', 'active')->whereRaw('total_paid > (total_repayable * 0.5)'))->sum('total_paid'));
 
-        // Risk Metrics — all dynamic, no dependency on cached days_in_arrears/arrears_amount
-        $overdueLoansQuery = Loan::active()->hasOverdueSchedules();
-        $overdueLoansCount = Cache::remember('dash.overdue_loans_count', self::CACHE_TTL, fn () => (clone $overdueLoansQuery)->count());
-        $overdueAmount = Cache::remember('dash.overdue_amount', self::CACHE_TTL, fn () => (clone $overdueLoansQuery)->sum('outstanding_balance'));
+        $expectedCollectionsToday = $cached('dash.expected_collections_today', fn () => $loanRelationFilter(
+            RepaymentSchedule::whereDate('due_date', '<=', $today)->where('status', '!=', 'paid'),
+            'loan',
+            fn ($q) => $q->active()
+        )->selectRaw('SUM(CASE WHEN total_amount > total_paid THEN total_amount - total_paid ELSE 0 END) as expected')
+            ->value('expected') ?? 0);
+        $collectionRate = $expectedCollectionsToday > 0 ? round(($collectionsToday / $expectedCollectionsToday) * 100, 1) : 0;
 
-        $totalArrears = Cache::remember('dash.total_arrears', self::CACHE_TTL, fn () => RepaymentSchedule::whereHas('loan', fn ($q) => $q->active())
-            ->where('due_date', '<', $today)
-            ->where('status', '!=', 'paid')
-            ->selectRaw('SUM(CASE WHEN total_amount > total_paid THEN total_amount - total_paid ELSE 0 END) as arrears')
+        // Risk Metrics
+        $overdueLoansQuery = $loanFilter(Loan::active()->hasOverdueSchedules());
+        $overdueLoansCount = $cached('dash.overdue_loans_count', fn () => (clone $overdueLoansQuery)->count());
+        $overdueAmount = $cached('dash.overdue_amount', fn () => (clone $overdueLoansQuery)->sum('outstanding_balance'));
+
+        $totalArrears = $cached('dash.total_arrears', fn () => $loanRelationFilter(
+            RepaymentSchedule::where('due_date', '<', $today)->where('status', '!=', 'paid'),
+            'loan',
+            fn ($q) => $q->active()
+        )->selectRaw('SUM(CASE WHEN total_amount > total_paid THEN total_amount - total_paid ELSE 0 END) as arrears')
             ->value('arrears') ?? 0);
 
-        $arrearsCollectedToday = Cache::remember('dash.arrears_collected_today', self::CACHE_TTL, fn () => LoanRepayment::whereDate('created_at', $today)
+        $arrearsCollectedToday = $cached('dash.arrears_collected_today', fn () => LoanRepayment::whereDate('created_at', $today)
             ->where('status', 'confirmed')
-            ->whereHas('loan.repaymentSchedules', function ($q) use ($today) {
-                $q->where('due_date', '<', $today)
-                  ->where('status', '!=', 'paid');
+            ->whereHas('loan', function ($q) use ($today, $selectedOfficer, $selectedBranch) {
+                $q->when($selectedOfficer, fn ($q2) => $q2->where('relationship_officer_id', $selectedOfficer))
+                  ->when($selectedBranch, fn ($q2) => $q2->where('branch_id', $selectedBranch))
+                  ->whereHas('repaymentSchedules', function ($q) use ($today) {
+                      $q->where('due_date', '<', $today)
+                        ->where('status', '!=', 'paid');
+                  });
             })
             ->sum('amount'));
 
-        $portfolioAtRisk = Cache::remember('dash.portfolio_at_risk', self::CACHE_TTL, fn () => Loan::active()
+        $portfolioAtRisk = $cached('dash.portfolio_at_risk', fn () => $loanFilter(Loan::active()
             ->whereHas('repaymentSchedules', function ($q) use ($today) {
                 $q->where('due_date', '<', $today->copy()->subDays(30))
                   ->where('status', '!=', 'paid');
-            })
-            ->sum('outstanding_balance'));
-        $totalPortfolio = Cache::remember('dash.total_portfolio', self::CACHE_TTL, fn () => Loan::active()->sum('outstanding_balance'));
+            }))->sum('outstanding_balance'));
+        $totalPortfolio = $cached('dash.total_portfolio', fn () => $loanFilter(Loan::active())->sum('outstanding_balance'));
         $parPercentage = $totalPortfolio > 0 ? round(($portfolioAtRisk / $totalPortfolio) * 100, 1) : 0;
 
-        // NPL Breakdown (Non-Performing Loans: defaulted + written_off)
+        // NPL Breakdown
         $nplStatuses = ['defaulted', 'written_off'];
-        $nplPrincipal = Cache::remember('dash.npl_principal', self::CACHE_TTL, fn () => Loan::whereIn('status', $nplStatuses)->sum('principal_amount'));
-        $nplAmount = Cache::remember('dash.npl_amount', self::CACHE_TTL, fn () => Loan::whereIn('status', $nplStatuses)->sum('outstanding_balance'));
-        $nplCount = Cache::remember('dash.npl_count', self::CACHE_TTL, fn () => Loan::whereIn('status', $nplStatuses)->count());
+        $nplPrincipal = $cached('dash.npl_principal', fn () => $loanFilter(Loan::whereIn('status', $nplStatuses))->sum('principal_amount'));
+        $nplAmount = $cached('dash.npl_amount', fn () => $loanFilter(Loan::whereIn('status', $nplStatuses))->sum('outstanding_balance'));
+        $nplCount = $cached('dash.npl_count', fn () => $loanFilter(Loan::whereIn('status', $nplStatuses))->count());
 
         // Pending Actions
-        $pendingApprovals = Cache::remember('dash.pending_approvals', self::CACHE_TTL, fn () => Loan::pendingApproval()->count());
-        $pendingDisbursement = Cache::remember('dash.pending_disbursement', self::CACHE_TTL, fn () => Loan::where('status', 'approved')->count());
+        $pendingApprovals = $cached('dash.pending_approvals', fn () => $loanFilter(Loan::pendingApproval())->count());
+        $pendingDisbursement = $cached('dash.pending_disbursement', fn () => $loanFilter(Loan::where('status', 'approved'))->count());
 
-        // Filter dropdowns (cached separately because they change rarely)
-        $officers = Cache::remember('dash.officers', self::CACHE_TTL, fn () => User::where('status', 'active')
+        // Actionable loan lists
+        $loansDueTodayList = $loanFilter(Loan::active()
+            ->with(['customer', 'branch', 'relationshipOfficer'])
+            ->whereDate('next_due_date', $today)
+            ->orderBy('loan_number'))
+            ->get();
+
+        $loansDueTomorrowList = $loanFilter(Loan::active()
+            ->with(['customer', 'branch', 'relationshipOfficer'])
+            ->whereDate('next_due_date', $today->copy()->addDay())
+            ->orderBy('loan_number'))
+            ->get();
+
+        // Filter dropdowns — fetched fresh to avoid Eloquent collection serialization issues.
+        $officers = User::where('status', 'active')
             ->whereHas('roles', function ($q) {
                 $q->whereIn('name', ['loan_officer', 'branch_manager', 'admin', 'super_admin']);
             })
             ->orderBy('name')
-            ->get());
-        $branches = Cache::remember('dash.branches', self::CACHE_TTL, fn () => Branch::where('status', 'active')->orderBy('name')->get());
+            ->get();
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
 
         // Recent Transactions
-        $recentTransactions = Transaction::with('customer')
-            ->whereDate('created_at', $today)
-            ->latest()
-            ->limit(10)
-            ->get();
+        $recentTransactionsQuery = $branchDirectFilter(Transaction::with('customer')->whereDate('created_at', $today)->latest());
+        if ($selectedOfficer) {
+            $recentTransactionsQuery = $loanRelationFilter($recentTransactionsQuery, 'loan');
+        }
+        $recentTransactions = $recentTransactionsQuery->limit(10)->get();
 
         return view('dashboard.index', compact(
             'totalCustomers', 'activeCustomers', 'inactiveCustomers', 'olb',
-            'disbursedLoans', 'disbursedAmount', 'fundedPercentage',
-            'loansDueToday', 'collectionsToday', 'loansDueCount', 'prepaidLoans',
+            'disbursedLoans', 'disbursedAmount', 'approvedAmount', 'fundedPercentage',
+            'loansDueToday', 'loansDueTodayAmount', 'collectionsToday', 'loansDueCount', 'prepaidLoans', 'prepaidLoansAmount',
+            'expectedCollectionsToday', 'collectionRate',
             'totalArrears', 'arrearsCollectedToday', 'parPercentage',
             'portfolioAtRisk', 'totalPortfolio',
             'overdueLoansCount', 'overdueAmount',
             'nplPrincipal', 'nplAmount', 'nplCount',
             'pendingApprovals', 'pendingDisbursement',
             'officers', 'branches',
+            'selectedOfficer', 'selectedBranch', 'canFilter', 'isPureOfficer',
+            'loansDueTodayList', 'loansDueTomorrowList',
             'recentTransactions'
         ));
     }

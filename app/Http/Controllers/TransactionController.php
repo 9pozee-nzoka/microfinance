@@ -393,6 +393,9 @@ class TransactionController extends Controller
             'next_due_date'     => $this->getNextDueDate($loan),
         ]);
 
+        // Recalculate arrears so cached columns stay in sync with schedules
+        $loan->recalculateArrears();
+
         // Check if loan is fully paid
         if ($loan->fresh()->outstanding_balance <= 0) {
             $loan->update(['status' => 'completed']);
@@ -569,6 +572,9 @@ class TransactionController extends Controller
         $loan->increment('total_paid_interest', $distribution['total_interest']);
         $loan->decrement('outstanding_balance', $distribution['total_principal']);
         $loan->update(['last_payment_date' => today()]);
+
+        // Recalculate arrears so cached columns stay in sync with schedules
+        $loan->recalculateArrears();
 
         if ($loan->fresh()->outstanding_balance <= 0) {
             $loan->update(['status' => 'completed']);

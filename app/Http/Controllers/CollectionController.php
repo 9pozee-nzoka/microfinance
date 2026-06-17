@@ -8,6 +8,7 @@ use App\Models\Branch;
 use App\Models\Loan;
 use App\Models\LoanProduct;
 use App\Models\LoanRepayment;
+use App\Models\RepaymentSchedule;
 use App\Models\SmsLog;
 use App\Models\SmsSchedule;
 use Carbon\Carbon;
@@ -39,6 +40,7 @@ class CollectionController extends Controller
         // Top overdue loans — dynamic check via schedules
         $overdueLoans = $baseQuery()
             ->hasOverdueSchedules()
+            ->with('repaymentSchedules')
             ->orderByDesc('days_in_arrears')
             ->limit(10)
             ->get();
@@ -49,17 +51,47 @@ class CollectionController extends Controller
 
         $totalDueToday   = $dueToday->sum('weekly_installment');
         $totalOverdue    = (clone $statBase)->hasOverdueSchedules()->count();
-        $totalArrearsAmt = (clone $statBase)->sum('arrears_amount');
+
+        // Calculate arrears and PAR buckets dynamically from schedules so the UI
+        // stays correct even if the scheduled arrears update hasn't run yet.
+        $overdueLoansForStats = (clone $statBase)
+            ->hasOverdueSchedules()
+            ->with('repaymentSchedules')
+            ->get();
+
+        $totalArrearsAmt = $overdueLoansForStats->sum(function ($loan) {
+            $today = today();
+            return $loan->repaymentSchedules
+                ->where('due_date', '<', $today)
+                ->where('status', '!=', 'paid')
+                ->sum(fn ($s) => max(0, (float) $s->total_amount - (float) $s->total_paid));
+        });
+
+        $par1_7   = 0;
+        $par8_14  = 0;
+        $par15_30 = 0;
+        $par30p   = 0;
+        $today = today();
+        foreach ($overdueLoansForStats as $loan) {
+            $firstMissed = $loan->repaymentSchedules
+                ->where('due_date', '<', $today)
+                ->where('status', '!=', 'paid')
+                ->sortBy('due_date')
+                ->first();
+            if (! $firstMissed) continue;
+            $days = (int) $firstMissed->due_date->diffInDays($today);
+            match (true) {
+                $days > 30  => $par30p++,
+                $days >= 15 => $par15_30++,
+                $days >= 8  => $par8_14++,
+                default     => $par1_7++,
+            };
+        }
+
         $smsSentToday    = SmsLog::whereDate('sent_at', today())->where('status', 'sent')
             ->when($isOfficer, fn($q) => $q->where('created_by', $user->id))
             ->count();
         $schedulesActive = SmsSchedule::where('status', 'active')->count();
-
-        // PAR buckets — tailored for short-term weekly loans (max ~15 weeks)
-        $par1_7   = (clone $statBase)->whereBetween('days_in_arrears', [1, 7])->count();
-        $par8_14  = (clone $statBase)->whereBetween('days_in_arrears', [8, 14])->count();
-        $par15_30 = (clone $statBase)->whereBetween('days_in_arrears', [15, 30])->count();
-        $par30p   = (clone $statBase)->where('days_in_arrears', '>', 30)->count();
 
         // Recent SMS activity
         $recentSms = SmsLog::with('customer')
@@ -101,7 +133,7 @@ class CollectionController extends Controller
         $user      = auth()->user();
         $isOfficer = $user->hasRole('loan_officer') && !$user->hasAnyRole(['admin', 'super_admin', 'branch_manager']);
 
-        $query = Loan::with(['customer', 'product', 'branch', 'relationshipOfficer'])
+        $query = Loan::with(['customer', 'product', 'branch', 'relationshipOfficer', 'repaymentSchedules'])
             ->whereIn('status', ['disbursed', 'active'])
             ->hasOverdueSchedules()
             ->when($isOfficer, fn($q) => $q->where('relationship_officer_id', $user->id));
@@ -122,10 +154,14 @@ class CollectionController extends Controller
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
         $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
 
-        $totalArrears = Loan::whereIn('status', ['disbursed', 'active'])
-            ->hasOverdueSchedules()
-            ->when($isOfficer, fn($q) => $q->where('relationship_officer_id', $user->id))
-            ->sum('arrears_amount');
+        $totalArrears = RepaymentSchedule::whereHas('loan', function ($q) use ($isOfficer, $user) {
+                $q->whereIn('status', ['disbursed', 'active'])
+                  ->when($isOfficer, fn($q2) => $q2->where('relationship_officer_id', $user->id));
+            })
+            ->where('due_date', '<', today())
+            ->where('status', '!=', 'paid')
+            ->selectRaw('SUM(CASE WHEN total_amount > total_paid THEN total_amount - total_paid ELSE 0 END) as arrears')
+            ->value('arrears') ?? 0;
 
         return view('loans.collection.overdue', compact('loans', 'branches', 'products', 'totalArrears'));
     }

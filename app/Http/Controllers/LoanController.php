@@ -422,6 +422,9 @@ class LoanController extends Controller
         // Generate repayment schedule
         $loan->generateSchedule();
 
+        // Ensure arrears cache is in sync with the new schedule
+        $loan->recalculateArrears();
+
         if ($request->expectsJson()) {
             return response()->json(['success' => true, 'message' => 'Loan disbursed successfully.']);
         }

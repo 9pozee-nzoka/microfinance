@@ -10,8 +10,10 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Update loan arrears daily at midnight (before business day starts)
-Schedule::command('loans:update-arrears')->dailyAt('00:05')->name('update-loan-arrears')->withoutOverlapping();
+// Update loan arrears hourly so cached columns stay in sync with schedules.
+// Payments also trigger an immediate recalculation, but this catches loans that
+// become overdue without a payment event.
+Schedule::command('loans:update-arrears')->hourly()->name('update-loan-arrears')->withoutOverlapping();
 
 // Run all active SMS schedules daily at 8 AM
 Schedule::call(function () {
