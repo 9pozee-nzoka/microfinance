@@ -3,14 +3,20 @@
 @section('page-title', 'Officer Performance')
 
 @section('content')
-@php
-$officerSlot = '<div><label class="form-label">Officer</label><select name="officer" class="form-control"><option value="">All Officers</option>';
-foreach($staffList as $staff) {
-    $selected = (string) $selectedOfficer === (string) $staff->id ? 'selected' : '';
-    $officerSlot .= '<option value="'.$staff->id.'" '.$selected.'>'.$staff->name.($staff->designation ? ' — '.$staff->designation : '').'</option>';
-}
-$officerSlot .= '</select></div>';
-@endphp
+
+@push('report-filter-fields')
+<div>
+    <label class="form-label">Officer</label>
+    <select name="officer" class="form-control">
+        <option value="">All Officers</option>
+        @foreach($staffList as $staff)
+            <option value="{{ $staff->id }}" {{ (string) $selectedOfficer === (string) $staff->id ? 'selected' : '' }}>
+                {{ $staff->name }}{{ $staff->designation ? ' — '.$staff->designation : '' }}
+            </option>
+        @endforeach
+    </select>
+</div>
+@endpush
 
 <div class="page-actions">
     <a href="{{ route('reports.categories.show', 'operational') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Operational Reports</a>
@@ -20,7 +26,6 @@ $officerSlot .= '</select></div>';
 @include('reports._partials.filters', [
     'action' => $reportAction ?? route('reports.operational.officers'),
     'showDate' => true,
-    'slot' => $officerSlot,
 ])
 
 <div style="font-size:13px; color:var(--text-secondary); margin-bottom:20px;">

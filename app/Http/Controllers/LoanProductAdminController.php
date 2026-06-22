@@ -56,7 +56,8 @@ class LoanProductAdminController extends Controller
             'rates'                  => 'nullable|array',
             'rates.*.principal_amount' => 'required_with:rates|numeric|min:1',
             'rates.*.term_weeks'       => 'required_with:rates|integer|min:1',
-            'rates.*.interest_rate'    => 'required_with:rates|numeric|min:0|max:100',
+            'rates.*.interest_rate'    => 'nullable|numeric|min:0|max:100',
+            'rates.*.interest_amount'  => 'nullable|numeric|min:0',
         ]);
 
         $product = LoanProduct::create([
@@ -85,11 +86,18 @@ class LoanProductAdminController extends Controller
         // Save rates
         if (!empty($validated['rates'])) {
             foreach ($validated['rates'] as $rate) {
+                $interestAmount = $rate['interest_amount'] ?? null;
+                // If amount is empty but rate is provided, auto-compute the amount for convenience.
+                if (blank($interestAmount) && isset($rate['interest_rate']) && $rate['interest_rate'] !== '') {
+                    $interestAmount = round($rate['principal_amount'] * ($rate['interest_rate'] / 100), 2);
+                }
+
                 LoanProductRate::create([
                     'loan_product_id'  => $product->id,
                     'principal_amount' => $rate['principal_amount'],
                     'term_weeks'       => $rate['term_weeks'],
-                    'interest_rate'    => $rate['interest_rate'],
+                    'interest_rate'    => $rate['interest_rate'] ?? 0,
+                    'interest_amount'  => $interestAmount,
                 ]);
             }
         }
@@ -124,7 +132,8 @@ class LoanProductAdminController extends Controller
             'rates'                  => 'nullable|array',
             'rates.*.principal_amount' => 'required_with:rates|numeric|min:1',
             'rates.*.term_weeks'       => 'required_with:rates|integer|min:1',
-            'rates.*.interest_rate'    => 'required_with:rates|numeric|min:0|max:100',
+            'rates.*.interest_rate'    => 'nullable|numeric|min:0|max:100',
+            'rates.*.interest_amount'  => 'nullable|numeric|min:0',
         ]);
 
         $loanProduct->update([
@@ -154,11 +163,17 @@ class LoanProductAdminController extends Controller
         if (!empty($validated['rates'])) {
             $loanProduct->rates()->delete();
             foreach ($validated['rates'] as $rate) {
+                $interestAmount = $rate['interest_amount'] ?? null;
+                if (blank($interestAmount) && isset($rate['interest_rate']) && $rate['interest_rate'] !== '') {
+                    $interestAmount = round($rate['principal_amount'] * ($rate['interest_rate'] / 100), 2);
+                }
+
                 LoanProductRate::create([
                     'loan_product_id'  => $loanProduct->id,
                     'principal_amount' => $rate['principal_amount'],
                     'term_weeks'       => $rate['term_weeks'],
-                    'interest_rate'    => $rate['interest_rate'],
+                    'interest_rate'    => $rate['interest_rate'] ?? 0,
+                    'interest_amount'  => $interestAmount,
                 ]);
             }
         }

@@ -65,29 +65,30 @@ class DatabaseSeeder extends Seeder
         $this->command->info("✓ Super-admin: {$adminEmail}");
 
         // ── Loan Products ──────────────────────────────────────────────────────
-        // Chemsha (green): 4-week loans only (3000–4000)
-        // Jijenge (yellow): 4-week and 6-week loans (5000–10000)
-        //
-        // Interest is a flat amount based on principal + term:
-        //   Chemsha 4wks: 3000=20%, 4000=20%
-        //   Jijenge 4wks: 5000=20%, 6000=25%, 7000=28.5%, 8000=25%, 9000=22.22%, 10000=20%
-        //   Jijenge 6wks: 5000=30%, 6000=33%, 7000=42%, 8000=37.5%, 9000=33.33%, 10000=30%
-        //
-        // Processing fee (Loan Form): 200 for all. Not included in installments.
-        // Insurance fee: 500 for all.
+        // New rate card (Mweela Cash Capital Ltd products):
+        //   Principal: 3,000 – 12,000
+        //   Terms: 4, 6, 8 weeks
+        //   Interest amounts are stored as flat KSH values for accuracy:
+        //     4 weeks = 20% of principal
+        //     6 weeks = 30% of principal
+        //     8 weeks = 40% of principal
+        //   Loan Form fee: 200 (collected separately, not in installments)
+        //   Processing fee: 500 (collected separately, not in installments)
 
-        // ── Chemsha (4-week product, 3000–4000) ───────────────────────────────
-        $chemsha = LoanProduct::firstOrCreate(
+        $principals = [3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000];
+
+        // ── Chemsha: 4-week product (3,000 – 12,000) ──────────────────────────
+        $chemsha = LoanProduct::updateOrCreate(
             ['code' => 'CHEMSHA'],
             [
                 'name'                   => 'Chemsha',
-                'description'            => 'Short-term 4-week loan product (KSH 3,000–4,000)',
+                'description'            => 'Short-term 4-week loan product (KSH 3,000–12,000)',
                 'interest_method'        => 'flat',
                 'interest_rate'          => 20.00, // default fallback rate
                 'min_term_weeks'         => 4,
                 'max_term_weeks'         => 4,
                 'min_amount'             => 3000,
-                'max_amount'             => 4000,
+                'max_amount'             => 12000,
                 'processing_fee_rate'    => 0,
                 'insurance_fee_rate'     => 0,
                 'late_penalty_rate'      => 0,
@@ -102,31 +103,29 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Chemsha per-principal rates (4 weeks only)
-        $chemshaRates = [
-            ['principal_amount' => 3000, 'term_weeks' => 4, 'interest_rate' => 20.00],
-            ['principal_amount' => 4000, 'term_weeks' => 4, 'interest_rate' => 20.00],
-        ];
-        foreach ($chemshaRates as $r) {
-            LoanProductRate::firstOrCreate(
-                ['loan_product_id' => $chemsha->id, 'principal_amount' => $r['principal_amount'], 'term_weeks' => $r['term_weeks']],
-                ['interest_rate' => $r['interest_rate']]
+        // Remove stale rates so the rate card is rebuilt exactly.
+        $chemsha->rates()->delete();
+
+        foreach ($principals as $principal) {
+            LoanProductRate::updateOrCreate(
+                ['loan_product_id' => $chemsha->id, 'principal_amount' => $principal, 'term_weeks' => 4],
+                ['interest_rate' => 20.00, 'interest_amount' => round($principal * 0.20, 2)]
             );
         }
-        $this->command->info('✓ Loan product: Chemsha');
+        $this->command->info('✓ Loan product: Chemsha (4-week, 3K–12K)');
 
-        // ── Jijenge (4-week and 6-week, 5000–10000) ──────────────────────────
-        $jijenge = LoanProduct::firstOrCreate(
+        // ── Jijenge: 6-week and 8-week product (3,000 – 12,000) ───────────────
+        $jijenge = LoanProduct::updateOrCreate(
             ['code' => 'JIJENGE'],
             [
                 'name'                   => 'Jijenge',
-                'description'            => 'Growth loan product — 4 or 6 weeks (KSH 5,000–10,000)',
+                'description'            => 'Growth loan product — 6 or 8 weeks (KSH 3,000–12,000)',
                 'interest_method'        => 'flat',
-                'interest_rate'          => 20.00, // default fallback
-                'min_term_weeks'         => 4,
-                'max_term_weeks'         => 6,
-                'min_amount'             => 5000,
-                'max_amount'             => 10000,
+                'interest_rate'          => 30.00, // default fallback rate
+                'min_term_weeks'         => 6,
+                'max_term_weeks'         => 8,
+                'min_amount'             => 3000,
+                'max_amount'             => 12000,
                 'processing_fee_rate'    => 0,
                 'insurance_fee_rate'     => 0,
                 'late_penalty_rate'      => 0,
@@ -141,30 +140,20 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Jijenge per-principal per-term rates
-        $jijengeRates = [
-            // 4-week rates
-            ['principal_amount' =>  5000, 'term_weeks' => 4, 'interest_rate' => 20.00],
-            ['principal_amount' =>  6000, 'term_weeks' => 4, 'interest_rate' => 25.00],
-            ['principal_amount' =>  7000, 'term_weeks' => 4, 'interest_rate' => 28.50],
-            ['principal_amount' =>  8000, 'term_weeks' => 4, 'interest_rate' => 25.00],
-            ['principal_amount' =>  9000, 'term_weeks' => 4, 'interest_rate' => 22.22],
-            ['principal_amount' => 10000, 'term_weeks' => 4, 'interest_rate' => 20.00],
-            // 6-week rates
-            ['principal_amount' =>  5000, 'term_weeks' => 6, 'interest_rate' => 30.00],
-            ['principal_amount' =>  6000, 'term_weeks' => 6, 'interest_rate' => 33.00],
-            ['principal_amount' =>  7000, 'term_weeks' => 6, 'interest_rate' => 42.00],
-            ['principal_amount' =>  8000, 'term_weeks' => 6, 'interest_rate' => 37.50],
-            ['principal_amount' =>  9000, 'term_weeks' => 6, 'interest_rate' => 33.33],
-            ['principal_amount' => 10000, 'term_weeks' => 6, 'interest_rate' => 30.00],
-        ];
-        foreach ($jijengeRates as $r) {
-            LoanProductRate::firstOrCreate(
-                ['loan_product_id' => $jijenge->id, 'principal_amount' => $r['principal_amount'], 'term_weeks' => $r['term_weeks']],
-                ['interest_rate' => $r['interest_rate']]
+        // Remove stale rates so the rate card is rebuilt exactly.
+        $jijenge->rates()->delete();
+
+        foreach ($principals as $principal) {
+            LoanProductRate::updateOrCreate(
+                ['loan_product_id' => $jijenge->id, 'principal_amount' => $principal, 'term_weeks' => 6],
+                ['interest_rate' => 30.00, 'interest_amount' => round($principal * 0.30, 2)]
+            );
+            LoanProductRate::updateOrCreate(
+                ['loan_product_id' => $jijenge->id, 'principal_amount' => $principal, 'term_weeks' => 8],
+                ['interest_rate' => 40.00, 'interest_amount' => round($principal * 0.40, 2)]
             );
         }
-        $this->command->info('✓ Loan product: Jijenge');
+        $this->command->info('✓ Loan product: Jijenge (6 & 8-week, 3K–12K)');
 
         $this->command->info('');
         $this->command->info('════════════════════════════════════════');

@@ -68,6 +68,13 @@ return [
                     'description' => 'Customer counts, active portfolio, disbursements, and collections per branch.',
                     'icon'        => 'fa-building',
                 ],
+                [
+                    'slug'        => 'prepayment-analytics',
+                    'name'        => 'Prepayment Analytics',
+                    'route'       => 'reports.portfolio.prepayments',
+                    'description' => 'Early loan closures: prepayments, top-ups, and full settlements with trends.',
+                    'icon'        => 'fa-calendar-check',
+                ],
             ],
         ],
 
@@ -98,6 +105,30 @@ return [
                     'route'       => 'reports.customers.credit-scores',
                     'description' => 'Score band breakdown with top-ranked customers.',
                     'icon'        => 'fa-star',
+                ],
+            ],
+        ],
+
+        'financial' => [
+            'slug'  => 'financial',
+            'name'  => 'Financial Reports',
+            'icon'  => 'fa-coins',
+            'color' => '#4CAF50',
+            'bg'    => '#E8F5E9',
+            'reports' => [
+                [
+                    'slug'        => 'income-statement',
+                    'name'        => 'Income Statement',
+                    'route'       => 'reports.financial.income',
+                    'description' => 'Interest income, processing fees, insurance fees, and penalties with 6-month trend.',
+                    'icon'        => 'fa-chart-line',
+                ],
+                [
+                    'slug'        => 'transaction-ledger',
+                    'name'        => 'Transaction Ledger',
+                    'route'       => 'reports.financial.ledger',
+                    'description' => 'Full transaction history with type, source, direction filters and CSV export.',
+                    'icon'        => 'fa-list-alt',
                 ],
             ],
         ],

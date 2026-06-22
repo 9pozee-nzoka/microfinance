@@ -20,21 +20,26 @@
     @endforeach
 </div>
 
-@php
-$statusSlot = '<div><label class="form-label">Status</label><select name="status" class="form-control"><option value="">All Status</option>';
-foreach(['active','pending','rejected','dormant','suspended'] as $s) {
-    $selected = request('status') === $s ? 'selected' : '';
-    $statusSlot .= '<option value="'.$s.'" '.$selected.'>'.ucfirst($s).'</option>';
-}
-$statusSlot .= '</select></div>';
-
-$employmentSlot = '<div><label class="form-label">Employment</label><select name="employment_type" class="form-control"><option value="">All</option>';
-foreach(['salaried','self_employed','business','farmer','other'] as $e) {
-    $selected = request('employment_type') === $e ? 'selected' : '';
-    $employmentSlot .= '<option value="'.$e.'" '.$selected.'>'.ucfirst(str_replace('_',' ',$e)).'</option>';
-}
-$employmentSlot .= '</select></div>';
-@endphp
+@push('report-filter-fields')
+<div>
+    <label class="form-label">Status</label>
+    <select name="status" class="form-control">
+        <option value="">All Status</option>
+        @foreach(['active','pending','rejected','dormant','suspended'] as $s)
+            <option value="{{ $s }}" {{ request('status') === $s ? 'selected' : '' }}>{{ ucfirst($s) }}</option>
+        @endforeach
+    </select>
+</div>
+<div>
+    <label class="form-label">Employment</label>
+    <select name="employment_type" class="form-control">
+        <option value="">All</option>
+        @foreach(['salaried','self_employed','business','farmer','other'] as $e)
+            <option value="{{ $e }}" {{ request('employment_type') === $e ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$e)) }}</option>
+        @endforeach
+    </select>
+</div>
+@endpush
 
 @include('reports._partials.filters', [
     'action' => $reportAction ?? route('reports.customers.register'),
@@ -43,7 +48,6 @@ $employmentSlot .= '</select></div>';
     'dateLabelTo' => 'Joined To',
     'showBranch' => true,
     'branches' => $branches,
-    'slot' => $statusSlot . $employmentSlot,
 ])
 
 <div class="card">

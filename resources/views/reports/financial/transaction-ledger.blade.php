@@ -43,34 +43,40 @@
     </div>
 </div>
 
-@php
-$typeSlot = '<div><label class="form-label">Type</label><select name="type" class="form-control"><option value="">All Types</option>';
-foreach(['loan_disbursement','loan_repayment','savings_deposit','savings_withdrawal','share_capital','processing_fee','insurance_fee','penalty','refund','adjustment'] as $t) {
-    $selected = request('type') === $t ? 'selected' : '';
-    $typeSlot .= '<option value="'.$t.'" '.$selected.'>'.ucfirst(str_replace('_',' ',$t)).'</option>';
-}
-$typeSlot .= '</select></div>';
-
-$directionSlot = '<div><label class="form-label">Direction</label><select name="direction" class="form-control"><option value="">Both</option>';
-foreach(['credit' => 'Credit', 'debit' => 'Debit'] as $v => $l) {
-    $selected = request('direction') === $v ? 'selected' : '';
-    $directionSlot .= '<option value="'.$v.'" '.$selected.'>'.$l.'</option>';
-}
-$directionSlot .= '</select></div>';
-
-$sourceSlot = '<div><label class="form-label">Source</label><select name="source" class="form-control"><option value="">All</option>';
-foreach(['mpesa','bank','cash','internal','system'] as $s) {
-    $selected = request('source') === $s ? 'selected' : '';
-    $sourceSlot .= '<option value="'.$s.'" '.$selected.'>'.ucfirst($s).'</option>';
-}
-$sourceSlot .= '</select></div>';
-@endphp
+@push('report-filter-fields')
+<div>
+    <label class="form-label">Type</label>
+    <select name="type" class="form-control">
+        <option value="">All Types</option>
+        @foreach(['loan_disbursement','loan_repayment','savings_deposit','savings_withdrawal','share_capital','processing_fee','insurance_fee','penalty','refund','adjustment'] as $t)
+            <option value="{{ $t }}" {{ request('type') === $t ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$t)) }}</option>
+        @endforeach
+    </select>
+</div>
+<div>
+    <label class="form-label">Direction</label>
+    <select name="direction" class="form-control">
+        <option value="">Both</option>
+        @foreach(['credit' => 'Credit', 'debit' => 'Debit'] as $v => $l)
+            <option value="{{ $v }}" {{ request('direction') === $v ? 'selected' : '' }}>{{ $l }}</option>
+        @endforeach
+    </select>
+</div>
+<div>
+    <label class="form-label">Source</label>
+    <select name="source" class="form-control">
+        <option value="">All</option>
+        @foreach(['mpesa','bank','cash','internal','system'] as $s)
+            <option value="{{ $s }}" {{ request('source') === $s ? 'selected' : '' }}>{{ ucfirst($s) }}</option>
+        @endforeach
+    </select>
+</div>
+@endpush
 
 {{-- Filters --}}
 @include('reports._partials.filters', [
     'action' => $reportAction ?? route('reports.financial.ledger'),
     'showDate' => true,
-    'slot' => $typeSlot . $directionSlot . $sourceSlot,
 ])
 
 <div class="card">

@@ -57,15 +57,18 @@
     </div>
 </div>
 
+@push('report-filter-fields')
+<div>
+    <label class="form-label">Min Days in Arrears</label>
+    <select name="par_days" class="form-control">
+        @foreach([1 => 'PAR 1+', 30 => 'PAR 30+', 60 => 'PAR 60+', 90 => 'PAR 90+'] as $d => $label)
+            <option value="{{ $d }}" {{ request('par_days', 1) == $d ? 'selected' : '' }}>{{ $label }}</option>
+        @endforeach
+    </select>
+</div>
+@endpush
+
 {{-- Filters --}}
-@php
-$parSlot = '<div><label class="form-label">Min Days in Arrears</label><select name="par_days" class="form-control">';
-foreach([1 => 'PAR 1+', 30 => 'PAR 30+', 60 => 'PAR 60+', 90 => 'PAR 90+'] as $d => $label) {
-    $selected = request('par_days', 1) == $d ? 'selected' : '';
-    $parSlot .= '<option value="'.$d.'" '.$selected.'>'.$label.'</option>';
-}
-$parSlot .= '</select></div>';
-@endphp
 @include('reports._partials.filters', [
     'action' => $reportAction ?? route('reports.portfolio.par'),
     'showDate' => true,
@@ -73,7 +76,6 @@ $parSlot .= '</select></div>';
     'showProduct' => true,
     'branches' => $branches,
     'products' => $products,
-    'slot' => $parSlot,
 ])
 
 {{-- Loans Table --}}

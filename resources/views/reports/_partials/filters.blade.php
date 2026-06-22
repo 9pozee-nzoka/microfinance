@@ -2,8 +2,9 @@
     Reusable filter bar partial.
     Props: $action (route), $showDate (bool), $showBranch (bool), $showProduct (bool),
            $showStatus (bool), $showSearch (bool), $showOfficer (bool), $showRisk (bool),
-           $showMethod (bool), $branches, $products, $officers, $slot (string),
+           $showMethod (bool), $branches, $products, $officers,
            $dateLabel (string)
+    Custom fields can be pushed to the 'report-filter-fields' stack.
 --}}
 <div class="card" style="margin-bottom: 20px;">
     <form method="GET" action="{{ $action }}" id="reportFilterForm">
@@ -102,7 +103,7 @@
             </div>
             @endif
 
-            {!! $slot ?? '' !!}
+            @stack('report-filter-fields')
 
             <div style="display:flex; gap:8px; padding-bottom:1px;">
                 <button type="submit" class="btn btn-primary" style="height:38px; padding:0 18px;">

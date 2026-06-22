@@ -148,11 +148,11 @@
         </div>
         <div class="grid-2" id="rateSelectionRow" style="display:none;">
             <div class="form-group">
-                <label class="form-label">Interest Rate <span class="req">*</span></label>
+                <label class="form-label">Interest Option <span class="req">*</span></label>
                 <select name="selected_rate" id="rateSelect"
                         class="form-control {{ $errors->has('selected_rate') ? 'is-invalid' : '' }}"
                         onchange="onRateChange()" required>
-                    <option value="">-- Select Rate --</option>
+                    <option value="">-- Select Interest --</option>
                 </select>
                 <div class="form-hint" id="rateHint"></div>
                 @error('selected_rate')<span class="invalid-feedback">{{ $message }}</span>@enderror
@@ -475,9 +475,16 @@ function updateRateOptions() {
     if (matches.length > 0) {
         // Multiple rates available — show dropdown
         rateRow.style.display = 'grid';
-        rateSelect.innerHTML = '<option value="">-- Select Rate --</option>' +
-            matches.map((r, i) => `<option value="${r.interest_rate}" data-id="${r.id}" data-rate="${r.interest_rate}" ${i === 0 ? 'selected' : ''}>${r.interest_rate}%</option>`).join('');
-        document.getElementById('rateHint').textContent = `${matches.length} rate(s) available for this combination`;
+        rateSelect.innerHTML = '<option value="">-- Select Interest --</option>' +
+            matches.map((r, i) => {
+                const hasAmount = r.interest_amount !== null && parseFloat(r.interest_amount) > 0;
+                const amount = hasAmount ? parseFloat(r.interest_amount) : (parseFloat(r.principal_amount) * parseFloat(r.interest_rate) / 100);
+                const label = hasAmount
+                    ? `KSH ${fmt(amount)} interest`
+                    : `${r.interest_rate}% rate`;
+                return `<option value="${r.interest_rate}" data-id="${r.id}" data-rate="${r.interest_rate}" data-amount="${amount.toFixed(2)}" data-has-amount="${hasAmount ? '1' : '0'}" ${i === 0 ? 'selected' : ''}>${label}</option>`;
+            }).join('');
+        document.getElementById('rateHint').textContent = `${matches.length} interest option(s) available for this combination`;
         onRateChange();
     } else if (rates.length > 0 && principal > 0 && weeks > 0) {
         // No exact match — show default product rate
@@ -500,9 +507,14 @@ function onRateChange() {
 
     window._selectedRate = parseFloat(opt.dataset.rate);
     window._selectedRateId = opt.dataset.id || null;
+    window._selectedAmount = opt.dataset.amount ? parseFloat(opt.dataset.amount) : null;
+    window._selectedHasAmount = opt.dataset.hasAmount === '1';
     document.getElementById('hiddenRateId').value = window._selectedRateId || '';
 
-    document.getElementById('rateInfo').textContent = `Selected: ${opt.dataset.rate}% interest rate`;
+    const info = window._selectedHasAmount
+        ? `Selected: KSH ${fmt(window._selectedAmount)} flat interest`
+        : `Selected: ${opt.dataset.rate}% interest rate`;
+    document.getElementById('rateInfo').textContent = info;
     recalculate();
 }
 
@@ -522,12 +534,15 @@ function recalculate() {
         return;
     }
 
-    // Use selected rate or fall back to product default
+    // Use selected flat interest amount, selected rate, or fall back to product default
     const rate   = window._selectedRate || parseFloat(opt.dataset.rate);
     const method = opt.dataset.method;
 
     let interest;
-    if (method === 'flat') {
+    if (window._selectedAmount !== null && window._selectedAmount > 0) {
+        // Stored flat interest amount takes precedence for accuracy
+        interest = window._selectedAmount;
+    } else if (method === 'flat') {
         // Flat = principal × rate% (total over full term)
         interest = principal * (rate / 100);
     } else {
@@ -539,10 +554,14 @@ function recalculate() {
     const total  = principal + interest;   // processing fee NOT included
     const weekly = total / weeks;
 
+    const rateLabel = window._selectedHasAmount
+        ? 'KSH ' + fmt(interest) + ' flat'
+        : rate + '% ' + (method === 'flat' ? 'flat' : 'reducing');
+
     document.getElementById('calcBox').style.display = 'block';
     document.getElementById('calcPlaceholder').style.display = 'none';
     document.getElementById('calcPrincipal').textContent    = 'KSH ' + fmt(principal);
-    document.getElementById('calcRateLabel').textContent    = rate + '% ' + (method === 'flat' ? 'flat' : 'reducing');
+    document.getElementById('calcRateLabel').textContent    = rateLabel;
     document.getElementById('calcInterest').textContent     = 'KSH ' + fmt(interest);
     document.getElementById('calcProcessingFee').textContent = 'KSH ' + fmt(procFee);
     document.getElementById('calcTotal').textContent        = 'KSH ' + fmt(total);

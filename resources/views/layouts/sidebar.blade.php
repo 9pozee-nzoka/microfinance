@@ -174,31 +174,24 @@
         </a>
         @endhasanyrole
 
-        {{-- Reports — branch manager + admin --}}
-        @hasanyrole('branch_manager|admin|super_admin')
-        <button class="nav-item has-submenu {{ request()->routeIs('reports.*') ? 'active expanded' : '' }}">
+        {{-- Reports — all staff with report access --}}
+        @hasanyrole('loan_officer|branch_manager|admin|super_admin')
+        <button class="nav-item has-submenu {{ request()->routeIs('reports.*') || request()->routeIs('staff.reports.*') ? 'active expanded' : '' }}">
             <i class="fas fa-chart-pie"></i>
             <span>Reports</span>
             <i class="fas fa-chevron-right chevron"></i>
         </button>
-        <div class="submenu {{ request()->routeIs('reports.*') ? 'show' : '' }}">
+        <div class="submenu {{ request()->routeIs('reports.*') || request()->routeIs('staff.reports.*') ? 'show' : '' }}">
+            @hasanyrole('branch_manager|admin|super_admin')
             <a href="{{ route('reports.categories.index') }}" class="nav-item {{ request()->routeIs('reports.*') ? 'active' : '' }}">
-                <i class="fas fa-th-large"></i><span>Report Categories</span>
+                <i class="fas fa-th-large"></i><span>All Reports</span>
             </a>
-        </div>
-        @endhasanyrole
-
-        {{-- Report Management — loan officers + managers + admins --}}
-        @hasanyrole('loan_officer|branch_manager|admin|super_admin')
-        <button class="nav-item has-submenu {{ request()->routeIs('staff.reports.*') ? 'active expanded' : '' }}">
-            <i class="fas fa-file-download"></i>
-            <span>Report Management</span>
-            <i class="fas fa-chevron-right chevron"></i>
-        </button>
-        <div class="submenu {{ request()->routeIs('staff.reports.*') ? 'show' : '' }}">
+            @endhasanyrole
+            @hasanyrole('loan_officer|branch_manager|admin|super_admin')
             <a href="{{ route('staff.reports.categories') }}" class="nav-item {{ request()->routeIs('staff.reports.*') ? 'active' : '' }}">
                 <i class="fas fa-folder-open"></i><span>My Reports</span>
             </a>
+            @endhasanyrole
         </div>
         @endhasanyrole
 

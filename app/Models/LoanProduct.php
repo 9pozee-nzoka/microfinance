@@ -50,6 +50,11 @@ class LoanProduct extends Model
             ->where('term_weeks', $weeks)
             ->first();
 
+        // Prefer a stored flat interest amount for accuracy; fall back to percentage rate.
+        if ($specificRate && $specificRate->interest_amount !== null && (float) $specificRate->interest_amount > 0) {
+            return (float) $specificRate->interest_amount;
+        }
+
         $rate = $specificRate ? (float) $specificRate->interest_rate : (float) $this->interest_rate;
 
         if ($this->interest_method === 'flat') {

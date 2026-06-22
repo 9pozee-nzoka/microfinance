@@ -90,15 +90,18 @@
         <div id="ratesContainer">
             @if(old('rates'))
                 @foreach(old('rates') as $i => $rate)
-                <div class="grid-3 rate-row" style="margin-bottom:10px;">
+                <div class="grid-4 rate-row" style="margin-bottom:10px; align-items:end;">
                     <div class="form-group">
                         <input type="number" name="rates[{{ $i }}][principal_amount]" value="{{ $rate['principal_amount'] ?? '' }}" placeholder="Principal (KSH)" class="form-control" step="0.01" min="1">
                     </div>
                     <div class="form-group">
                         <input type="number" name="rates[{{ $i }}][term_weeks]" value="{{ $rate['term_weeks'] ?? '' }}" placeholder="Term (weeks)" class="form-control" min="1">
                     </div>
+                    <div class="form-group">
+                        <input type="number" name="rates[{{ $i }}][interest_amount]" value="{{ $rate['interest_amount'] ?? '' }}" placeholder="Interest Amount (KSH)" class="form-control" step="0.01" min="0">
+                    </div>
                     <div class="form-group" style="display:flex; gap:8px;">
-                        <input type="number" name="rates[{{ $i }}][interest_rate]" value="{{ $rate['interest_rate'] ?? '' }}" placeholder="Interest Rate (%)" class="form-control" step="0.01" min="0">
+                        <input type="number" name="rates[{{ $i }}][interest_rate]" value="{{ $rate['interest_rate'] ?? '' }}" placeholder="Rate (%) fallback" class="form-control" step="0.01" min="0">
                         <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('.rate-row').remove()" style="white-space:nowrap;"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
@@ -124,8 +127,9 @@ function addRateRow() {
     const container = document.getElementById('ratesContainer');
     if (container.querySelector('p')) container.querySelector('p').remove();
     const div = document.createElement('div');
-    div.className = 'grid-3 rate-row';
+    div.className = 'grid-4 rate-row';
     div.style.marginBottom = '10px';
+    div.style.alignItems = 'end';
     div.innerHTML = `
         <div class="form-group">
             <input type="number" name="rates[${rateIndex}][principal_amount]" placeholder="Principal (KSH)" class="form-control" step="0.01" min="1">
@@ -133,8 +137,11 @@ function addRateRow() {
         <div class="form-group">
             <input type="number" name="rates[${rateIndex}][term_weeks]" placeholder="Term (weeks)" class="form-control" min="1">
         </div>
+        <div class="form-group">
+            <input type="number" name="rates[${rateIndex}][interest_amount]" placeholder="Interest Amount (KSH)" class="form-control" step="0.01" min="0">
+        </div>
         <div class="form-group" style="display:flex; gap:8px;">
-            <input type="number" name="rates[${rateIndex}][interest_rate]" placeholder="Interest Rate (%)" class="form-control" step="0.01" min="0">
+            <input type="number" name="rates[${rateIndex}][interest_rate]" placeholder="Rate (%) fallback" class="form-control" step="0.01" min="0">
             <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('.rate-row').remove()" style="white-space:nowrap;"><i class="fas fa-trash"></i></button>
         </div>
     `;

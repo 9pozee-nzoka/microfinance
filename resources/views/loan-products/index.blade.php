@@ -42,7 +42,7 @@
             <tr>
                 <td><strong>{{ $product->code }}</strong></td>
                 <td>{{ $product->name }}</td>
-                <td>{{ $product->interest_rate }}% {{ ucfirst($product->interest_method) }}</td>
+                <td>{{ $product->interest_rate }}% {{ ucfirst($product->interest_method) }}<br><small class="text-muted">{{ $product->rates->count() }} rate row(s)</small></td>
                 <td>{{ $product->min_term_weeks }} - {{ $product->max_term_weeks }}</td>
                 <td>KSH {{ number_format($product->min_amount,0) }} - {{ number_format($product->max_amount,0) }}</td>
                 <td>{{ $product->loans_count }}</td>

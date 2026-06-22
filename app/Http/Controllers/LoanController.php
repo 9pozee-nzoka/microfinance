@@ -118,6 +118,7 @@ class LoanController extends Controller
         }
 
         // If a specific rate was selected, validate it matches the principal/term
+        $selectedRate = null;
         if (!empty($validated['selected_rate_id'])) {
             $selectedRate = $product->rates()
                 ->where('id', $validated['selected_rate_id'])
@@ -130,6 +131,26 @@ class LoanController extends Controller
                 ]);
             }
         }
+
+        // ── Server-side recalculation for accuracy ───────────────────────
+        // Prefer stored flat interest amount; fall back to rate-based calculation.
+        $expectedInterest = $product->calculateInterest((float) $validated['principal_amount'], (int) $validated['term_weeks']);
+        $expectedTotal      = (float) $validated['principal_amount'] + $expectedInterest;
+        $expectedWeekly     = $expectedTotal / (int) $validated['term_weeks'];
+
+        $tolerance = 0.05;
+        if (abs($expectedInterest - (float) $validated['interest_amount']) > $tolerance ||
+            abs($expectedTotal - (float) $validated['total_repayable']) > $tolerance ||
+            abs($expectedWeekly - (float) $validated['weekly_installment']) > $tolerance) {
+            return back()->withInput()->withErrors([
+                'interest_amount' => 'Interest calculation does not match the product rate. Expected interest: KSH ' . number_format($expectedInterest, 2),
+            ]);
+        }
+
+        // Overwrite with server-computed exact values to avoid frontend rounding drift
+        $validated['interest_amount']    = round($expectedInterest, 2);
+        $validated['total_repayable']    = round($expectedTotal, 2);
+        $validated['weekly_installment'] = round($expectedWeekly, 2);
 
         $backdate = $validated['created_at_date'] ?? today()->toDateString();
         $isBackdated = $backdate !== today()->toDateString();
