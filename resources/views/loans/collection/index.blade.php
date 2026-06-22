@@ -235,6 +235,10 @@
                         <div style="font-weight:700;font-size:13px;color:var(--warning);">KSH {{ number_format($loan->weekly_installment, 0) }}</div>
                         <div style="font-size:10px;color:var(--text-secondary);">due today</div>
                     </div>
+                    <button class="action-btn" title="Record Payment" style="background:#E8F5E9;border-color:#4CAF50;color:#4CAF50;"
+                            onclick="event.stopPropagation(); openRecordPaymentModal({{ $loan->id }}, {{ $loan->customer_id }}, '{{ addslashes($loan->customer->full_name) }}', {{ $loan->weekly_installment }}, '{{ $loan->customer->phone_number }}')">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </button>
                     <button class="action-btn" title="Send Reminder"
                             onclick="openLoanSmsModal({{ $loan->id }}, '{{ addslashes($loan->customer->full_name) }}', '{{ $loan->loan_number }}')">
                         <i class="fas fa-sms"></i>
@@ -280,6 +284,10 @@
                         <div style="font-weight:700;font-size:13px;color:{{ $dColor }};">{{ $loan->days_in_arrears }}d</div>
                         <div style="font-size:10px;color:var(--text-secondary);">KSH {{ number_format($loan->arrears_amount, 0) }}</div>
                     </div>
+                    <button class="action-btn" title="Record Payment" style="background:#E8F5E9;border-color:#4CAF50;color:#4CAF50;"
+                            onclick="event.stopPropagation(); openRecordPaymentModal({{ $loan->id }}, {{ $loan->customer_id }}, '{{ addslashes($loan->customer->full_name) }}', {{ $loan->arrears_amount > 0 ? $loan->arrears_amount : $loan->weekly_installment }}, '{{ $loan->customer->phone_number }}')">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </button>
                     <button class="action-btn" title="Send Overdue Notice"
                             onclick="openLoanSmsModal({{ $loan->id }}, '{{ addslashes($loan->customer->full_name) }}', '{{ $loan->loan_number }}')">
                         <i class="fas fa-sms"></i>
@@ -334,6 +342,8 @@
         @endforelse
     </div>
 </div>
+
+<x-record-payment-modal />
 
 {{-- ── Loan SMS Modal ── --}}
 <div id="loanSmsModal" class="modal-overlay" onclick="if(event.target===this)closeModal('loanSmsModal')">

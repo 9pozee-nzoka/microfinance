@@ -256,7 +256,17 @@
                     <td>{{ $loan->term_weeks }}w</td>
                     <td><span class="status {{ $lsc }}">{{ ucfirst(str_replace('_',' ',$loan->status)) }}</span></td>
                     <td style="font-size:12px; color:var(--text-secondary);">{{ $loan->created_at->format('d M Y') }}</td>
-                    <td><a href="{{ route('loans.show', $loan) }}" class="btn btn-outline" style="padding:4px 10px; font-size:12px;"><i class="fas fa-eye"></i></a></td>
+                    <td>
+                        <div style="display:flex; gap:6px;">
+                            <a href="{{ route('loans.show', $loan) }}" class="btn btn-outline" style="padding:4px 10px; font-size:12px;" title="View Loan"><i class="fas fa-eye"></i></a>
+                            @if(in_array($loan->status, ['active','disbursed']) && $loan->outstanding_balance > 0)
+                            <button type="button" class="btn btn-primary" style="padding:4px 10px; font-size:12px;"
+                                    onclick="openRecordPaymentModal({{ $loan->id }}, {{ $customer->id }}, '{{ addslashes($customer->full_name) }}', {{ $loan->weekly_installment }}, '{{ $customer->phone_number }}')">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </button>
+                            @endif
+                        </div>
+                    </td>
                 </tr>
                 @empty
                 <tr><td colspan="9"><div class="empty-state"><i class="fas fa-hand-holding-usd"></i><p>No loans found</p><small>This customer has no loan applications on record</small></div></td></tr>
@@ -341,6 +351,8 @@
         </div>
     </div>
 </div>
+
+<x-record-payment-modal />
 
 @endsection
 

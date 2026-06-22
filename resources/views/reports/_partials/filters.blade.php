@@ -2,7 +2,7 @@
     Reusable filter bar partial.
     Props: $action (route), $showDate (bool), $showBranch (bool), $showProduct (bool),
            $showStatus (bool), $showSearch (bool), $showOfficer (bool), $showRisk (bool),
-           $showMethod (bool), $branches, $products, $officers, $extraSlot (bool),
+           $showMethod (bool), $branches, $products, $officers, $slot (string),
            $dateLabel (string)
 --}}
 <div class="card" style="margin-bottom: 20px;">
@@ -102,7 +102,7 @@
             </div>
             @endif
 
-            {{ $slot ?? '' }}
+            {!! $slot ?? '' !!}
 
             <div style="display:flex; gap:8px; padding-bottom:1px;">
                 <button type="submit" class="btn btn-primary" style="height:38px; padding:0 18px;">

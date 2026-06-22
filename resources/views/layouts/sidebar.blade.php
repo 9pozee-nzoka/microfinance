@@ -182,17 +182,8 @@
             <i class="fas fa-chevron-right chevron"></i>
         </button>
         <div class="submenu {{ request()->routeIs('reports.*') ? 'show' : '' }}">
-            <a href="{{ route('reports.categories.index') }}" class="nav-item {{ request()->routeIs('reports.categories.*') ? 'active' : '' }}">
+            <a href="{{ route('reports.categories.index') }}" class="nav-item {{ request()->routeIs('reports.*') ? 'active' : '' }}">
                 <i class="fas fa-th-large"></i><span>Report Categories</span>
-            </a>
-            <a href="{{ route('reports.categories.show', 'operational') }}" class="nav-item {{ request()->routeIs('reports.operational.*') ? 'active' : '' }}">
-                <i class="fas fa-cogs"></i><span>Operational Reports</span>
-            </a>
-            <a href="{{ route('reports.categories.show', 'customer') }}" class="nav-item {{ request()->routeIs('reports.portfolio.loan-book') || request()->routeIs('reports.customers.*') ? 'active' : '' }}">
-                <i class="fas fa-users"></i><span>Customer Reports</span>
-            </a>
-            <a href="{{ route('reports.categories.show', 'risk') }}" class="nav-item {{ request()->routeIs('reports.risk.*') || request()->routeIs('reports.portfolio.par') ? 'active' : '' }}">
-                <i class="fas fa-exclamation-triangle"></i><span>Risk Reports</span>
             </a>
         </div>
         @endhasanyrole

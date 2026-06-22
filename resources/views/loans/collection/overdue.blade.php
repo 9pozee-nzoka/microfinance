@@ -135,6 +135,10 @@
                     <td>
                         <div style="display:flex;gap:5px;justify-content:center;">
                             <a href="{{ route('loans.show', $loan) }}" class="action-btn" title="View Loan"><i class="fas fa-eye"></i></a>
+                            <button class="action-btn" title="Record Payment" style="background:#E8F5E9;border-color:#4CAF50;color:#4CAF50;"
+                                    onclick="event.stopPropagation(); openRecordPaymentModal({{ $loan->id }}, {{ $loan->customer_id }}, '{{ addslashes($loan->customer->full_name) }}', {{ $loan->arrears_amount > 0 ? $loan->arrears_amount : $loan->weekly_installment }}, '{{ $loan->customer->phone_number }}')">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </button>
                             <button class="action-btn" title="Send SMS"
                                     onclick="openLoanSmsModal({{ $loan->id }}, '{{ addslashes($loan->customer->full_name) }}', '{{ $loan->loan_number }}', {{ $loan->days_in_arrears }})">
                                 <i class="fas fa-sms"></i>
@@ -162,6 +166,8 @@
     </div>
     @endif
 </div>
+
+<x-record-payment-modal />
 
 {{-- Loan SMS Modal --}}
 <div id="loanSmsModal" class="modal-overlay" onclick="if(event.target===this)closeModal('loanSmsModal')">
