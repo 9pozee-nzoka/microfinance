@@ -11,8 +11,8 @@
 
 @section('content')
 <div class="page-actions">
-    <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;">
-        <i class="fas fa-arrow-left"></i> Reports
+    <a href="{{ route('reports.categories.show', 'customer') }}" class="btn btn-outline" style="font-size:13px;">
+        <i class="fas fa-arrow-left"></i> Customer Reports
     </a>
     <span style="font-size:12px; color:var(--text-secondary);">As at {{ now()->format('d M Y, h:i A') }}</span>
 </div>
@@ -77,50 +77,16 @@
 </div>
 
 {{-- Filters --}}
-<div class="card" style="margin-bottom:20px;">
-    <form method="GET" action="{{ route('reports.portfolio.loan-book') }}">
-        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
-            <div>
-                <label class="form-label">Branch</label>
-                <select name="branch" class="filter-select">
-                    <option value="">All Branches</option>
-                    @foreach($branches as $b)
-                        <option value="{{ $b->id }}" {{ request('branch') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">Product</label>
-                <select name="product" class="filter-select">
-                    <option value="">All Products</option>
-                    @foreach($products as $p)
-                        <option value="{{ $p->id }}" {{ request('product') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">Risk</label>
-                <select name="risk" class="filter-select">
-                    <option value="">All Risk</option>
-                    @foreach(['low','medium','high','watch','default'] as $r)
-                        <option value="{{ $r }}" {{ request('risk') === $r ? 'selected' : '' }}>{{ ucfirst($r) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">Search</label>
-                <div class="search-box" style="width:200px;">
-                    <i class="fas fa-search"></i>
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Name / Loan No…">
-                </div>
-            </div>
-            <div style="display:flex; gap:8px; padding-bottom:1px;">
-                <button type="submit" class="btn btn-primary" style="height:38px; padding:0 18px;"><i class="fas fa-search"></i> Filter</button>
-                <a href="{{ route('reports.portfolio.loan-book') }}" class="btn btn-outline" style="height:38px; padding:0 14px;"><i class="fas fa-undo"></i></a>
-            </div>
-        </div>
-    </form>
-</div>
+@include('reports._partials.filters', [
+    'action' => $reportAction ?? route('reports.portfolio.loan-book'),
+    'showDate' => true,
+    'showBranch' => true,
+    'showProduct' => true,
+    'showRisk' => true,
+    'showSearch' => true,
+    'branches' => $branches,
+    'products' => $products,
+])
 
 {{-- Table --}}
 <div class="card">

@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="page-actions">
-    <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
+    <a href="{{ route('reports.categories.show', 'operational') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Operational Reports</a>
     <span style="font-size:12px; color:var(--text-secondary);">{{ $dateFrom->format('d M Y') }} — {{ $dateTo->format('d M Y') }}</span>
 </div>
 
@@ -68,42 +68,13 @@
 </div>
 
 {{-- Filters --}}
-<div class="card" style="margin-bottom:20px;">
-    <form method="GET" action="{{ route('reports.portfolio.collections') }}">
-        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
-            <div>
-                <label class="form-label">Date From</label>
-                <input type="date" name="date_from" value="{{ request('date_from', $dateFrom->toDateString()) }}" class="filter-select">
-            </div>
-            <div>
-                <label class="form-label">Date To</label>
-                <input type="date" name="date_to" value="{{ request('date_to', $dateTo->toDateString()) }}" class="filter-select">
-            </div>
-            <div>
-                <label class="form-label">Branch</label>
-                <select name="branch" class="filter-select">
-                    <option value="">All Branches</option>
-                    @foreach($branches as $b)
-                        <option value="{{ $b->id }}" {{ request('branch') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">Method</label>
-                <select name="method" class="filter-select">
-                    <option value="">All Methods</option>
-                    @foreach(['mpesa' => 'M-Pesa', 'bank_transfer' => 'Bank', 'cash' => 'Cash'] as $v => $l)
-                        <option value="{{ $v }}" {{ request('method') === $v ? 'selected' : '' }}>{{ $l }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div style="display:flex; gap:8px; padding-bottom:1px;">
-                <button type="submit" class="btn btn-primary" style="height:38px; padding:0 18px;"><i class="fas fa-search"></i> Filter</button>
-                <a href="{{ route('reports.portfolio.collections') }}" class="btn btn-outline" style="height:38px; padding:0 14px;"><i class="fas fa-undo"></i></a>
-            </div>
-        </div>
-    </form>
-</div>
+@include('reports._partials.filters', [
+    'action' => $reportAction ?? route('reports.portfolio.collections'),
+    'showDate' => true,
+    'showBranch' => true,
+    'showMethod' => true,
+    'branches' => $branches,
+])
 
 <div class="card">
     <div class="card-header" style="margin-bottom:14px;">

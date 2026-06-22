@@ -4,9 +4,16 @@
 
 @section('content')
 <div class="page-actions">
-    <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
+    <a href="{{ route('reports.categories.show', 'customer') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Customer Reports</a>
     <span style="font-size:12px; color:var(--text-secondary);">As at {{ now()->format('d M Y, h:i A') }}</span>
 </div>
+
+@include('reports._partials.filters', [
+    'action' => $reportAction ?? route('reports.customers.credit-scores'),
+    'showDate' => true,
+    'dateLabelFrom' => 'Joined From',
+    'dateLabelTo' => 'Joined To',
+])
 
 {{-- Overview --}}
 <div class="grid-3" style="margin-bottom:20px; gap:20px;">

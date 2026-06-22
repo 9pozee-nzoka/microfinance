@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="page-actions">
-    <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
+    <a href="{{ route('reports.categories.show', 'risk') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Risk Reports</a>
     <span style="font-size:12px; color:var(--text-secondary);">As at {{ now()->format('d M Y, h:i A') }}</span>
 </div>
 
@@ -58,42 +58,23 @@
 </div>
 
 {{-- Filters --}}
-<div class="card" style="margin-bottom:20px;">
-    <form method="GET" action="{{ route('reports.portfolio.par') }}">
-        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
-            <div>
-                <label class="form-label">Min Days in Arrears</label>
-                <select name="par_days" class="filter-select">
-                    @foreach([1 => 'PAR 1+', 30 => 'PAR 30+', 60 => 'PAR 60+', 90 => 'PAR 90+'] as $d => $label)
-                        <option value="{{ $d }}" {{ request('par_days', 1) == $d ? 'selected' : '' }}>{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">Branch</label>
-                <select name="branch" class="filter-select">
-                    <option value="">All Branches</option>
-                    @foreach($branches as $b)
-                        <option value="{{ $b->id }}" {{ request('branch') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">Product</label>
-                <select name="product" class="filter-select">
-                    <option value="">All Products</option>
-                    @foreach($products as $p)
-                        <option value="{{ $p->id }}" {{ request('product') == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div style="display:flex; gap:8px; padding-bottom:1px;">
-                <button type="submit" class="btn btn-primary" style="height:38px; padding:0 18px;"><i class="fas fa-search"></i> Filter</button>
-                <a href="{{ route('reports.portfolio.par') }}" class="btn btn-outline" style="height:38px; padding:0 14px;"><i class="fas fa-undo"></i></a>
-            </div>
-        </div>
-    </form>
-</div>
+@php
+$parSlot = '<div><label class="form-label">Min Days in Arrears</label><select name="par_days" class="form-control">';
+foreach([1 => 'PAR 1+', 30 => 'PAR 30+', 60 => 'PAR 60+', 90 => 'PAR 90+'] as $d => $label) {
+    $selected = request('par_days', 1) == $d ? 'selected' : '';
+    $parSlot .= '<option value="'.$d.'" '.$selected.'>'.$label.'</option>';
+}
+$parSlot .= '</select></div>';
+@endphp
+@include('reports._partials.filters', [
+    'action' => $reportAction ?? route('reports.portfolio.par'),
+    'showDate' => true,
+    'showBranch' => true,
+    'showProduct' => true,
+    'branches' => $branches,
+    'products' => $products,
+    'slot' => $parSlot,
+])
 
 {{-- Loans Table --}}
 <div class="card">

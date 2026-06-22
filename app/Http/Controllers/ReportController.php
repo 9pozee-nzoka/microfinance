@@ -4,21 +4,57 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\Guarantor;
 use App\Models\Loan;
 use App\Models\LoanProduct;
 use App\Models\LoanRepayment;
+use App\Models\RepaymentSchedule;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\ReportExportService;
+use App\Traits\ReportExportTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
+    use ReportExportTrait;
+
+    protected ReportExportService $exportService;
+
+    public function __construct(ReportExportService $exportService)
+    {
+        $this->exportService = $exportService;
+    }
+
     // ── Report Hub ───────────────────────────────────────────────
     public function index()
     {
-        return view('reports.index');
+        return redirect()->route('reports.categories.index');
+    }
+
+    /**
+     * Report Categories listing page (matches refurb UI).
+     */
+    public function categories()
+    {
+        $categories = collect(config('reports.categories'));
+        return view('reports.categories.index', compact('categories'));
+    }
+
+    /**
+     * Reports within a selected category.
+     */
+    public function categoryReports(Request $request, string $slug)
+    {
+        $category = config("reports.categories.{$slug}");
+
+        if (! $category) {
+            abort(404, 'Report category not found');
+        }
+
+        return view('reports.categories.show', compact('category'));
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -30,40 +66,61 @@ class ReportController extends Controller
      */
     public function loanBook(Request $request)
     {
+        [$dateFrom, $dateTo] = $this->exportService->dateRange($request);
+
         $query = Loan::with(['customer', 'product', 'branch', 'relationshipOfficer'])
             ->whereIn('status', ['disbursed', 'active']);
 
         $this->applyCommonLoanFilters($query, $request);
 
+        if ($request->filled('date_from')) {
+            $query->whereDate('disbursement_date', '>=', $dateFrom);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('disbursement_date', '<=', $dateTo);
+        }
+
         $loans = $query->orderBy('disbursement_date', 'desc')->paginate(config('pagination.per_page'))->withQueryString();
 
         // Aggregates
-        $totals = Loan::whereIn('status', ['disbursed', 'active'])
-            ->selectRaw('
-                COUNT(*) as count,
-                SUM(principal_amount)    as total_principal,
-                SUM(outstanding_balance) as total_outstanding,
-                SUM(total_paid)          as total_collected,
-                SUM(arrears_amount)      as total_arrears
-            ')->first();
+        $totalsQuery = Loan::whereIn('status', ['disbursed', 'active']);
+        $this->applyCommonLoanFilters($totalsQuery, $request);
+        $totals = $totalsQuery->selectRaw('
+            COUNT(*) as count,
+            SUM(principal_amount)    as total_principal,
+            SUM(outstanding_balance) as total_outstanding,
+            SUM(total_paid)          as total_collected,
+            SUM(arrears_amount)      as total_arrears
+        ')->first();
 
-        $byProduct = Loan::whereIn('loans.status', ['disbursed', 'active'])
+        $byProductQuery = Loan::whereIn('loans.status', ['disbursed', 'active'])
             ->join('loan_products', 'loans.product_id', '=', 'loan_products.id')
             ->selectRaw('loan_products.name as product, COUNT(*) as cnt, SUM(loans.outstanding_balance) as olb')
             ->groupBy('loan_products.name')
-            ->orderByDesc('olb')
-            ->get();
+            ->orderByDesc('olb');
+        $this->applyCommonLoanFilters($byProductQuery, $request);
+        $byProduct = $byProductQuery->get();
 
-        $byRisk = Loan::whereIn('loans.status', ['disbursed', 'active'])
+        $byRiskQuery = Loan::whereIn('loans.status', ['disbursed', 'active'])
             ->selectRaw('risk_category, COUNT(*) as cnt, SUM(outstanding_balance) as olb')
-            ->groupBy('risk_category')
-            ->get()->keyBy('risk_category');
+            ->groupBy('risk_category');
+        $this->applyCommonLoanFilters($byRiskQuery, $request);
+        $byRisk = $byRiskQuery->get()->keyBy('risk_category');
 
         $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
 
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'outstanding_loan_balances', [
+                'loans' => $loans->getCollection(),
+                'totals' => $totals,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
         return view('reports.portfolio.loan-book', compact(
-            'loans', 'totals', 'byProduct', 'byRisk', 'products', 'branches'
+            'loans', 'totals', 'byProduct', 'byRisk', 'products', 'branches', 'dateFrom', 'dateTo'
         ));
     }
 
@@ -72,6 +129,7 @@ class ReportController extends Controller
      */
     public function par(Request $request)
     {
+        [$dateFrom, $dateTo] = $this->exportService->dateRange($request);
         $parDays = (int) $request->get('par_days', 1);
 
         $query = Loan::with(['customer', 'product', 'branch'])
@@ -107,8 +165,21 @@ class ReportController extends Controller
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
         $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
 
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'portfolio_at_risk', [
+                'loans' => $loans->getCollection(),
+                'buckets' => $buckets,
+                'totalPortfolio' => $totalPortfolio,
+                'parAmount' => $parAmount,
+                'parRate' => $parRate,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'parDays' => $parDays,
+            ]);
+        }
+
         return view('reports.portfolio.par', compact(
-            'loans', 'buckets', 'totalPortfolio', 'parAmount', 'parRate', 'branches', 'products'
+            'loans', 'buckets', 'totalPortfolio', 'parAmount', 'parRate', 'branches', 'products', 'dateFrom', 'dateTo'
         ));
     }
 
@@ -142,8 +213,86 @@ class ReportController extends Controller
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
         $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
 
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'disbursed_loans', [
+                'loans' => $loans->getCollection(),
+                'totals' => $totals,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
         return view('reports.portfolio.disbursements', compact(
             'loans', 'totals', 'byMethod', 'dateFrom', 'dateTo', 'branches', 'products'
+        ));
+    }
+
+
+    /**
+     * Loan Repayments — collections in a period
+     */
+    public function collections(Request $request)
+    {
+        $dateFrom = $request->date_from ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->startOfMonth();
+        $dateTo   = $request->date_to   ? Carbon::parse($request->date_to)->endOfDay()     : Carbon::now()->endOfDay();
+
+        $statusFilter = $request->filled('status') && in_array($request->status, ['confirmed', 'pending', 'reversed'])
+            ? $request->status
+            : null;
+
+        $query = LoanRepayment::with(['loan.product', 'loan.branch', 'customer', 'receivedBy'])
+            ->whereBetween('created_at', [$dateFrom, $dateTo]);
+
+        if ($statusFilter) {
+            $query->where('status', $statusFilter);
+        }
+
+        if ($request->filled('branch')) {
+            $query->whereHas('loan', fn($q) => $q->where('branch_id', $request->branch));
+        }
+        if ($request->filled('method')) {
+            $query->where('payment_method', $request->method);
+        }
+
+        $repayments = $query->orderByDesc('created_at')->paginate(config('pagination.per_page'))->withQueryString();
+
+        $totalsQuery = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo]);
+        if ($statusFilter) {
+            $totalsQuery->where('status', $statusFilter);
+        }
+        $totals = $totalsQuery->selectRaw('COUNT(*) as count, SUM(amount) as total, SUM(principal_portion) as principal, SUM(interest_portion) as interest, SUM(penalty_portion) as penalty')
+            ->first();
+
+        $byMethodQuery = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo]);
+        if ($statusFilter) {
+            $byMethodQuery->where('status', $statusFilter);
+        }
+        $byMethod = $byMethodQuery->selectRaw('payment_method, COUNT(*) as cnt, SUM(amount) as total')
+            ->groupBy('payment_method')
+            ->get();
+
+        $dailyQuery = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo]);
+        if ($statusFilter) {
+            $dailyQuery->where('status', $statusFilter);
+        }
+        $daily = $dailyQuery->selectRaw('DATE(created_at) as day, COUNT(*) as cnt, SUM(amount) as total')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get();
+
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
+
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'loan_collections', [
+                'repayments' => $repayments->getCollection(),
+                'totals' => $totals,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
+        return view('reports.portfolio.collections', compact(
+            'repayments', 'totals', 'byMethod', 'daily', 'dateFrom', 'dateTo', 'branches', 'statusFilter'
         ));
     }
 
@@ -155,9 +304,7 @@ class ReportController extends Controller
         $dateFrom = $request->date_from ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->startOfMonth();
         $dateTo   = $request->date_to   ? Carbon::parse($request->date_to)->endOfDay()     : Carbon::now()->endOfDay();
 
-        // ══════════════════════════════════════════════════════════════
         // SECTION A — Early Installment Payments (paid before due date)
-        // ══════════════════════════════════════════════════════════════
         $earlyPaymentsQuery = LoanRepayment::with(['loan', 'customer', 'schedule', 'receivedBy'])
             ->join('repayment_schedules', 'loan_repayments.schedule_id', '=', 'repayment_schedules.id')
             ->whereColumn('loan_repayments.created_at', '<', 'repayment_schedules.due_date')
@@ -171,13 +318,11 @@ class ReportController extends Controller
 
         $earlyPayments = $earlyPaymentsQuery->orderByDesc('loan_repayments.created_at')->paginate(config('pagination.per_page'), ['*'], 'payments_page')->withQueryString();
 
-        // Compute days early for each payment
         $earlyPayments->getCollection()->transform(function ($repayment) {
             $repayment->days_early = $repayment->created_at->diffInDays(Carbon::parse($repayment->due_date), false);
             return $repayment;
         });
 
-        // Early payments summary
         $earlyPaymentsSummary = LoanRepayment::join('repayment_schedules', 'loan_repayments.schedule_id', '=', 'repayment_schedules.id')
             ->whereColumn('loan_repayments.created_at', '<', 'repayment_schedules.due_date')
             ->whereBetween('loan_repayments.created_at', [$dateFrom, $dateTo])
@@ -199,9 +344,7 @@ class ReportController extends Controller
             ->groupBy('loan_repayments.payment_method')
             ->get();
 
-        // ══════════════════════════════════════════════════════════════
         // SECTION B — Early Loan Closures
-        // ══════════════════════════════════════════════════════════════
         $closuresQuery = Loan::with(['branch', 'relationshipOfficer'])
             ->where('status', 'completed')
             ->whereNotNull('approval_notes')
@@ -276,16 +419,13 @@ class ReportController extends Controller
             }
         }
 
-        // ══════════════════════════════════════════════════════════════
         // COMBINED MONTHLY TREND
-        // ══════════════════════════════════════════════════════════════
         $monthlyTrend = collect();
         for ($i = 5; $i >= 0; $i--) {
             $m = Carbon::now()->subMonths($i);
             $start = $m->copy()->startOfMonth();
             $end = $m->copy()->endOfMonth();
 
-            // Early payments for this month
             $monthEarlyPayments = LoanRepayment::join('repayment_schedules', 'loan_repayments.schedule_id', '=', 'repayment_schedules.id')
                 ->whereColumn('loan_repayments.created_at', '<', 'repayment_schedules.due_date')
                 ->whereBetween('loan_repayments.created_at', [$start, $end])
@@ -300,7 +440,6 @@ class ReportController extends Controller
                 ->when($request->filled('branch'), fn($q) => $q->where('loan_repayments.branch_id', $request->branch))
                 ->count();
 
-            // Early closures for this month
             $monthClosureAmount = 0;
             $monthClosureCount = Loan::where('status', 'completed')
                 ->whereNotNull('approval_notes')
@@ -333,6 +472,15 @@ class ReportController extends Controller
 
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
 
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'prepayment_analytics', [
+                'earlyPayments' => $earlyPayments->getCollection(),
+                'closures' => $closures->getCollection(),
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
         return view('reports.portfolio.prepayments', compact(
             'earlyPayments', 'earlyPaymentsSummary', 'earlyPaymentsByMethod',
             'closures', 'closureSummary',
@@ -340,64 +488,6 @@ class ReportController extends Controller
         ));
     }
 
-    /**
-     * Loan Repayments — collections in a period
-     */
-    public function collections(Request $request)
-    {
-        $dateFrom = $request->date_from ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->startOfMonth();
-        $dateTo   = $request->date_to   ? Carbon::parse($request->date_to)->endOfDay()     : Carbon::now()->endOfDay();
-
-        $statusFilter = $request->filled('status') && in_array($request->status, ['confirmed', 'pending', 'reversed'])
-            ? $request->status
-            : null;
-
-        $query = LoanRepayment::with(['loan.product', 'loan.branch', 'customer', 'receivedBy'])
-            ->whereBetween('created_at', [$dateFrom, $dateTo]);
-
-        if ($statusFilter) {
-            $query->where('status', $statusFilter);
-        }
-
-        if ($request->filled('branch')) {
-            $query->whereHas('loan', fn($q) => $q->where('branch_id', $request->branch));
-        }
-        if ($request->filled('method')) {
-            $query->where('payment_method', $request->method);
-        }
-
-        $repayments = $query->orderByDesc('created_at')->paginate(config('pagination.per_page'))->withQueryString();
-
-        $totalsQuery = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo]);
-        if ($statusFilter) {
-            $totalsQuery->where('status', $statusFilter);
-        }
-        $totals = $totalsQuery->selectRaw('COUNT(*) as count, SUM(amount) as total, SUM(principal_portion) as principal, SUM(interest_portion) as interest, SUM(penalty_portion) as penalty')
-            ->first();
-
-        $byMethodQuery = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo]);
-        if ($statusFilter) {
-            $byMethodQuery->where('status', $statusFilter);
-        }
-        $byMethod = $byMethodQuery->selectRaw('payment_method, COUNT(*) as cnt, SUM(amount) as total')
-            ->groupBy('payment_method')
-            ->get();
-
-        $dailyQuery = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo]);
-        if ($statusFilter) {
-            $dailyQuery->where('status', $statusFilter);
-        }
-        $daily = $dailyQuery->selectRaw('DATE(created_at) as day, COUNT(*) as cnt, SUM(amount) as total')
-            ->groupBy('day')
-            ->orderBy('day')
-            ->get();
-
-        $branches = Branch::where('status', 'active')->orderBy('name')->get();
-
-        return view('reports.portfolio.collections', compact(
-            'repayments', 'totals', 'byMethod', 'daily', 'dateFrom', 'dateTo', 'branches', 'statusFilter'
-        ));
-    }
 
     // ══════════════════════════════════════════════════════════════
     // OPERATIONAL REPORTS
@@ -433,6 +523,13 @@ class ReportController extends Controller
         $pendingApprovals   = Loan::pendingApproval()->count();
         $pendingDisbursement = Loan::where('status', 'approved')->count();
 
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'daily_activity', [
+                'date' => $date,
+                'transactions' => $transactions,
+            ]);
+        }
+
         return view('reports.operational.daily-activity', compact(
             'date', 'newCustomers', 'activatedToday',
             'loansApplied', 'loansApproved', 'loansDisbursed', 'disbursedAmount',
@@ -440,6 +537,113 @@ class ReportController extends Controller
             'transactions', 'txnByType',
             'pendingApprovals', 'pendingDisbursement'
         ));
+    }
+
+    /**
+     * Loans Due — schedules falling due in the selected period
+     */
+    public function loansDue(Request $request)
+    {
+        [$dateFrom, $dateTo] = $this->exportService->dateRange($request);
+
+        $query = RepaymentSchedule::with(['loan.customer', 'loan.branch', 'loan.product'])
+            ->whereBetween('due_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
+            ->where('status', '!=', 'paid')
+            ->whereHas('loan', fn($q) => $q->whereIn('status', ['disbursed', 'active']));
+
+        if ($request->filled('branch')) {
+            $query->whereHas('loan', fn($q) => $q->where('branch_id', $request->branch));
+        }
+
+        $schedules = $query->orderBy('due_date')->paginate(config('pagination.per_page'))->withQueryString();
+
+        $totalDue = RepaymentSchedule::whereBetween('due_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
+            ->where('status', '!=', 'paid')
+            ->whereHas('loan', fn($q) => $q->whereIn('status', ['disbursed', 'active']))
+            ->selectRaw('COUNT(*) as count, SUM(total_amount - total_paid) as amount')
+            ->first();
+
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
+
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'loans_due', [
+                'schedules' => $schedules->getCollection(),
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
+        return view('reports.operational.loans-due', compact('schedules', 'totalDue', 'branches', 'dateFrom', 'dateTo'));
+    }
+
+    /**
+     * New Loans — loan applications created in the period
+     */
+    public function newLoans(Request $request)
+    {
+        [$dateFrom, $dateTo] = $this->exportService->dateRange($request);
+
+        $query = Loan::with(['customer', 'product', 'branch', 'relationshipOfficer'])
+            ->whereBetween('created_at', [$dateFrom, $dateTo]);
+
+        $this->applyCommonLoanFilters($query, $request);
+
+        $loans = $query->orderByDesc('created_at')->paginate(config('pagination.per_page'))->withQueryString();
+
+        $totals = Loan::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->selectRaw('COUNT(*) as count, SUM(principal_amount) as total_principal')
+            ->first();
+
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
+        $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
+
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'new_loans', [
+                'loans' => $loans->getCollection(),
+                'totals' => $totals,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
+        return view('reports.operational.new-loans', compact('loans', 'totals', 'branches', 'products', 'dateFrom', 'dateTo'));
+    }
+
+    /**
+     * Loans Pending Disbursement — approved but not disbursed
+     */
+    public function pendingDisbursements(Request $request)
+    {
+        [$dateFrom, $dateTo] = $this->exportService->dateRange($request);
+
+        $query = Loan::with(['customer', 'product', 'branch', 'relationshipOfficer'])
+            ->where('status', 'approved')
+            ->whereNull('disbursement_date')
+            ->whereBetween('approved_at', [$dateFrom, $dateTo]);
+
+        $this->applyCommonLoanFilters($query, $request);
+
+        $loans = $query->orderByDesc('approved_at')->paginate(config('pagination.per_page'))->withQueryString();
+
+        $totals = Loan::where('status', 'approved')
+            ->whereNull('disbursement_date')
+            ->whereBetween('approved_at', [$dateFrom, $dateTo])
+            ->selectRaw('COUNT(*) as count, SUM(principal_amount) as total_principal')
+            ->first();
+
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
+        $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
+
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'pending_disbursements', [
+                'loans' => $loans->getCollection(),
+                'totals' => $totals,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
+        return view('reports.operational.pending-disbursements', compact('loans', 'totals', 'branches', 'products', 'dateFrom', 'dateTo'));
     }
 
     /**
@@ -451,7 +655,6 @@ class ReportController extends Controller
         $dateTo   = $request->date_to   ? Carbon::parse($request->date_to)->endOfDay()     : Carbon::now()->endOfDay();
         $selectedOfficer = $request->input('officer');
 
-        // Active staff users only — exclude customer portal accounts.
         $staffQuery = User::where('users.status', 'active')
             ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'customer'));
 
@@ -482,7 +685,6 @@ class ReportController extends Controller
             ->orderByDesc('loans_created')
             ->get();
 
-        // Active portfolio per officer
         $activePortfolioQuery = Loan::whereIn('status', ['disbursed', 'active'])
             ->selectRaw('relationship_officer_id, COUNT(*) as active_loans, SUM(outstanding_balance) as olb, SUM(arrears_amount) as arrears')
             ->groupBy('relationship_officer_id');
@@ -493,13 +695,11 @@ class ReportController extends Controller
 
         $activePortfolio = $activePortfolioQuery->get()->keyBy('relationship_officer_id');
 
-        // Dropdown list of staff officers for the filter
         $staffList = User::where('users.status', 'active')
             ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'customer'))
             ->orderBy('name')
             ->get(['id', 'name', 'designation']);
 
-        // Summary analytics
         $totalOlb      = $activePortfolio->sum('olb');
         $totalArrears  = $activePortfolio->sum('arrears');
         $officerCount  = $officers->count();
@@ -515,6 +715,15 @@ class ReportController extends Controller
             'avg_loans_per_officer'      => $officerCount > 0 ? round($officers->sum('loans_created') / $officerCount, 1) : 0,
             'avg_collections_per_officer'=> $officerCount > 0 ? round($officers->sum('collections_amount') / $officerCount, 2) : 0,
         ];
+
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'officer_performance', [
+                'officers' => $officers,
+                'activePortfolio' => $activePortfolio,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
 
         return view('reports.operational.officer-performance', compact(
             'officers', 'activePortfolio', 'dateFrom', 'dateTo', 'staffList', 'selectedOfficer', 'summary'
@@ -550,7 +759,6 @@ class ReportController extends Controller
             return $branch;
         });
 
-        // Summary analytics
         $totalOlb     = $branches->sum('olb');
         $totalArrears = $branches->sum('arrears');
         $branchCount  = $branches->count();
@@ -567,10 +775,19 @@ class ReportController extends Controller
             'avg_olb_per_branch'      => $branchCount > 0 ? round($totalOlb / $branchCount, 2) : 0,
         ];
 
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'branch_performance', [
+                'branches' => $branches,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
         return view('reports.operational.branch-performance', compact(
             'branches', 'dateFrom', 'dateTo', 'summary'
         ));
     }
+
 
     // ══════════════════════════════════════════════════════════════
     // FINANCIAL REPORTS
@@ -584,57 +801,38 @@ class ReportController extends Controller
         $dateFrom = $request->date_from ? Carbon::parse($request->date_from)->startOfDay() : Carbon::now()->startOfMonth();
         $dateTo   = $request->date_to   ? Carbon::parse($request->date_to)->endOfDay()     : Carbon::now()->endOfDay();
 
-        // ═══════════════════════════════════════════════════════════════
-        // INCOME — from actual transactions (real cash collected)
-        // ═══════════════════════════════════════════════════════════════
-
-        // Interest income — from loan repayments (actual cash collected)
         $interestIncome = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
             ->whereIn('status', ['confirmed', 'pending'])
             ->sum('interest_portion');
 
-        // Processing fees — from transactions where fee was actually paid
-        // These are recorded when staff manually records processing fee payment
         $processingFees = Transaction::whereBetween('created_at', [$dateFrom, $dateTo])
             ->where('transaction_type', 'processing_fee')
             ->where('status', 'completed')
             ->sum('amount');
 
-        // Insurance fees — from transactions where insurance was actually paid
         $insuranceFees = Transaction::whereBetween('created_at', [$dateFrom, $dateTo])
             ->where('transaction_type', 'insurance_fee')
             ->where('status', 'completed')
             ->sum('amount');
 
-        // Penalty income — from loan repayments
         $penaltyIncome = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
             ->whereIn('status', ['confirmed', 'pending'])
             ->sum('penalty_portion');
 
-        // Other income — interest_income transaction type (if recorded separately)
         $otherIncome = Transaction::whereBetween('created_at', [$dateFrom, $dateTo])
             ->where('transaction_type', 'interest_income')
             ->where('status', 'completed')
             ->sum('amount');
 
-        // ═══════════════════════════════════════════════════════════════
-        // FUND FLOW — principal movements
-        // ═══════════════════════════════════════════════════════════════
-
-        // Total disbursed (funds out) — from transaction records
         $totalDisbursed = Transaction::whereBetween('created_at', [$dateFrom, $dateTo])
             ->where('transaction_type', 'loan_disbursement')
             ->where('status', 'completed')
             ->sum('amount');
 
-        // Total principal collected (funds in) — from repayments
         $principalCollected = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo])
             ->whereIn('status', ['confirmed', 'pending'])
             ->sum('principal_portion');
 
-        // ═══════════════════════════════════════════════════════════════
-        // MONTHLY TREND (last 6 months)
-        // ═══════════════════════════════════════════════════════════════
         $trend = collect();
         for ($i = 5; $i >= 0; $i--) {
             $m     = Carbon::now()->subMonths($i);
@@ -653,6 +851,21 @@ class ReportController extends Controller
                 'penalty'   => LoanRepayment::whereBetween('created_at', [$start, $end])
                                 ->whereIn('status', ['confirmed', 'pending'])
                                 ->sum('penalty_portion'),
+            ]);
+        }
+
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'income_statement', [
+                'interestIncome' => $interestIncome,
+                'processingFees' => $processingFees,
+                'insuranceFees' => $insuranceFees,
+                'penaltyIncome' => $penaltyIncome,
+                'otherIncome' => $otherIncome,
+                'totalDisbursed' => $totalDisbursed,
+                'principalCollected' => $principalCollected,
+                'trend' => $trend,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
             ]);
         }
 
@@ -678,8 +891,12 @@ class ReportController extends Controller
         if ($request->filled('direction')) $query->where('direction', $request->direction);
         if ($request->filled('status'))    $query->where('status', $request->status);
 
-        if ($request->boolean('export')) {
-            return $this->exportTransactionCsv($query->orderByDesc('created_at')->get(), $dateFrom, $dateTo);
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'transaction_ledger', [
+                'transactions' => $query->orderByDesc('created_at')->get(),
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
         }
 
         $transactions = $query->orderByDesc('created_at')->paginate(config('pagination.per_page'))->withQueryString();
@@ -717,8 +934,10 @@ class ReportController extends Controller
         if ($request->filled('date_from'))       $query->whereDate('created_at', '>=', $request->date_from);
         if ($request->filled('date_to'))         $query->whereDate('created_at', '<=', $request->date_to);
 
-        if ($request->boolean('export')) {
-            return $this->exportCustomerCsv($query->orderBy('full_name')->get());
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'customer_register', [
+                'customers' => $query->orderBy('full_name')->get(),
+            ]);
         }
 
         $customers = $query->orderBy('full_name')->paginate(config('pagination.per_page'))->withQueryString();
@@ -735,6 +954,9 @@ class ReportController extends Controller
      */
     public function creditScoreReport(Request $request)
     {
+        $dateFrom = $request->date_from ? Carbon::parse($request->date_from)->startOfDay() : null;
+        $dateTo   = $request->date_to   ? Carbon::parse($request->date_to)->endOfDay()     : null;
+
         $bands = [
             ['label' => 'Excellent (800–1000)', 'min' => 800, 'max' => 1000, 'color' => '#4CAF50'],
             ['label' => 'Good (650–799)',        'min' => 650, 'max' => 799,  'color' => '#8BC34A'],
@@ -743,26 +965,191 @@ class ReportController extends Controller
             ['label' => 'Bad (0–349)',           'min' => 0,   'max' => 349,  'color' => '#F44336'],
         ];
 
-        $bands = collect($bands)->map(function ($b) {
-            $b['count']   = Customer::whereBetween('credit_score', [$b['min'], $b['max']])->count();
-            $b['avg_limit'] = Customer::whereBetween('credit_score', [$b['min'], $b['max']])->avg('credit_limit') ?? 0;
+        $customerQuery = Customer::query();
+        if ($dateFrom && $dateTo) {
+            $customerQuery->whereBetween('created_at', [$dateFrom, $dateTo]);
+        }
+
+        $bands = collect($bands)->map(function ($b) use ($customerQuery) {
+            $q = clone $customerQuery;
+            $b['count']   = $q->whereBetween('credit_score', [$b['min'], $b['max']])->count();
+
+            $q2 = clone $customerQuery;
+            $b['avg_limit'] = $q2->whereBetween('credit_score', [$b['min'], $b['max']])->avg('credit_limit') ?? 0;
             return $b;
         });
 
-        $total = Customer::count();
+        $total = (clone $customerQuery)->count();
 
-        $topCustomers = Customer::with('branch')
+        $topCustomers = (clone $customerQuery)->with('branch')
             ->where('credit_score', '>', 0)
             ->orderByDesc('credit_score')
             ->paginate(config('pagination.per_page'))
             ->withQueryString();
 
-        $avgScore = Customer::where('credit_score', '>', 0)->avg('credit_score') ?? 0;
+        $avgScore = (clone $customerQuery)->where('credit_score', '>', 0)->avg('credit_score') ?? 0;
 
-        return view('reports.customers.credit-score', compact('bands', 'total', 'topCustomers', 'avgScore'));
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'credit_score_distribution', [
+                'bands' => $bands,
+                'topCustomers' => $topCustomers->getCollection(),
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
+        return view('reports.customers.credit-score', compact('bands', 'total', 'topCustomers', 'avgScore', 'dateFrom', 'dateTo'));
     }
 
+
     // ══════════════════════════════════════════════════════════════
+    // RISK REPORTS
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Loan Arrears — detailed arrears listing matching refurb PDF layout.
+     */
+    public function loanArrears(Request $request)
+    {
+        [$dateFrom, $dateTo] = $this->exportService->dateRange($request);
+        $asAt = $request->filled('date_to') ? $dateTo : now();
+
+        $query = Loan::with(['customer', 'branch', 'relationshipOfficer', 'product', 'guarantors'])
+            ->whereIn('status', ['disbursed', 'active'])
+            ->where('arrears_amount', '>', 0);
+
+        $this->applyCommonLoanFilters($query, $request);
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('disbursement_date', '>=', $dateFrom);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('disbursement_date', '<=', $dateTo);
+        }
+
+        $loans = $query->orderByDesc('days_in_arrears')->paginate(config('pagination.per_page'))->withQueryString();
+
+        $totals = Loan::whereIn('status', ['disbursed', 'active'])
+            ->where('arrears_amount', '>', 0)
+            ->selectRaw('COUNT(*) as count, SUM(principal_amount) as total_principal, SUM(interest_amount) as total_interest, SUM(outstanding_balance) as total_olb, SUM(arrears_amount) as total_arrears')
+            ->first();
+
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
+        $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
+
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'loan_arrears', [
+                'loans' => $loans->getCollection(),
+                'totals' => $totals,
+                'asAt' => $asAt,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
+        return view('reports.risk.loan-arrears', compact(
+            'loans', 'totals', 'branches', 'products', 'asAt', 'dateFrom', 'dateTo'
+        ));
+    }
+
+    /**
+     * Loan Arrears Summary
+     */
+    public function loanArrearsSummary(Request $request)
+    {
+        [$dateFrom, $dateTo] = $this->exportService->dateRange($request);
+
+        $baseQuery = Loan::whereIn('loans.status', ['disbursed', 'active'])
+            ->where('arrears_amount', '>', 0);
+
+        $this->applyCommonLoanFilters($baseQuery, $request);
+
+        if ($request->filled('date_from')) {
+            $baseQuery->whereDate('disbursement_date', '>=', $dateFrom);
+        }
+        if ($request->filled('date_to')) {
+            $baseQuery->whereDate('disbursement_date', '<=', $dateTo);
+        }
+
+        $byBranch = (clone $baseQuery)
+            ->join('branches', 'loans.branch_id', '=', 'branches.id')
+            ->selectRaw('branches.name as branch, COUNT(*) as count, SUM(loans.outstanding_balance) as olb, SUM(loans.arrears_amount) as arrears')
+            ->groupBy('branches.name')
+            ->get();
+
+        $byOfficer = (clone $baseQuery)
+            ->join('users', 'loans.relationship_officer_id', '=', 'users.id')
+            ->selectRaw('users.name as officer, COUNT(*) as count, SUM(loans.outstanding_balance) as olb, SUM(loans.arrears_amount) as arrears')
+            ->groupBy('users.name')
+            ->get();
+
+        $byRisk = (clone $baseQuery)
+            ->selectRaw('risk_category, COUNT(*) as count, SUM(outstanding_balance) as olb, SUM(arrears_amount) as arrears')
+            ->groupBy('risk_category')
+            ->get();
+
+        $totals = (clone $baseQuery)
+            ->selectRaw('COUNT(*) as count, SUM(outstanding_balance) as olb, SUM(arrears_amount) as arrears')
+            ->first();
+
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
+        $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
+
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'loan_arrears_summary', [
+                'byBranch' => $byBranch,
+                'byOfficer' => $byOfficer,
+                'byRisk' => $byRisk,
+                'totals' => $totals,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
+        return view('reports.risk.loan-arrears-summary', compact(
+            'byBranch', 'byOfficer', 'byRisk', 'totals', 'branches', 'products', 'dateFrom', 'dateTo'
+        ));
+    }
+
+    /**
+     * Loan Dues Summary
+     */
+    public function loanDuesSummary(Request $request)
+    {
+        [$dateFrom, $dateTo] = $this->exportService->dateRange($request);
+
+        $query = RepaymentSchedule::with(['loan.customer', 'loan.branch'])
+            ->whereBetween('due_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
+            ->whereHas('loan', fn($q) => $q->whereIn('status', ['disbursed', 'active']));
+
+        if ($request->filled('branch')) {
+            $query->whereHas('loan', fn($q) => $q->where('branch_id', $request->branch));
+        }
+
+        $byDay = $query->selectRaw('due_date, COUNT(*) as count, SUM(total_amount - total_paid) as amount')
+            ->groupBy('due_date')
+            ->orderBy('due_date')
+            ->get();
+
+        $totalDue = RepaymentSchedule::whereBetween('due_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
+            ->whereHas('loan', fn($q) => $q->whereIn('status', ['disbursed', 'active']))
+            ->selectRaw('COUNT(*) as count, SUM(total_amount - total_paid) as amount')
+            ->first();
+
+        $branches = Branch::where('status', 'active')->orderBy('name')->get();
+
+        if ($request->filled('export')) {
+            return $this->handleReportExport($request, 'loan_dues_summary', [
+                'byDay' => $byDay,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+            ]);
+        }
+
+        return view('reports.risk.loan-dues-summary', compact('byDay', 'totalDue', 'branches', 'dateFrom', 'dateTo'));
+    }
+
+
     // HELPERS
     // ══════════════════════════════════════════════════════════════
 
@@ -771,7 +1158,8 @@ class ReportController extends Controller
         if ($request->filled('branch'))  $query->where('branch_id', $request->branch);
         if ($request->filled('product')) $query->where('product_id', $request->product);
         if ($request->filled('officer')) $query->where('relationship_officer_id', $request->officer);
-        if ($request->filled('status'))  $query->where('status', $request->status);
+        if ($request->filled('status'))  $query->where('loans.status', $request->status);
+        if ($request->filled('risk'))    $query->where('risk_category', $request->risk);
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
@@ -782,54 +1170,4 @@ class ReportController extends Controller
         }
     }
 
-    private function exportTransactionCsv($transactions, $dateFrom, $dateTo)
-    {
-        $filename = 'transactions_' . $dateFrom->format('Ymd') . '_' . $dateTo->format('Ymd') . '.csv';
-        $headers  = ['Content-Type' => 'text/csv', 'Content-Disposition' => "attachment; filename=\"{$filename}\""];
-
-        $callback = function () use ($transactions) {
-            $h = fopen('php://output', 'w');
-            fputcsv($h, ['#', 'Txn No.', 'Customer', 'Phone', 'Type', 'Direction', 'Source', 'Ext. Ref', 'Amount', 'Status', 'Date']);
-            foreach ($transactions as $i => $t) {
-                fputcsv($h, [
-                    $i + 1, $t->transaction_number,
-                    $t->customer?->full_name ?? 'N/A',
-                    $t->customer?->phone_number ?? $t->phone_number ?? 'N/A',
-                    str_replace('_', ' ', $t->transaction_type),
-                    $t->direction, $t->source ?? 'N/A',
-                    $t->external_reference ?? 'N/A',
-                    $t->amount, $t->status,
-                    $t->created_at->format('d-M-Y H:i'),
-                ]);
-            }
-            fclose($h);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-
-    private function exportCustomerCsv($customers)
-    {
-        $filename = 'customers_' . date('Ymd_His') . '.csv';
-        $headers  = ['Content-Type' => 'text/csv', 'Content-Disposition' => "attachment; filename=\"{$filename}\""];
-
-        $callback = function () use ($customers) {
-            $h = fopen('php://output', 'w');
-            fputcsv($h, ['#', 'Customer No.', 'Full Name', 'Phone', 'ID No.', 'Branch', 'Officer', 'Employment', 'Monthly Income', 'Savings', 'Credit Score', 'Status', 'Joined']);
-            foreach ($customers as $i => $c) {
-                fputcsv($h, [
-                    $i + 1, $c->customer_number, $c->full_name, $c->phone_number,
-                    $c->id_number, $c->branch->name ?? 'N/A',
-                    $c->relationshipOfficer->name ?? 'N/A',
-                    str_replace('_', ' ', $c->employment_type ?? 'N/A'),
-                    $c->monthly_income ?? 0, $c->savings_balance,
-                    $c->credit_score, $c->status,
-                    $c->created_at->format('d-M-Y'),
-                ]);
-            }
-            fclose($h);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
 }

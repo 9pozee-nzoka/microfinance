@@ -176,11 +176,39 @@
 
         {{-- Reports — branch manager + admin --}}
         @hasanyrole('branch_manager|admin|super_admin')
-        <a href="{{ route('reports.index') }}"
-           class="nav-item {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+        <button class="nav-item has-submenu {{ request()->routeIs('reports.*') ? 'active expanded' : '' }}">
             <i class="fas fa-chart-pie"></i>
             <span>Reports</span>
-        </a>
+            <i class="fas fa-chevron-right chevron"></i>
+        </button>
+        <div class="submenu {{ request()->routeIs('reports.*') ? 'show' : '' }}">
+            <a href="{{ route('reports.categories.index') }}" class="nav-item {{ request()->routeIs('reports.categories.*') ? 'active' : '' }}">
+                <i class="fas fa-th-large"></i><span>Report Categories</span>
+            </a>
+            <a href="{{ route('reports.categories.show', 'operational') }}" class="nav-item {{ request()->routeIs('reports.operational.*') ? 'active' : '' }}">
+                <i class="fas fa-cogs"></i><span>Operational Reports</span>
+            </a>
+            <a href="{{ route('reports.categories.show', 'customer') }}" class="nav-item {{ request()->routeIs('reports.portfolio.loan-book') || request()->routeIs('reports.customers.*') ? 'active' : '' }}">
+                <i class="fas fa-users"></i><span>Customer Reports</span>
+            </a>
+            <a href="{{ route('reports.categories.show', 'risk') }}" class="nav-item {{ request()->routeIs('reports.risk.*') || request()->routeIs('reports.portfolio.par') ? 'active' : '' }}">
+                <i class="fas fa-exclamation-triangle"></i><span>Risk Reports</span>
+            </a>
+        </div>
+        @endhasanyrole
+
+        {{-- Report Management — loan officers + managers + admins --}}
+        @hasanyrole('loan_officer|branch_manager|admin|super_admin')
+        <button class="nav-item has-submenu {{ request()->routeIs('staff.reports.*') ? 'active expanded' : '' }}">
+            <i class="fas fa-file-download"></i>
+            <span>Report Management</span>
+            <i class="fas fa-chevron-right chevron"></i>
+        </button>
+        <div class="submenu {{ request()->routeIs('staff.reports.*') ? 'show' : '' }}">
+            <a href="{{ route('staff.reports.categories') }}" class="nav-item {{ request()->routeIs('staff.reports.*') ? 'active' : '' }}">
+                <i class="fas fa-folder-open"></i><span>My Reports</span>
+            </a>
+        </div>
         @endhasanyrole
 
     </nav>

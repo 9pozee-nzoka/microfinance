@@ -4,11 +4,15 @@
 
 @section('content')
 <div class="page-actions">
-    <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
+    <a href="{{ route('reports.categories.show', 'operational') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Operational Reports</a>
     <form method="GET" action="{{ route('reports.operational.daily') }}" style="display:flex; gap:10px; align-items:center;">
         <label class="form-label">Date:</label>
         <input type="date" name="date" value="{{ $date->toDateString() }}" class="filter-select">
         <button type="submit" class="btn btn-primary" style="height:38px; padding:0 16px;"><i class="fas fa-search"></i> Go</button>
+        <button type="submit" name="export" value="pdf" class="btn btn-outline" style="color:#DC2626; border-color:#DC2626; height:38px; padding:0 12px; font-size:12px;"><i class="fas fa-file-pdf"></i></button>
+        <button type="submit" name="export" value="excel" class="btn btn-outline" style="color:#16A34A; border-color:#16A34A; height:38px; padding:0 12px; font-size:12px;"><i class="fas fa-file-excel"></i></button>
+        <button type="submit" name="export" value="csv" class="btn btn-outline" style="color:#2563EB; border-color:#2563EB; height:38px; padding:0 12px; font-size:12px;"><i class="fas fa-file-csv"></i></button>
+        <button type="submit" name="export" value="word" class="btn btn-outline" style="color:#2563EB; border-color:#2563EB; height:38px; padding:0 12px; font-size:12px;"><i class="fas fa-file-word"></i></button>
     </form>
 </div>
 

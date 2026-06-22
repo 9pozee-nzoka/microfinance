@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="page-actions">
-    <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
+    <a href="{{ route('reports.categories.show', 'customer') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Customer Reports</a>
 </div>
 
 {{-- Status Stats --}}
@@ -20,55 +20,31 @@
     @endforeach
 </div>
 
-{{-- Filters --}}
-<div class="card" style="margin-bottom:20px;">
-    <form method="GET" action="{{ route('reports.customers.register') }}">
-        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
-            <div>
-                <label class="form-label">Status</label>
-                <select name="status" class="filter-select">
-                    <option value="">All Status</option>
-                    @foreach(['active','pending','rejected','dormant','suspended'] as $s)
-                        <option value="{{ $s }}" {{ request('status') === $s ? 'selected' : '' }}>{{ ucfirst($s) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">Branch</label>
-                <select name="branch" class="filter-select">
-                    <option value="">All Branches</option>
-                    @foreach($branches as $b)
-                        <option value="{{ $b->id }}" {{ request('branch') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">Employment</label>
-                <select name="employment_type" class="filter-select">
-                    <option value="">All</option>
-                    @foreach(['salaried','self_employed','business','farmer','other'] as $e)
-                        <option value="{{ $e }}" {{ request('employment_type') === $e ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$e)) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">Joined From</label>
-                <input type="date" name="date_from" value="{{ request('date_from') }}" class="filter-select">
-            </div>
-            <div>
-                <label class="form-label">Joined To</label>
-                <input type="date" name="date_to" value="{{ request('date_to') }}" class="filter-select">
-            </div>
-            <div style="display:flex; gap:8px; padding-bottom:1px;">
-                <button type="submit" class="btn btn-primary" style="height:38px; padding:0 18px;"><i class="fas fa-search"></i> Filter</button>
-                <a href="{{ route('reports.customers.register') }}" class="btn btn-outline" style="height:38px; padding:0 14px;"><i class="fas fa-undo"></i></a>
-                <button type="submit" name="export" value="1" class="btn btn-outline" style="height:38px; padding:0 14px; color:var(--success); border-color:var(--success);">
-                    <i class="fas fa-download"></i> CSV
-                </button>
-            </div>
-        </div>
-    </form>
-</div>
+@php
+$statusSlot = '<div><label class="form-label">Status</label><select name="status" class="form-control"><option value="">All Status</option>';
+foreach(['active','pending','rejected','dormant','suspended'] as $s) {
+    $selected = request('status') === $s ? 'selected' : '';
+    $statusSlot .= '<option value="'.$s.'" '.$selected.'>'.ucfirst($s).'</option>';
+}
+$statusSlot .= '</select></div>';
+
+$employmentSlot = '<div><label class="form-label">Employment</label><select name="employment_type" class="form-control"><option value="">All</option>';
+foreach(['salaried','self_employed','business','farmer','other'] as $e) {
+    $selected = request('employment_type') === $e ? 'selected' : '';
+    $employmentSlot .= '<option value="'.$e.'" '.$selected.'>'.ucfirst(str_replace('_',' ',$e)).'</option>';
+}
+$employmentSlot .= '</select></div>';
+@endphp
+
+@include('reports._partials.filters', [
+    'action' => $reportAction ?? route('reports.customers.register'),
+    'showDate' => true,
+    'dateLabelFrom' => 'Joined From',
+    'dateLabelTo' => 'Joined To',
+    'showBranch' => true,
+    'branches' => $branches,
+    'slot' => $statusSlot . $employmentSlot,
+])
 
 <div class="card">
     <div class="card-header" style="margin-bottom:14px;">

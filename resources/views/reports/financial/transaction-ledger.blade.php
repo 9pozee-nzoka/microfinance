@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="page-actions">
-    <a href="{{ route('reports.index') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Reports</a>
+    <a href="{{ route('reports.categories.show', 'operational') }}" class="btn btn-outline" style="font-size:13px;"><i class="fas fa-arrow-left"></i> Operational Reports</a>
     <span style="font-size:12px; color:var(--text-secondary);">{{ $dateFrom->format('d M Y') }} — {{ $dateTo->format('d M Y') }}</span>
 </div>
 
@@ -43,54 +43,35 @@
     </div>
 </div>
 
+@php
+$typeSlot = '<div><label class="form-label">Type</label><select name="type" class="form-control"><option value="">All Types</option>';
+foreach(['loan_disbursement','loan_repayment','savings_deposit','savings_withdrawal','share_capital','processing_fee','insurance_fee','penalty','refund','adjustment'] as $t) {
+    $selected = request('type') === $t ? 'selected' : '';
+    $typeSlot .= '<option value="'.$t.'" '.$selected.'>'.ucfirst(str_replace('_',' ',$t)).'</option>';
+}
+$typeSlot .= '</select></div>';
+
+$directionSlot = '<div><label class="form-label">Direction</label><select name="direction" class="form-control"><option value="">Both</option>';
+foreach(['credit' => 'Credit', 'debit' => 'Debit'] as $v => $l) {
+    $selected = request('direction') === $v ? 'selected' : '';
+    $directionSlot .= '<option value="'.$v.'" '.$selected.'>'.$l.'</option>';
+}
+$directionSlot .= '</select></div>';
+
+$sourceSlot = '<div><label class="form-label">Source</label><select name="source" class="form-control"><option value="">All</option>';
+foreach(['mpesa','bank','cash','internal','system'] as $s) {
+    $selected = request('source') === $s ? 'selected' : '';
+    $sourceSlot .= '<option value="'.$s.'" '.$selected.'>'.ucfirst($s).'</option>';
+}
+$sourceSlot .= '</select></div>';
+@endphp
+
 {{-- Filters --}}
-<div class="card" style="margin-bottom:20px;">
-    <form method="GET" action="{{ route('reports.financial.ledger') }}">
-        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
-            <div>
-                <label class="form-label">Date From</label>
-                <input type="date" name="date_from" value="{{ request('date_from', $dateFrom->toDateString()) }}" class="filter-select">
-            </div>
-            <div>
-                <label class="form-label">Date To</label>
-                <input type="date" name="date_to" value="{{ request('date_to', $dateTo->toDateString()) }}" class="filter-select">
-            </div>
-            <div>
-                <label class="form-label">Type</label>
-                <select name="type" class="filter-select">
-                    <option value="">All Types</option>
-                    @foreach(['loan_disbursement','loan_repayment','savings_deposit','savings_withdrawal','share_capital','processing_fee','insurance_fee','penalty','refund','adjustment'] as $t)
-                        <option value="{{ $t }}" {{ request('type') === $t ? 'selected' : '' }}>{{ ucfirst(str_replace('_',' ',$t)) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">Direction</label>
-                <select name="direction" class="filter-select">
-                    <option value="">Both</option>
-                    <option value="credit" {{ request('direction') === 'credit' ? 'selected' : '' }}>Credit</option>
-                    <option value="debit"  {{ request('direction') === 'debit'  ? 'selected' : '' }}>Debit</option>
-                </select>
-            </div>
-            <div>
-                <label class="form-label">Source</label>
-                <select name="source" class="filter-select">
-                    <option value="">All</option>
-                    @foreach(['mpesa','bank','cash','internal','system'] as $s)
-                        <option value="{{ $s }}" {{ request('source') === $s ? 'selected' : '' }}>{{ ucfirst($s) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div style="display:flex; gap:8px; padding-bottom:1px;">
-                <button type="submit" class="btn btn-primary" style="height:38px; padding:0 18px;"><i class="fas fa-search"></i> Filter</button>
-                <a href="{{ route('reports.financial.ledger') }}" class="btn btn-outline" style="height:38px; padding:0 14px;"><i class="fas fa-undo"></i></a>
-                <button type="submit" name="export" value="1" class="btn btn-outline" style="height:38px; padding:0 14px; color:var(--success); border-color:var(--success);">
-                    <i class="fas fa-download"></i> CSV
-                </button>
-            </div>
-        </div>
-    </form>
-</div>
+@include('reports._partials.filters', [
+    'action' => $reportAction ?? route('reports.financial.ledger'),
+    'showDate' => true,
+    'slot' => $typeSlot . $directionSlot . $sourceSlot,
+])
 
 <div class="card">
     <div class="card-header" style="margin-bottom:14px;">

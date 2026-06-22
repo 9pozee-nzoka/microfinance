@@ -8,7 +8,6 @@ use App\Models\LoanProduct;
 use App\Models\LoanProductRate;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
 class DatabaseSeeder extends Seeder
@@ -51,7 +50,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name'         => env('ADMIN_NAME', 'System Administrator'),
                 'email'        => env('ADMIN_EMAIL', 'admin@mweelacash.co.ke'),
-                'password'     => Hash::make(env('ADMIN_PASSWORD', 'Admin@2026')),
+                'password'     => env('ADMIN_PASSWORD', 'Admin@2026'),
                 'phone_number' => env('ADMIN_PHONE', '+254700000001'),
                 'branch_id'    => $branch->id,
                 'employee_id'  => 'EMP-001',

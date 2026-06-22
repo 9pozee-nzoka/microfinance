@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\MpesaController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\StaffReportController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\CustomerController;
@@ -329,18 +330,47 @@ Route::middleware(['auth', 'staff', 'single.session'])->group(function () {
         ->prefix('reports')->name('reports.')
         ->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');
+
+            // Category navigation
+            Route::get('/categories', [ReportController::class, 'categories'])->name('categories.index');
+            Route::get('/categories/{slug}', [ReportController::class, 'categoryReports'])->name('categories.show');
+
+            // Portfolio reports
             Route::get('/portfolio/loan-book',    [ReportController::class, 'loanBook'])->name('portfolio.loan-book');
             Route::get('/portfolio/par',           [ReportController::class, 'par'])->name('portfolio.par');
             Route::get('/portfolio/disbursements', [ReportController::class, 'disbursements'])->name('portfolio.disbursements');
             Route::get('/portfolio/collections',   [ReportController::class, 'collections'])->name('portfolio.collections');
             Route::get('/portfolio/prepayments',   [ReportController::class, 'prepaymentAnalytics'])->name('portfolio.prepayments');
+
+            // Operational reports
             Route::get('/operational/daily',       [ReportController::class, 'dailyActivity'])->name('operational.daily');
+            Route::get('/operational/loans-due',   [ReportController::class, 'loansDue'])->name('operational.loans-due');
+            Route::get('/operational/new-loans',   [ReportController::class, 'newLoans'])->name('operational.new-loans');
+            Route::get('/operational/pending-disbursements', [ReportController::class, 'pendingDisbursements'])->name('operational.pending-disbursements');
             Route::get('/operational/officers',    [ReportController::class, 'officerPerformance'])->name('operational.officers');
             Route::get('/operational/branches',    [ReportController::class, 'branchPerformance'])->name('operational.branches');
+
+            // Financial reports
             Route::get('/financial/income',        [ReportController::class, 'incomeStatement'])->name('financial.income');
             Route::get('/financial/ledger',        [ReportController::class, 'transactionLedger'])->name('financial.ledger');
+
+            // Customer reports
             Route::get('/customers/register',      [ReportController::class, 'customerRegister'])->name('customers.register');
             Route::get('/customers/credit-scores', [ReportController::class, 'creditScoreReport'])->name('customers.credit-scores');
+
+            // Risk reports
+            Route::get('/risk/loan-arrears',         [ReportController::class, 'loanArrears'])->name('risk.loan-arrears');
+            Route::get('/risk/loan-arrears-summary', [ReportController::class, 'loanArrearsSummary'])->name('risk.loan-arrears-summary');
+            Route::get('/risk/loan-dues-summary',    [ReportController::class, 'loanDuesSummary'])->name('risk.loan-dues-summary');
+        });
+
+    // ── Staff Report Management ────────────────────────────────
+    Route::middleware(['role:super_admin|admin|branch_manager|loan_officer'])
+        ->prefix('staff/reports')->name('staff.reports.')
+        ->group(function () {
+            Route::get('/', [StaffReportController::class, 'categories'])->name('categories');
+            Route::get('/categories/{slug}', [StaffReportController::class, 'categoryReports'])->name('categories.show');
+            Route::get('/{category}/{report}', [StaffReportController::class, 'show'])->name('show');
         });
 });
 
