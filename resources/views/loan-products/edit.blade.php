@@ -87,23 +87,32 @@
     {{-- Rates Table --}}
     <div class="form-section">
         <div class="section-heading"><i class="fas fa-table"></i> Principal / Term Rates</div>
+        <p style="color:var(--text-secondary); font-size:13px; margin-bottom:12px;">
+            Enter an <strong>Interest Amount (KSH)</strong> for accuracy. The <strong>Rate (%)</strong> is only a fallback when no amount is provided.
+        </p>
         <div id="ratesContainer">
             @php $rates = old('rates') ?? $loanProduct->rates->toArray(); @endphp
             @if(count($rates))
                 @foreach($rates as $i => $rate)
                 <div class="grid-4 rate-row" style="margin-bottom:10px; align-items:end;">
                     <div class="form-group">
-                        <input type="number" name="rates[{{ $i }}][principal_amount]" value="{{ $rate['principal_amount'] ?? '' }}" placeholder="Principal (KSH)" class="form-control" step="0.01" min="1">
+                        <label class="form-label" style="font-size:12px;">Principal (KSH) <span class="req">*</span></label>
+                        <input type="number" name="rates[{{ $i }}][principal_amount]" value="{{ $rate['principal_amount'] ?? '' }}" placeholder="e.g. 5000" class="form-control" step="0.01" min="1">
                     </div>
                     <div class="form-group">
-                        <input type="number" name="rates[{{ $i }}][term_weeks]" value="{{ $rate['term_weeks'] ?? '' }}" placeholder="Term (weeks)" class="form-control" min="1">
+                        <label class="form-label" style="font-size:12px;">Term (weeks) <span class="req">*</span></label>
+                        <input type="number" name="rates[{{ $i }}][term_weeks]" value="{{ $rate['term_weeks'] ?? '' }}" placeholder="e.g. 4" class="form-control" min="1">
                     </div>
                     <div class="form-group">
-                        <input type="number" name="rates[{{ $i }}][interest_amount]" value="{{ $rate['interest_amount'] ?? '' }}" placeholder="Interest Amount (KSH)" class="form-control" step="0.01" min="0">
+                        <label class="form-label" style="font-size:12px;">Interest Amount (KSH) <span class="req">*</span></label>
+                        <input type="number" name="rates[{{ $i }}][interest_amount]" value="{{ $rate['interest_amount'] ?? '' }}" placeholder="e.g. 400" class="form-control" step="0.01" min="0">
                     </div>
                     <div class="form-group" style="display:flex; gap:8px;">
-                        <input type="number" name="rates[{{ $i }}][interest_rate]" value="{{ $rate['interest_rate'] ?? '' }}" placeholder="Rate (%) fallback" class="form-control" step="0.01" min="0">
-                        <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('.rate-row').remove()" style="white-space:nowrap;"><i class="fas fa-trash"></i></button>
+                        <div style="flex:1;">
+                            <label class="form-label" style="font-size:12px;">Rate (%) fallback</label>
+                            <input type="number" name="rates[{{ $i }}][interest_rate]" value="{{ $rate['interest_rate'] ?? '' }}" placeholder="e.g. 8" class="form-control" step="0.01" min="0">
+                        </div>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('.rate-row').remove()" style="white-space:nowrap; align-self:flex-end;"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
                 @endforeach
@@ -133,17 +142,23 @@ function addRateRow() {
     div.style.alignItems = 'end';
     div.innerHTML = `
         <div class="form-group">
-            <input type="number" name="rates[${rateIndex}][principal_amount]" placeholder="Principal (KSH)" class="form-control" step="0.01" min="1">
+            <label class="form-label" style="font-size:12px;">Principal (KSH) <span class="req">*</span></label>
+            <input type="number" name="rates[${rateIndex}][principal_amount]" placeholder="e.g. 5000" class="form-control" step="0.01" min="1">
         </div>
         <div class="form-group">
-            <input type="number" name="rates[${rateIndex}][term_weeks]" placeholder="Term (weeks)" class="form-control" min="1">
+            <label class="form-label" style="font-size:12px;">Term (weeks) <span class="req">*</span></label>
+            <input type="number" name="rates[${rateIndex}][term_weeks]" placeholder="e.g. 4" class="form-control" min="1">
         </div>
         <div class="form-group">
-            <input type="number" name="rates[${rateIndex}][interest_amount]" placeholder="Interest Amount (KSH)" class="form-control" step="0.01" min="0">
+            <label class="form-label" style="font-size:12px;">Interest Amount (KSH) <span class="req">*</span></label>
+            <input type="number" name="rates[${rateIndex}][interest_amount]" placeholder="e.g. 400" class="form-control" step="0.01" min="0">
         </div>
         <div class="form-group" style="display:flex; gap:8px;">
-            <input type="number" name="rates[${rateIndex}][interest_rate]" placeholder="Rate (%) fallback" class="form-control" step="0.01" min="0">
-            <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('.rate-row').remove()" style="white-space:nowrap;"><i class="fas fa-trash"></i></button>
+            <div style="flex:1;">
+                <label class="form-label" style="font-size:12px;">Rate (%) fallback</label>
+                <input type="number" name="rates[${rateIndex}][interest_rate]" placeholder="e.g. 8" class="form-control" step="0.01" min="0">
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('.rate-row').remove()" style="white-space:nowrap; align-self:flex-end;"><i class="fas fa-trash"></i></button>
         </div>
     `;
     container.appendChild(div);

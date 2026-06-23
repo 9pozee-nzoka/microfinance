@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use App\Models\LoanProduct;
 use App\Models\LoanProductRate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LoanProductAdminController extends Controller
 {
@@ -60,6 +61,11 @@ class LoanProductAdminController extends Controller
             'rates.*.interest_amount'  => 'nullable|numeric|min:0',
         ]);
 
+        $rateErrors = $this->validateRatesHaveInterest($validated['rates'] ?? []);
+        if ($rateErrors) {
+            return back()->withInput()->withErrors($rateErrors);
+        }
+
         $product = LoanProduct::create([
             'name'                   => $validated['name'],
             'code'                   => $validated['code'],
@@ -83,23 +89,21 @@ class LoanProductAdminController extends Controller
             'status'                 => $validated['status'],
         ]);
 
-        // Save rates
+        // Save rates inside a transaction so any failure does not leave stale data.
         if (!empty($validated['rates'])) {
-            foreach ($validated['rates'] as $rate) {
-                $interestAmount = $rate['interest_amount'] ?? null;
-                // If amount is empty but rate is provided, auto-compute the amount for convenience.
-                if (blank($interestAmount) && isset($rate['interest_rate']) && $rate['interest_rate'] !== '') {
-                    $interestAmount = round($rate['principal_amount'] * ($rate['interest_rate'] / 100), 2);
-                }
+            DB::transaction(function () use ($product, $validated) {
+                foreach ($validated['rates'] as $rate) {
+                    $normalized = $this->normalizeRate($rate);
 
-                LoanProductRate::create([
-                    'loan_product_id'  => $product->id,
-                    'principal_amount' => $rate['principal_amount'],
-                    'term_weeks'       => $rate['term_weeks'],
-                    'interest_rate'    => $rate['interest_rate'] ?? 0,
-                    'interest_amount'  => $interestAmount,
-                ]);
-            }
+                    LoanProductRate::create([
+                        'loan_product_id'  => $product->id,
+                        'principal_amount' => $normalized['principal_amount'],
+                        'term_weeks'       => $normalized['term_weeks'],
+                        'interest_rate'    => $normalized['interest_rate'],
+                        'interest_amount'  => $normalized['interest_amount'],
+                    ]);
+                }
+            });
         }
 
         return redirect()->route('loan-products.index')
@@ -136,6 +140,13 @@ class LoanProductAdminController extends Controller
             'rates.*.interest_amount'  => 'nullable|numeric|min:0',
         ]);
 
+        if ($request->has('rates')) {
+            $rateErrors = $this->validateRatesHaveInterest($validated['rates'] ?? []);
+            if ($rateErrors) {
+                return back()->withInput()->withErrors($rateErrors);
+            }
+        }
+
         $loanProduct->update([
             'name'                   => $validated['name'],
             'code'                   => $validated['code'],
@@ -159,26 +170,68 @@ class LoanProductAdminController extends Controller
             'status'                 => $validated['status'],
         ]);
 
-        // Rebuild rates
-        if (!empty($validated['rates'])) {
-            $loanProduct->rates()->delete();
-            foreach ($validated['rates'] as $rate) {
-                $interestAmount = $rate['interest_amount'] ?? null;
-                if (blank($interestAmount) && isset($rate['interest_rate']) && $rate['interest_rate'] !== '') {
-                    $interestAmount = round($rate['principal_amount'] * ($rate['interest_rate'] / 100), 2);
-                }
+        // Rebuild rates inside a transaction. If the rates key is present (even as an
+        // empty array) we delete and recreate; otherwise we leave existing rates alone.
+        if ($request->has('rates')) {
+            DB::transaction(function () use ($loanProduct, $validated) {
+                $loanProduct->rates()->delete();
 
-                LoanProductRate::create([
-                    'loan_product_id'  => $loanProduct->id,
-                    'principal_amount' => $rate['principal_amount'],
-                    'term_weeks'       => $rate['term_weeks'],
-                    'interest_rate'    => $rate['interest_rate'] ?? 0,
-                    'interest_amount'  => $interestAmount,
-                ]);
-            }
+                foreach ($validated['rates'] ?? [] as $rate) {
+                    $normalized = $this->normalizeRate($rate);
+
+                    LoanProductRate::create([
+                        'loan_product_id'  => $loanProduct->id,
+                        'principal_amount' => $normalized['principal_amount'],
+                        'term_weeks'       => $normalized['term_weeks'],
+                        'interest_rate'    => $normalized['interest_rate'],
+                        'interest_amount'  => $normalized['interest_amount'],
+                    ]);
+                }
+            });
         }
 
         return redirect()->route('loan-products.index')
             ->with('success', "Loan product {$loanProduct->name} updated successfully.");
+    }
+
+    /**
+     * Ensure each rate row provides at least an interest amount or an interest rate.
+     */
+    private function validateRatesHaveInterest(array $rates): array
+    {
+        $errors = [];
+        foreach ($rates as $i => $rate) {
+            $hasAmount = !blank($rate['interest_amount'] ?? null);
+            $hasRate   = !blank($rate['interest_rate'] ?? null);
+
+            if (! $hasAmount && ! $hasRate) {
+                $errors["rates.{$i}.interest_amount"] = 'Either an interest amount or an interest rate is required.';
+            }
+        }
+        return $errors;
+    }
+
+    /**
+     * Normalize a rate row: compute the missing value (amount or rate) from the other.
+     */
+    private function normalizeRate(array $rate): array
+    {
+        $principal      = (float) $rate['principal_amount'];
+        $term           = (int) $rate['term_weeks'];
+        $interestAmount = !blank($rate['interest_amount'] ?? null) ? (float) $rate['interest_amount'] : null;
+        $interestRate   = !blank($rate['interest_rate'] ?? null)   ? (float) $rate['interest_rate']   : null;
+
+        if ($interestAmount === null && $interestRate !== null) {
+            $interestAmount = round($principal * ($interestRate / 100), 2);
+        } elseif ($interestAmount !== null && $interestRate === null) {
+            $interestRate = $principal > 0 ? round(($interestAmount / $principal) * 100, 2) : 0;
+        }
+
+        return [
+            'principal_amount' => $principal,
+            'term_weeks'       => $term,
+            'interest_rate'    => $interestRate ?? 0,
+            'interest_amount'  => $interestAmount ?? 0,
+        ];
     }
 }
