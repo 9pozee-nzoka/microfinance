@@ -373,7 +373,7 @@ class LoanController extends Controller
                 'loan_id' => $loan->id,
                 'approved_at' => $loan->approved_at,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Loan approval failed: ' . $e->getMessage(), [
                 'loan_id' => $loan->id,
                 'trace' => $e->getTraceAsString(),
