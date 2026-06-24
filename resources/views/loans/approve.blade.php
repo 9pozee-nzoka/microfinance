@@ -200,7 +200,7 @@
         console.log('Approving loan:', currentLoanId, 'with date:', approvedDate);
 
         fetch(`/loans/${currentLoanId}/approve`, {
-            method: 'PATCH',
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -208,6 +208,7 @@
                 'X-Requested-With': 'XMLHttpRequest',
             },
             body: JSON.stringify({
+                _method: 'PATCH',
                 notes: document.getElementById('approvalNotes').value,
                 approved_at_date: approvedDate
             })
@@ -246,13 +247,13 @@
         if (!reason || !reason.trim()) return;
 
         fetch(`/loans/${id}/reject`, {
-            method: 'PATCH',
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ reason: reason.trim() })
+            body: JSON.stringify({ _method: 'PATCH', reason: reason.trim() })
         })
         .then(r => r.json())
         .then(data => {

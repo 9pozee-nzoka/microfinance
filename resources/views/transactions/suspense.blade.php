@@ -350,11 +350,12 @@ function selectMatchCustomer(id, name, phone) {
 function escalateEntry(id) {
     if (!confirm('Mark this entry as escalated?')) return;
     fetch(`/transactions/suspense/${id}/escalate`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
             'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ _method: 'PATCH' })
     }).then(r => r.json()).then(d => { if (d.success) location.reload(); });
 }
 

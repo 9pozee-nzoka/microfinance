@@ -180,8 +180,12 @@
 function cancelSms(id, btn) {
     if (!confirm('Cancel this pending SMS?')) return;
     fetch(`/loans/collection/sms/${id}/cancel`, {
-        method: 'PATCH',
-        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ _method: 'PATCH' })
     })
     .then(r => r.json())
     .then(d => {
