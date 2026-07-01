@@ -45,7 +45,20 @@ class MpesaController extends Controller
             return response()->json(['success' => false, 'message' => 'Amount exceeds outstanding balance.'], 422);
         }
 
+        Log::info('STK push initiated', [
+            'loan'   => $loan->loan_number,
+            'phone'  => $request->phone,
+            'amount' => $amount,
+        ]);
+
         $mpesaTxn = $this->mpesa->stkPush($loan, $request->phone, $amount);
+
+        Log::info('STK push result', [
+            'status'      => $mpesaTxn->status,
+            'result_desc' => $mpesaTxn->result_desc,
+            'checkout_id' => $mpesaTxn->checkout_request_id,
+            'raw'         => $mpesaTxn->raw_callback,
+        ]);
 
         if ($mpesaTxn->status === 'failed') {
             return response()->json([

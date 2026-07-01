@@ -36,19 +36,41 @@ class MpesaService
     {
         $baseUrl = $this->baseUrl();
 
+        Log::info('M-Pesa getAccessToken attempt', [
+            'env'      => $this->env,
+            'base_url' => $baseUrl,
+            'key_len'  => strlen($this->consumerKey),
+            'secret_len' => strlen($this->consumerSecret),
+        ]);
+
         try {
             $response = Http::withBasicAuth($this->consumerKey, $this->consumerSecret)
                 ->timeout(15)
                 ->get("{$baseUrl}/oauth/v1/generate", ['grant_type' => 'client_credentials']);
 
+            Log::info('M-Pesa getAccessToken response', [
+                'status'  => $response->status(),
+                'headers' => $response->headers(),
+                'body'    => $response->body(),
+            ]);
+
             if ($response->successful()) {
-                return $response->json('access_token');
+                $token = $response->json('access_token');
+                Log::info('M-Pesa getAccessToken success', ['token_len' => strlen((string) $token)]);
+                return $token;
             }
 
-            Log::error('M-Pesa token error', ['body' => $response->body()]);
+            Log::error('M-Pesa token request failed', [
+                'status' => $response->status(),
+                'body'   => $response->body(),
+            ]);
             return null;
         } catch (\Throwable $e) {
-            Log::error('M-Pesa token exception', ['error' => $e->getMessage()]);
+            Log::error('M-Pesa token exception', [
+                'error'   => $e->getMessage(),
+                'class'   => get_class($e),
+                'file'    => $e->getFile() . ':' . $e->getLine(),
+            ]);
             return null;
         }
     }
@@ -106,6 +128,14 @@ class MpesaService
                 ]);
 
             $data = $response->json();
+
+            Log::info('M-Pesa STK push API response', [
+                'http_status' => $response->status(),
+                'body'        => $response->body(),
+                'loan'        => $loan->loan_number,
+                'shortcode'   => $this->shortcode,
+                'callback'    => config('services.mpesa.callback_url', route('mpesa.stk.callback')),
+            ]);
 
             if (isset($data['ResponseCode']) && $data['ResponseCode'] === '0') {
                 $mpesaTxn->update([
