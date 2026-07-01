@@ -98,6 +98,16 @@
         .btn-login:hover {
             background: #00ACC1;
         }
+        .flash-error {
+            background: #FFEBEE;
+            border: 1px solid #FFCDD2;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #C62828;
+            margin-bottom: 16px;
+        }
+        .form-group { margin-bottom: 18px; }
     </style>
     <script type="application/ld+json">
     @verbatim

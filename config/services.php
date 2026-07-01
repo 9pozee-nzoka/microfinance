@@ -51,6 +51,12 @@ return [
         'b2c_initiator'          => env('MPESA_B2C_INITIATOR', ''),
         'b2c_security_credential'=> env('MPESA_B2C_SECURITY_CREDENTIAL', ''),
         'paybill'                => env('MPESA_SHORTCODE', ''),
+        // Callback URLs — override in .env for production to match your registered URLs
+        'callback_url'           => env('MPESA_CALLBACK_URL', null),
+        'b2c_result_url'         => env('MPESA_B2C_RESULT_URL', null),
+        'b2c_timeout_url'        => env('MPESA_B2C_TIMEOUT_URL', null),
+        'c2b_confirmation_url'   => env('MPESA_C2B_CONFIRMATION_URL', null),
+        'c2b_validation_url'     => env('MPESA_C2B_VALIDATION_URL', null),
     ],
 
     'bank' => [

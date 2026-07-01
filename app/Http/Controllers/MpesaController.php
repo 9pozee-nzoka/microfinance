@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Customer;
 use App\Models\Loan;
 use App\Models\LoanRepayment;
+use App\Models\MpesaC2bCallback;
 use App\Models\MpesaTransaction;
 use App\Models\RepaymentSchedule;
+use App\Models\SuspenseAccount;
 use App\Models\Transaction;
 use App\Services\MpesaService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -290,6 +294,117 @@ class MpesaController extends Controller
     }
 
     // ════════════════════════════════════════════════════════════
+    // C2B PAYBILL — customer pays via Lipa na M-Pesa → Paybill
+    // ════════════════════════════════════════════════════════════
+
+    /**
+     * Staff action to register C2B validation/confirmation URLs with Safaricom.
+     */
+    public function registerC2bUrls(Request $request): JsonResponse
+    {
+        $result = $this->mpesa->registerC2bUrls();
+
+        if (! $result['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $result['message'],
+            'data'    => $result['data'] ?? null,
+        ]);
+    }
+
+    /**
+     * Safaricom calls this before completing a C2B paybill transaction.
+     * Accept all requests; the real matching happens in the confirmation step.
+     */
+    public function c2bValidation(Request $request): JsonResponse
+    {
+        Log::info('M-Pesa C2B validation', $request->all());
+        return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+    }
+
+    /**
+     * Safaricom posts the completed C2B paybill transaction here.
+     * We expect the customer to use their registered phone number as the
+     * account number. The payment is matched to the customer and applied to
+     * their oldest active loan automatically.
+     */
+    public function c2bConfirmation(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+        Log::info('M-Pesa C2B confirmation', $payload);
+
+        $transId     = $payload['TransID'] ?? null;
+        $transAmount = (float) ($payload['TransAmount'] ?? 0);
+        $accountRef  = $payload['BillRefNumber'] ?? ($payload['MSISDN'] ?? null);
+        $msisdn      = $payload['MSISDN'] ?? null;
+        $transTime   = $payload['TransTime'] ?? null;
+
+        if (! $transId || $transAmount <= 0) {
+            return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+        }
+
+        try {
+            // Idempotency: do not process the same Safaricom transaction twice
+            if (MpesaC2bCallback::where('transaction_id', $transId)->exists()
+                || SuspenseAccount::where('external_reference', $transId)->exists()) {
+                Log::info('C2B confirmation: duplicate transaction ignored', ['trans_id' => $transId]);
+                return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+            }
+
+            $phoneToMatch = $accountRef ?: $msisdn;
+            $formattedPhone = $phoneToMatch ? $this->mpesa->formatPhone($phoneToMatch) : null;
+
+            $callback = MpesaC2bCallback::create([
+                'transaction_id'      => $transId,
+                'mpesa_receipt_number'=> $transId,
+                'account_reference'   => $accountRef,
+                'phone_number'        => $formattedPhone ?? $msisdn,
+                'amount'              => $transAmount,
+                'trans_time'          => $this->parseC2bTransTime($transTime),
+                'status'              => 'pending',
+                'raw_callback'        => $payload,
+            ]);
+
+            DB::transaction(function () use ($callback, $transAmount, $transId, $formattedPhone, $msisdn) {
+                $customer = $formattedPhone ? $this->findCustomerByPhone($formattedPhone) : null;
+
+                if (! $customer) {
+                    $this->storeC2bSuspense($callback, null, $transAmount, $transId, $formattedPhone ?? $msisdn, 'No customer found for phone/account number');
+                    $callback->update(['status' => 'suspended', 'processed_at' => now()]);
+                    return;
+                }
+
+                $callback->update(['customer_id' => $customer->id]);
+
+                $loan = $this->findActiveLoanForCustomer($customer);
+
+                if (! $loan) {
+                    $this->storeC2bSuspense($callback, $customer, $transAmount, $transId, $formattedPhone ?? $msisdn, 'Customer has no active loan');
+                    $callback->update(['status' => 'suspended', 'processed_at' => now()]);
+                    return;
+                }
+
+                $callback->update(['loan_id' => $loan->id, 'status' => 'completed', 'processed_at' => now()]);
+
+                $this->applyRepayment($loan, $transAmount, $transId, $formattedPhone ?? $msisdn);
+            });
+        } catch (\Throwable $e) {
+            Log::error('C2B confirmation processing error', [
+                'trans_id' => $transId,
+                'error'    => $e->getMessage(),
+            ]);
+        }
+
+        return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+    }
+
+    // ════════════════════════════════════════════════════════════
     // M-Pesa Transactions Log (staff view)
     // ════════════════════════════════════════════════════════════
 
@@ -469,5 +584,67 @@ class MpesaController extends Controller
             'excess'              => $remaining,
             'primary_schedule_id' => $primaryScheduleId,
         ];
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // C2B helpers
+    // ════════════════════════════════════════════════════════════
+
+    private function findCustomerByPhone(string $formattedPhone): ?Customer
+    {
+        $local07 = '0' . substr($formattedPhone, 3);
+        $plus    = '+' . $formattedPhone;
+
+        return Customer::where('phone_number', $formattedPhone)
+            ->orWhere('phone_number', $local07)
+            ->orWhere('phone_number', $plus)
+            ->first();
+    }
+
+    private function findActiveLoanForCustomer(Customer $customer): ?Loan
+    {
+        return $customer->loans()
+            ->whereIn('status', ['disbursed', 'active'])
+            ->where('outstanding_balance', '>', 0)
+            ->orderBy('created_at', 'asc')
+            ->first();
+    }
+
+    private function storeC2bSuspense(MpesaC2bCallback $callback, ?Customer $customer, float $amount, string $transId, string $phone, string $reason): void
+    {
+        $suspense = SuspenseAccount::create([
+            'reference_number'   => 'SUSP-' . date('YmdHis') . '-' . str_pad(SuspenseAccount::count() + 1, 4, '0', STR_PAD_LEFT),
+            'source'             => 'mpesa',
+            'external_reference' => $transId,
+            'phone_number'       => $phone,
+            'bill_reference'     => $callback->account_reference,
+            'amount'             => $amount,
+            'payment_date'       => $callback->trans_time?->toDateString() ?? today(),
+            'matched_customer_id'=> $customer?->id,
+            'status'             => 'unmatched',
+            'resolution_notes'   => "Auto-suspended from C2B callback: {$reason}",
+        ]);
+
+        $callback->update(['loan_id' => null, 'status' => 'suspended']);
+
+        Log::info('C2B confirmation suspended', [
+            'trans_id'      => $transId,
+            'suspense_id'   => $suspense->id,
+            'customer_id'   => $customer?->id,
+            'reason'        => $reason,
+        ]);
+    }
+
+    private function parseC2bTransTime(?string $transTime): ?Carbon
+    {
+        if (! $transTime) {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('YmdHis', $transTime);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }

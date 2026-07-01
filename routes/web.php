@@ -13,6 +13,7 @@ use App\Http\Controllers\CustomerPortalController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\LoanProductAdminController;
+use App\Http\Controllers\AuthController;
 use App\Models\Customer;
 use App\Models\LoanProduct;
 use Illuminate\Http\Request;
@@ -82,47 +83,16 @@ Route::post('/contact', function () {
     return redirect()->route('contact')->with('success', 'Thank you for your message! We will get back to you within 24 hours.');
 })->name('contact.submit');
 
-Route::get('/login', function () {
-    return view('auth.login');
-})->name('login');
+Route::get('/login',  [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+Route::post('/logout',[AuthController::class, 'logout'])->name('logout');
 
-Route::post('/login', function () {
-    $credentials = request()->only('email', 'password');
-
-    // Check if user exists and is active before attempting login
-    $user = \App\Models\User::where('email', $credentials['email'])->first();
-    if ($user && $user->status !== 'active') {
-        return back()->withErrors(['email' => 'Your account has been ' . $user->status . '. Please contact your administrator.']);
-    }
-
-    if (auth()->attempt($credentials)) {
-        $user = auth()->user();
-
-        // Single-session control: invalidate previous session
-        if ($user->session_id) {
-            \Illuminate\Support\Facades\DB::table('sessions')->where('id', $user->session_id)->delete();
-        }
-
-        // Store current session ID
-        $user->update([
-            'session_id' => session()->getId(),
-            'session_started_at' => now(),
-            'last_login_at' => now(),
-            'last_login_ip' => request()->ip(),
-        ]);
-
-        if ($user->hasRole('customer')) {
-            return redirect()->route('portal.dashboard');
-        }
-        return redirect()->route('dashboard');
-    }
-    return back()->withErrors(['email' => 'Invalid credentials']);
-})->name('login.post');
-
-Route::post('/logout', function () {
-    auth()->logout();
-    return redirect('/login');
-})->name('logout');
+// ── OTP verification (2FA) ─────────────────────────────────────
+Route::get('/login/verify',          [AuthController::class, 'showOtp'])->name('otp.show');
+Route::post('/login/verify',         [AuthController::class, 'verifyOtp'])->name('otp.verify');
+Route::post('/login/resend',         [AuthController::class, 'resendOtp'])->name('otp.resend');
+// Magic-link one-click verify from email button
+Route::get('/login/verify/{token}',  [AuthController::class, 'verifyByToken'])->name('otp.verify.token');
 
 // ============================================
 // STAFF PORTAL (auth + staff middleware)
@@ -323,6 +293,7 @@ Route::middleware(['auth', 'staff', 'single.session'])->group(function () {
             Route::post('/loans/{loan}/stk-push',          [MpesaController::class, 'initiateStkPush'])->name('stk.push');
             Route::post('/loans/{loan}/disburse',           [MpesaController::class, 'initiateB2c'])->name('b2c.disburse');
             Route::get('/transactions/{mpesaTxn}/status',   [MpesaController::class, 'stkStatus'])->name('stk.status');
+            Route::post('/c2b/register-urls',               [MpesaController::class, 'registerC2bUrls'])->name('c2b.register');
         });
 
     // ── Reports — admin / branch manager ───────────────────────
@@ -379,9 +350,11 @@ Route::middleware(['auth', 'staff', 'single.session'])->group(function () {
 // ============================================
 
 Route::prefix('mpesa')->name('mpesa.')->group(function () {
-    Route::post('/stk/callback', [MpesaController::class, 'stkCallback'])->name('stk.callback');
-    Route::post('/b2c/result',   [MpesaController::class, 'b2cResult'])->name('b2c.result');
-    Route::post('/b2c/timeout',  [MpesaController::class, 'b2cTimeout'])->name('b2c.timeout');
+    Route::post('/stk/callback',     [MpesaController::class, 'stkCallback'])->name('stk.callback');
+    Route::post('/b2c/result',       [MpesaController::class, 'b2cResult'])->name('b2c.result');
+    Route::post('/b2c/timeout',      [MpesaController::class, 'b2cTimeout'])->name('b2c.timeout');
+    Route::post('/c2b/validation',   [MpesaController::class, 'c2bValidation'])->name('c2b.validation');
+    Route::post('/c2b/confirmation', [MpesaController::class, 'c2bConfirmation'])->name('c2b.confirmation');
 });
 
 // ============================================

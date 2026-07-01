@@ -24,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'mpesa/stk/callback',
             'mpesa/b2c/result',
             'mpesa/b2c/timeout',
+            'mpesa/c2b/validation',
+            'mpesa/c2b/confirmation',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

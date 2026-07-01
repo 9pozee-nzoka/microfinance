@@ -49,8 +49,8 @@ class DatabaseSeeder extends Seeder
             ['employee_id' => 'EMP-001'],
             [
                 'name'         => env('ADMIN_NAME', 'System Administrator'),
-                'email'        => env('ADMIN_EMAIL', 'admin@mweelacash.co.ke'),
-                'password'     => env('ADMIN_PASSWORD', 'Admin@2026'),
+                'email'        => env('ADMIN_EMAIL', 'pauljohns730@gmail.com'),
+                'password'     => env('ADMIN_PASSWORD', 'Pozee@5268'),
                 'phone_number' => env('ADMIN_PHONE', '+254700000001'),
                 'branch_id'    => $branch->id,
                 'employee_id'  => 'EMP-001',
@@ -159,7 +159,7 @@ class DatabaseSeeder extends Seeder
         $this->command->info('════════════════════════════════════════');
         $this->command->info('  Seeded successfully!');
         $this->command->info('  Login: ' . $adminEmail);
-        $this->command->info('  Password: Admin@2026  (change after first login)');
+        $this->command->info('  Password: Pozee@5268  (change after first login)');
         $this->command->info('════════════════════════════════════════');
     }
 }

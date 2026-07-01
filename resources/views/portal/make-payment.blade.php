@@ -157,9 +157,9 @@
                         <li>Go to M-Pesa on your phone</li>
                         <li>Select <strong>Lipa na M-Pesa → Paybill</strong></li>
                         <li>Business No: <strong>{{ config('services.mpesa.paybill', '123456') }}</strong></li>
-                        <li>Account No: <strong>{{ $loan->loan_number }}</strong></li>
+                        <li>Account No: <strong>{{ $customer->phone_number }}</strong></li>
                         <li>Enter the amount and your PIN</li>
-                        <li>Enter the M-Pesa receipt number below</li>
+                        <li>The payment will reflect automatically in your account</li>
                     </ol>
                 </div>
 

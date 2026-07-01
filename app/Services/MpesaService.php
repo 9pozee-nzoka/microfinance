@@ -100,7 +100,7 @@ class MpesaService
                     'PartyA'            => $this->formatPhone($phone),
                     'PartyB'            => $this->shortcode,
                     'PhoneNumber'       => $this->formatPhone($phone),
-                    'CallBackURL'       => route('mpesa.stk.callback'),
+                    'CallBackURL'       => config('services.mpesa.callback_url', route('mpesa.stk.callback')),
                     'AccountReference'  => $loan->loan_number,
                     'TransactionDesc'   => "Loan repayment {$loan->loan_number}",
                 ]);
@@ -172,8 +172,8 @@ class MpesaService
                     'PartyA'             => $this->b2cShortcode,
                     'PartyB'             => $this->formatPhone($phone),
                     'Remarks'            => "Loan disbursement {$loan->loan_number}",
-                    'QueueTimeOutURL'    => route('mpesa.b2c.timeout'),
-                    'ResultURL'          => route('mpesa.b2c.result'),
+                    'QueueTimeOutURL'    => config('services.mpesa.b2c_timeout_url', route('mpesa.b2c.timeout')),
+                    'ResultURL'          => config('services.mpesa.b2c_result_url', route('mpesa.b2c.result')),
                     'Occasion'           => $loan->loan_number,
                 ]);
 
@@ -200,11 +200,68 @@ class MpesaService
         return $mpesaTxn;
     }
 
+    // ── C2B Paybill registration ─────────────────────────────────
+
+    /**
+     * Register validation and confirmation URLs with Safaricom for the
+     * C2B paybill shortcode.
+     */
+    public function registerC2bUrls(): array
+    {
+        $token = $this->getAccessToken();
+
+        if (! $token) {
+            Log::error('M-Pesa C2B register URLs: could not obtain access token');
+            return [
+                'success' => false,
+                'message' => 'Could not obtain M-Pesa access token.',
+            ];
+        }
+
+        $baseUrl = $this->baseUrl();
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout(30)
+                ->post("{$baseUrl}/mpesa/c2b/v1/registerurl", [
+                    'ShortCode'       => $this->shortcode,
+                    'ResponseType'    => 'Completed',
+                    'ConfirmationURL' => config('services.mpesa.c2b_confirmation_url', route('mpesa.c2b.confirmation')),
+                    'ValidationURL'   => config('services.mpesa.c2b_validation_url', route('mpesa.c2b.validation')),
+                ]);
+
+            $data = $response->json() ?? [];
+
+            if ($response->successful() && ($data['ResponseCode'] ?? null) === '0') {
+                return [
+                    'success' => true,
+                    'message' => $data['ResponseDescription'] ?? 'C2B URLs registered successfully.',
+                    'data'    => $data,
+                ];
+            }
+
+            Log::error('M-Pesa C2B register URLs failed', ['body' => $response->body()]);
+
+            return [
+                'success' => false,
+                'message' => $data['errorMessage'] ?? $data['ResponseDescription'] ?? 'C2B URL registration failed.',
+                'data'    => $data,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('M-Pesa C2B register URLs exception', ['error' => $e->getMessage()]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────
 
     private function baseUrl(): string
     {
-        return $this->env === 'live'
+        return in_array($this->env, ['live', 'production'])
             ? 'https://api.safaricom.co.ke'
             : 'https://sandbox.safaricom.co.ke';
     }
