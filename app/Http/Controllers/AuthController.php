@@ -24,7 +24,7 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
-    // ── Step 2: Validate credentials → send OTP ─────────────────
+    // ── Step 2: Validate credentials → log in directly ──────────
     public function login(Request $request)
     {
         $request->validate([
@@ -56,14 +56,20 @@ class AuthController extends Controller
 
         RateLimiter::clear($key);
 
-        // Generate and send OTP
-        $this->sendOtp($user, $request->ip());
+        // Log the user in directly (2FA/OTP disabled)
+        auth()->login($user, false);
 
-        // Stash user ID in session (not logged in yet)
-        $request->session()->put('2fa_user_id', $user->id);
-        $request->session()->put('2fa_intended', $request->session()->get('url.intended', '/dashboard'));
+        $user->update([
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
+        ]);
 
-        return redirect()->route('otp.show');
+        // Redirect customers to their portal
+        if ($user->hasRole('customer')) {
+            return redirect()->route('portal.dashboard');
+        }
+
+        return redirect()->intended('/dashboard');
     }
 
     // ── Step 3: Show OTP form ────────────────────────────────────
