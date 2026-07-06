@@ -287,10 +287,11 @@ class LoanController extends Controller
         $loans = $query->latest()->paginate(config('pagination.per_page'))->withQueryString();
 
         // Summary counts
-        $totalLoans       = Loan::count();
-        $activeLoansCount = Loan::active()->count();
-        $pendingLoansCount= Loan::pendingApproval()->count();
-        $arrearsLoansCount= Loan::active()->where('days_in_arrears', '>', 0)->count();
+        $totalLoans              = Loan::count();
+        $activeLoansCount        = Loan::active()->count();
+        $pendingLoansCount       = Loan::pendingApproval()->count();
+        $pendingDisbursementCount= Loan::where('status', 'approved')->count();
+        $arrearsLoansCount       = Loan::active()->where('days_in_arrears', '>', 0)->count();
 
         // Filter dropdowns
         $products = LoanProduct::where('status', 'active')->orderBy('name')->get();
@@ -298,7 +299,7 @@ class LoanController extends Controller
 
         return view('loans.index', compact(
             'loans', 'totalLoans', 'activeLoansCount',
-            'pendingLoansCount', 'arrearsLoansCount',
+            'pendingLoansCount', 'pendingDisbursementCount', 'arrearsLoansCount',
             'products', 'branches'
         ));
     }

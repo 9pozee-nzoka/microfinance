@@ -52,42 +52,59 @@ class ReportExportService
      */
     public function downloadExcel(array $headers, array $rows, string $filename, string $sheetTitle = 'Report'): StreamedResponse
     {
-        return Response::stream(function () use ($headers, $rows, $sheetTitle) {
-            $spreadsheet = new Spreadsheet();
-            $sheet = $spreadsheet->getActiveSheet();
-            $sheet->setTitle(substr($sheetTitle, 0, 31));
+        // Increase memory limit for large spreadsheets
+        $previousLimit = ini_get('memory_limit');
+        ini_set('memory_limit', '256M');
 
-            // Header row
-            $col = 1;
-            foreach ($headers as $header) {
-                $cell = $sheet->getCell([$col, 1]);
-                $cell->setValue($header);
-                $cell->getStyle()->getFont()->setBold(true);
-                $cell->getStyle()->getFill()->setFillType('solid')->getStartColor()->setRGB('E3F2FD');
-                $col++;
-            }
+        return Response::stream(function () use ($headers, $rows, $sheetTitle, $previousLimit) {
+            try {
+                $spreadsheet = new Spreadsheet();
+                $sheet = $spreadsheet->getActiveSheet();
+                $sheet->setTitle(substr($sheetTitle, 0, 31));
 
-            // Data rows
-            $rowIndex = 2;
-            foreach ($rows as $row) {
+                // Header row — styled
                 $col = 1;
-                foreach ($row as $value) {
-                    $sheet->setCellValue([$col, $rowIndex], $value);
+                foreach ($headers as $header) {
+                    $cell = $sheet->getCell([$col, 1]);
+                    $cell->setValue($header);
+                    $cell->getStyle()->getFont()->setBold(true);
+                    $cell->getStyle()->getFill()
+                        ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                        ->getStartColor()->setRGB('26C6DA');
+                    $cell->getStyle()->getFont()->getColor()->setRGB('FFFFFF');
                     $col++;
                 }
-                $rowIndex++;
-            }
 
-            // Auto-width columns
-            foreach (range(1, count($headers)) as $colIndex) {
-                $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($colIndex))->setAutoSize(true);
-            }
+                // Data rows
+                $rowIndex = 2;
+                foreach ($rows as $row) {
+                    $col = 1;
+                    foreach ($row as $value) {
+                        $sheet->setCellValue([$col, $rowIndex], $value ?? '');
+                        $col++;
+                    }
+                    $rowIndex++;
+                }
 
-            $writer = new Xlsx($spreadsheet);
-            $writer->save('php://output');
+                // Auto-width columns
+                foreach (range(1, count($headers)) as $colIndex) {
+                    $sheet->getColumnDimension(
+                        Coordinate::stringFromColumnIndex($colIndex)
+                    )->setAutoSize(true);
+                }
+
+                $writer = new Xlsx($spreadsheet);
+                $writer->save('php://output');
+
+            } finally {
+                // Restore memory limit
+                ini_set('memory_limit', $previousLimit);
+            }
         }, 200, [
-            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Content-Type'              => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition'       => "attachment; filename=\"{$filename}\"",
+            'Cache-Control'             => 'max-age=0',
+            'Pragma'                    => 'public',
         ]);
     }
 

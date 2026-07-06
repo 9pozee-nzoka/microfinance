@@ -79,6 +79,17 @@
                class="nav-item {{ request()->routeIs('loans.approve') ? 'active' : '' }}">
                 <i class="fas fa-check-circle"></i><span>Approve New Loans</span>
             </a>
+            @php $pendingDisburseCount = \App\Models\Loan::where('status','approved')->count(); @endphp
+            <a href="{{ route('loans.index', ['status' => 'approved']) }}"
+               class="nav-item {{ request()->routeIs('loans.index') && request('status') === 'approved' ? 'active' : '' }}">
+                <i class="fas fa-paper-plane"></i>
+                <span>Pending Disbursements</span>
+                @if($pendingDisburseCount > 0)
+                <span style="margin-left:auto; background:#FF9800; color:#fff; font-size:10px;
+                             font-weight:700; padding:2px 7px; border-radius:10px; min-width:20px;
+                             text-align:center; line-height:1.4;">{{ $pendingDisburseCount }}</span>
+                @endif
+            </a>
             @endhasanyrole
 
             <a href="{{ route('loans.index') }}"

@@ -5,24 +5,58 @@
 
 @section('content')
 {{-- Summary Cards --}}
-<div class="grid-4" style="margin-bottom: 20px;">
-    <div class="card" style="border-left: 4px solid var(--primary);">
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:14px; margin-bottom:20px;">
+    <div class="card" style="border-left:4px solid var(--primary); cursor:pointer;"
+         onclick="window.location='{{ route('loans.index') }}'">
         <div class="metric-label">Total Loans</div>
-        <div class="metric-value" style="font-size: 24px; color: var(--primary);">{{ $totalLoans ?? 0 }}</div>
+        <div class="metric-value" style="font-size:24px; color:var(--primary);">{{ $totalLoans ?? 0 }}</div>
     </div>
-    <div class="card" style="border-left: 4px solid var(--success);">
-        <div class="metric-label">Active Loans</div>
-        <div class="metric-value" style="font-size: 24px; color: var(--success);">{{ $activeLoansCount ?? 0 }}</div>
+    <div class="card" style="border-left:4px solid var(--success); cursor:pointer;"
+         onclick="window.location='{{ route('loans.index', ['status' => 'active']) }}'">
+        <div class="metric-label">Active</div>
+        <div class="metric-value" style="font-size:24px; color:var(--success);">{{ $activeLoansCount ?? 0 }}</div>
     </div>
-    <div class="card" style="border-left: 4px solid var(--warning);">
+    <div class="card" style="border-left:4px solid var(--warning); cursor:pointer;"
+         onclick="window.location='{{ route('loans.index', ['status' => 'pending']) }}'">
         <div class="metric-label">Pending Approval</div>
-        <div class="metric-value" style="font-size: 24px; color: var(--warning);">{{ $pendingLoansCount ?? 0 }}</div>
+        <div class="metric-value" style="font-size:24px; color:var(--warning);">{{ $pendingLoansCount ?? 0 }}</div>
     </div>
-    <div class="card" style="border-left: 4px solid var(--danger);">
+    @hasanyrole('branch_manager|admin|super_admin')
+    <div class="card" style="border-left:4px solid #FF9800; cursor:pointer; {{ request('status') === 'approved' ? 'background:#FFF8F0;' : '' }}"
+         onclick="window.location='{{ route('loans.index', ['status' => 'approved']) }}'">
+        <div class="metric-label" style="color:#E65100;">Pending Disbursement</div>
+        <div class="metric-value" style="font-size:24px; color:#FF9800;">{{ $pendingDisbursementCount ?? 0 }}</div>
+        @if(($pendingDisbursementCount ?? 0) > 0)
+        <div style="font-size:10px; color:#E65100; margin-top:4px; font-weight:600;">
+            <i class="fas fa-exclamation-circle"></i> Awaiting transfer
+        </div>
+        @endif
+    </div>
+    @endhasanyrole
+    <div class="card" style="border-left:4px solid var(--danger); cursor:pointer;"
+         onclick="window.location='{{ route('collection.overdue') }}'">
         <div class="metric-label">In Arrears</div>
-        <div class="metric-value" style="font-size: 24px; color: var(--danger);">{{ $arrearsLoansCount ?? 0 }}</div>
+        <div class="metric-value" style="font-size:24px; color:var(--danger);">{{ $arrearsLoansCount ?? 0 }}</div>
     </div>
 </div>
+
+{{-- Pending Disbursement Alert Banner --}}
+@hasanyrole('branch_manager|admin|super_admin')
+@if(($pendingDisbursementCount ?? 0) > 0)
+<div style="background:#FFF3E0; border:1px solid #FFB74D; border-radius:10px; padding:12px 16px;
+            margin-bottom:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <i class="fas fa-paper-plane" style="color:#FF9800; font-size:18px;"></i>
+    <div style="flex:1; font-size:13px; color:#E65100;">
+        <strong>{{ $pendingDisbursementCount }} loan{{ $pendingDisbursementCount !== 1 ? 's' : '' }}</strong>
+        approved and waiting for disbursement.
+    </div>
+    <a href="{{ route('loans.index', ['status' => 'approved']) }}"
+       class="btn" style="background:#FF9800; color:#fff; border-color:#FF9800; font-size:12px; padding:6px 14px;">
+        <i class="fas fa-list"></i> View Pending
+    </a>
+</div>
+@endif
+@endhasanyrole
 
 {{-- Filter Bar --}}
 <div class="card" style="margin-bottom: 20px;">
@@ -36,7 +70,7 @@
             </div>
             <select name="status" class="filter-select" style="flex: 1 1 150px;">
                 <option value="">All Status</option>
-                @foreach(['pending'=>'Pending','under_review'=>'Under Review','partially_approved'=>'Partially Approved','approved'=>'Approved','disbursed'=>'Disbursed','active'=>'Active','completed'=>'Completed','defaulted'=>'Defaulted','rejected'=>'Rejected','written_off'=>'Written Off'] as $val => $label)
+                @foreach(['pending'=>'Pending','under_review'=>'Under Review','partially_approved'=>'Partially Approved','approved'=>'Approved — Pending Disburse','disbursed'=>'Disbursed','active'=>'Active','completed'=>'Completed','defaulted'=>'Defaulted','rejected'=>'Rejected','written_off'=>'Written Off'] as $val => $label)
                     <option value="{{ $val }}" {{ request('status') === $val ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
