@@ -112,7 +112,7 @@ class ReportController extends Controller
 
         if ($request->filled('export')) {
             return $this->handleReportExport($request, 'outstanding_loan_balances', [
-                'loans' => $loans->getCollection(),
+                'loans' => $query->orderBy('disbursement_date', 'desc')->get(),
                 'totals' => $totals,
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
@@ -167,7 +167,7 @@ class ReportController extends Controller
 
         if ($request->filled('export')) {
             return $this->handleReportExport($request, 'portfolio_at_risk', [
-                'loans' => $loans->getCollection(),
+                'loans' => $query->orderByDesc('days_in_arrears')->get(),
                 'buckets' => $buckets,
                 'totalPortfolio' => $totalPortfolio,
                 'parAmount' => $parAmount,
@@ -215,7 +215,7 @@ class ReportController extends Controller
 
         if ($request->filled('export')) {
             return $this->handleReportExport($request, 'disbursed_loans', [
-                'loans' => $loans->getCollection(),
+                'loans' => $query->orderByDesc('disbursement_date')->get(),
                 'totals' => $totals,
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
@@ -284,7 +284,7 @@ class ReportController extends Controller
 
         if ($request->filled('export')) {
             return $this->handleReportExport($request, 'loan_collections', [
-                'repayments' => $repayments->getCollection(),
+                'repayments' => $query->orderByDesc('created_at')->get(),
                 'totals' => $totals,
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
@@ -473,9 +473,29 @@ class ReportController extends Controller
         $branches = Branch::where('status', 'active')->orderBy('name')->get();
 
         if ($request->filled('export')) {
+            $allEarlyPayments = $earlyPaymentsQuery->orderByDesc('loan_repayments.created_at')->get();
+            $allEarlyPayments->transform(function ($repayment) {
+                $repayment->days_early = $repayment->created_at->diffInDays(Carbon::parse($repayment->due_date), false);
+                return $repayment;
+            });
+            $allClosures = $closuresQuery->orderByDesc('updated_at')->get();
+            $allClosures->transform(function ($loan) {
+                $loan->closure_type = 'other';
+                $loan->closure_payment_amount = 0;
+                $loan->closure_payment_method = null;
+                $loan->officer_name = $loan->relationshipOfficer?->name;
+                if ($loan->approval_notes) {
+                    if (str_contains($loan->approval_notes, '[Prepayment]')) $loan->closure_type = 'prepayment';
+                    elseif (str_contains($loan->approval_notes, '[Top-Up]')) $loan->closure_type = 'topup';
+                    elseif (str_contains($loan->approval_notes, '[Full Early Settlement]')) $loan->closure_type = 'full_early_settlement';
+                    if (preg_match('/Payment:\s*KSH\s*([\d,]+(?:\.\d{2})?)/i', $loan->approval_notes, $m)) $loan->closure_payment_amount = (float) str_replace(',', '', $m[1]);
+                    if (preg_match('/via\s+(Cash|Mpesa|M-Pesa|Bank\s*Transfer)/i', $loan->approval_notes, $m)) { $method = strtolower(str_replace(' ', '_', $m[1])); if ($method === 'm-pesa') $method = 'mpesa'; $loan->closure_payment_method = $method; }
+                }
+                return $loan;
+            });
             return $this->handleReportExport($request, 'prepayment_analytics', [
-                'earlyPayments' => $earlyPayments->getCollection(),
-                'closures' => $closures->getCollection(),
+                'earlyPayments' => $allEarlyPayments,
+                'closures' => $allClosures,
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
             ]);
@@ -567,7 +587,7 @@ class ReportController extends Controller
 
         if ($request->filled('export')) {
             return $this->handleReportExport($request, 'loans_due', [
-                'schedules' => $schedules->getCollection(),
+                'schedules' => $query->orderBy('due_date')->get(),
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
             ]);
@@ -599,7 +619,7 @@ class ReportController extends Controller
 
         if ($request->filled('export')) {
             return $this->handleReportExport($request, 'new_loans', [
-                'loans' => $loans->getCollection(),
+                'loans' => $query->orderByDesc('created_at')->get(),
                 'totals' => $totals,
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
@@ -636,7 +656,7 @@ class ReportController extends Controller
 
         if ($request->filled('export')) {
             return $this->handleReportExport($request, 'pending_disbursements', [
-                'loans' => $loans->getCollection(),
+                'loans' => $query->orderByDesc('approved_at')->get(),
                 'totals' => $totals,
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
@@ -992,7 +1012,7 @@ class ReportController extends Controller
         if ($request->filled('export')) {
             return $this->handleReportExport($request, 'credit_score_distribution', [
                 'bands' => $bands,
-                'topCustomers' => $topCustomers->getCollection(),
+                'topCustomers' => (clone $customerQuery)->with('branch')->where('credit_score', '>', 0)->orderByDesc('credit_score')->get(),
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
             ]);
@@ -1039,7 +1059,7 @@ class ReportController extends Controller
 
         if ($request->filled('export')) {
             return $this->handleReportExport($request, 'loan_arrears', [
-                'loans' => $loans->getCollection(),
+                'loans' => $query->orderByDesc('days_in_arrears')->get(),
                 'totals' => $totals,
                 'asAt' => $asAt,
                 'dateFrom' => $dateFrom,

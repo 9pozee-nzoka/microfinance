@@ -6,7 +6,6 @@ use App\Mail\LoginOtpMail;
 use App\Models\LoginOtp;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -136,16 +135,9 @@ class AuthController extends Controller
         // Log the user in
         auth()->login($user, false);
 
-        // Single-session: invalidate any previous session for this user
-        if ($user->session_id) {
-            DB::table('sessions')->where('id', $user->session_id)->delete();
-        }
-
         $user->update([
-            'session_id'          => session()->getId(),
-            'session_started_at'  => now(),
-            'last_login_at'       => now(),
-            'last_login_ip'       => $request->ip(),
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
         ]);
 
         // Redirect customers to portal
@@ -182,16 +174,9 @@ class AuthController extends Controller
         // Log the user in
         auth()->login($user, false);
 
-        // Single-session: invalidate any previous session
-        if ($user->session_id) {
-            DB::table('sessions')->where('id', $user->session_id)->delete();
-        }
-
         $user->update([
-            'session_id'         => session()->getId(),
-            'session_started_at' => now(),
-            'last_login_at'      => now(),
-            'last_login_ip'      => $request->ip(),
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
         ]);
 
         // Also clean up any stale 2fa session keys
@@ -229,9 +214,6 @@ class AuthController extends Controller
     // ── Logout ───────────────────────────────────────────────────
     public function logout(Request $request)
     {
-        if (auth()->check()) {
-            auth()->user()->update(['session_id' => null, 'session_started_at' => null]);
-        }
         auth()->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

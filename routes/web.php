@@ -98,7 +98,7 @@ Route::get('/login/verify/{token}',  [AuthController::class, 'verifyByToken'])->
 // STAFF PORTAL (auth + staff middleware)
 // ============================================
 
-Route::middleware(['auth', 'staff', 'single.session'])->group(function () {
+Route::middleware(['auth', 'staff'])->group(function () {
 
     // ── Dashboard — all staff ──────────────────────────────────
     // Note: Public '/' is defined above for guests (welcome page).
