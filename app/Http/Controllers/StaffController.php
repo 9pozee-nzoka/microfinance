@@ -224,14 +224,8 @@ class StaffController extends Controller
         }
 
         // Revoke session
-        if ($user->session_id) {
-            \Illuminate\Support\Facades\DB::table('sessions')->where('id', $user->session_id)->delete();
-        }
-
         $user->update([
             'status' => 'inactive',
-            'session_id' => null,
-            'session_started_at' => null,
         ]);
 
         return back()->with('success', "Staff {$user->name} has been deactivated. They have been logged out immediately.");
