@@ -91,14 +91,14 @@ class MpesaController extends Controller
             $resultDesc = $body['ResultDesc'] ?? '';
 
             if (! $checkoutId) {
-                return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+                return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
             }
 
             $mpesaTxn = MpesaTransaction::where('checkout_request_id', $checkoutId)->first();
 
             if (! $mpesaTxn) {
                 Log::warning('STK callback: no matching MpesaTransaction', ['checkout_id' => $checkoutId]);
-                return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+                return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
             }
 
             if ($resultCode === '0') {
@@ -133,7 +133,7 @@ class MpesaController extends Controller
             Log::error('STK callback processing error', ['error' => $e->getMessage()]);
         }
 
-        return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+        return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
     }
 
     /**
@@ -241,7 +241,7 @@ class MpesaController extends Controller
 
             if (! $mpesaTxn) {
                 Log::warning('B2C result: no matching MpesaTransaction', compact('conversationId', 'originatorId'));
-                return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+                return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
             }
 
             if ($resultCode === '0') {
@@ -294,7 +294,7 @@ class MpesaController extends Controller
             Log::error('B2C result processing error', ['error' => $e->getMessage()]);
         }
 
-        return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+        return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
     }
 
     /**
@@ -303,7 +303,7 @@ class MpesaController extends Controller
     public function b2cTimeout(Request $request): JsonResponse
     {
         Log::warning('M-Pesa B2C timeout', $request->all());
-        return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+        return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -338,7 +338,7 @@ class MpesaController extends Controller
     public function c2bValidation(Request $request): JsonResponse
     {
         Log::info('M-Pesa C2B validation', $request->all());
-        return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+        return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
     }
 
     /**
@@ -350,71 +350,103 @@ class MpesaController extends Controller
     public function c2bConfirmation(Request $request): JsonResponse
     {
         $payload = $request->all();
-        Log::info('M-Pesa C2B confirmation', $payload);
+        Log::info('M-Pesa C2B confirmation received', $payload);
 
         $transId     = $payload['TransID'] ?? null;
         $transAmount = (float) ($payload['TransAmount'] ?? 0);
-        $accountRef  = $payload['BillRefNumber'] ?? ($payload['MSISDN'] ?? null);
+        $accountRef  = trim($payload['BillRefNumber'] ?? '');  // customer enters loan no. or phone
         $msisdn      = $payload['MSISDN'] ?? null;
         $transTime   = $payload['TransTime'] ?? null;
 
         if (! $transId || $transAmount <= 0) {
-            return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+            Log::warning('C2B confirmation: missing TransID or zero amount', $payload);
+            return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
         }
 
         try {
-            // Idempotency: do not process the same Safaricom transaction twice
+            // Idempotency — reject duplicates
             if (MpesaC2bCallback::where('transaction_id', $transId)->exists()
                 || SuspenseAccount::where('external_reference', $transId)->exists()) {
-                Log::info('C2B confirmation: duplicate transaction ignored', ['trans_id' => $transId]);
-                return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+                Log::info('C2B confirmation: duplicate ignored', ['trans_id' => $transId]);
+                return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
             }
 
-            $phoneToMatch = $accountRef ?: $msisdn;
-            $formattedPhone = $phoneToMatch ? $this->mpesa->formatPhone($phoneToMatch) : null;
+            // Format payer phone
+            $formattedPhone = $msisdn ? $this->mpesa->formatPhone($msisdn) : null;
 
             $callback = MpesaC2bCallback::create([
-                'transaction_id'      => $transId,
-                'mpesa_receipt_number'=> $transId,
-                'account_reference'   => $accountRef,
-                'phone_number'        => $formattedPhone ?? $msisdn,
-                'amount'              => $transAmount,
-                'trans_time'          => $this->parseC2bTransTime($transTime),
-                'status'              => 'pending',
-                'raw_callback'        => $payload,
+                'transaction_id'       => $transId,
+                'mpesa_receipt_number' => $transId,
+                'account_reference'    => $accountRef,
+                'phone_number'         => $formattedPhone ?? $msisdn,
+                'amount'               => $transAmount,
+                'trans_time'           => $this->parseC2bTransTime($transTime),
+                'status'               => 'pending',
+                'raw_callback'         => $payload,
             ]);
 
-            DB::transaction(function () use ($callback, $transAmount, $transId, $formattedPhone, $msisdn) {
-                $customer = $formattedPhone ? $this->findCustomerByPhone($formattedPhone) : null;
+            DB::transaction(function () use ($callback, $transAmount, $transId, $formattedPhone, $msisdn, $accountRef) {
 
-                if (! $customer) {
-                    $this->storeC2bSuspense($callback, null, $transAmount, $transId, $formattedPhone ?? $msisdn, 'No customer found for phone/account number');
+                // ── Match strategy 1: account ref is a loan number ──
+                $loan = \App\Models\Loan::where('loan_number', $accountRef)
+                    ->whereIn('status', ['disbursed', 'active'])
+                    ->where('outstanding_balance', '>', 0)
+                    ->first();
+
+                if ($loan) {
+                    Log::info('C2B: matched by loan number', ['loan' => $accountRef, 'trans_id' => $transId]);
+                    $callback->update(['customer_id' => $loan->customer_id, 'loan_id' => $loan->id]);
+                    $callback->update(['status' => 'completed', 'processed_at' => now()]);
+                    $this->applyRepayment($loan, $transAmount, $transId, $formattedPhone ?? $msisdn ?? '');
+                    return;
+                }
+
+                // ── Match strategy 2: account ref or payer MSISDN is a customer phone ──
+                $phoneToSearch = $formattedPhone;
+                if (!$phoneToSearch && $accountRef) {
+                    $phoneToSearch = $this->mpesa->formatPhone($accountRef);
+                }
+
+                $customer = $phoneToSearch ? $this->findCustomerByPhone($phoneToSearch) : null;
+
+                if ($customer) {
+                    $callback->update(['customer_id' => $customer->id]);
+                    $activeLoan = $this->findActiveLoanForCustomer($customer);
+
+                    if ($activeLoan) {
+                        Log::info('C2B: matched by customer phone', ['customer' => $customer->id, 'loan' => $activeLoan->loan_number, 'trans_id' => $transId]);
+                        $callback->update(['loan_id' => $activeLoan->id, 'status' => 'completed', 'processed_at' => now()]);
+                        $this->applyRepayment($activeLoan, $transAmount, $transId, $formattedPhone ?? $msisdn ?? '');
+                        return;
+                    }
+
+                    // Customer found but no active loan — suspense
+                    $this->storeC2bSuspense($callback, $customer, $transAmount, $transId, $formattedPhone ?? $msisdn ?? '', 'Customer has no active loan');
                     $callback->update(['status' => 'suspended', 'processed_at' => now()]);
                     return;
                 }
 
-                $callback->update(['customer_id' => $customer->id]);
-
-                $loan = $this->findActiveLoanForCustomer($customer);
-
-                if (! $loan) {
-                    $this->storeC2bSuspense($callback, $customer, $transAmount, $transId, $formattedPhone ?? $msisdn, 'Customer has no active loan');
-                    $callback->update(['status' => 'suspended', 'processed_at' => now()]);
-                    return;
-                }
-
-                $callback->update(['loan_id' => $loan->id, 'status' => 'completed', 'processed_at' => now()]);
-
-                $this->applyRepayment($loan, $transAmount, $transId, $formattedPhone ?? $msisdn);
+                // ── No match — suspense ──
+                Log::warning('C2B: no customer match', [
+                    'account_ref' => $accountRef,
+                    'msisdn'      => $msisdn,
+                    'trans_id'    => $transId,
+                    'amount'      => $transAmount,
+                ]);
+                $this->storeC2bSuspense($callback, null, $transAmount, $transId, $formattedPhone ?? $msisdn ?? '', "No match for account ref [{$accountRef}] or phone [{$msisdn}]");
+                $callback->update(['status' => 'suspended', 'processed_at' => now()]);
             });
+
         } catch (\Throwable $e) {
             Log::error('C2B confirmation processing error', [
                 'trans_id' => $transId,
                 'error'    => $e->getMessage(),
+                'trace'    => $e->getTraceAsString(),
             ]);
         }
 
-        return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+        // Always return success to Safaricom — never let them retry
+        return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
     }
 
     // ════════════════════════════════════════════════════════════

@@ -10,6 +10,30 @@
     <i class="fas fa-check-circle"></i> {{ session('success') }}
 </div>
 @endif
+@if(session('error'))
+<div class="flash-error">
+    <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
+</div>
+@endif
+
+{{-- C2B Registration Banner --}}
+<div style="background:#E3F2FD; border:1px solid #90CAF9; border-radius:10px;
+            padding:14px 18px; margin-bottom:20px; display:flex; align-items:center;
+            gap:14px; flex-wrap:wrap;">
+    <i class="fas fa-plug" style="color:#1565C0; font-size:20px; flex-shrink:0;"></i>
+    <div style="flex:1; min-width:200px;">
+        <div style="font-weight:700; font-size:13px; color:#1565C0;">C2B Paybill Registration</div>
+        <div style="font-size:12px; color:#1976D2; margin-top:2px;">
+            For payments made directly to paybill <strong>{{ config('services.mpesa.shortcode') }}</strong> to reflect automatically,
+            the confirmation URL must be registered with Safaricom. Click the button to register.
+            <br>Confirmation URL: <code style="background:#BBDEFB; padding:1px 5px; border-radius:3px; font-size:11px;">{{ config('services.mpesa.c2b_confirmation_url', url('/mpesa/c2b/confirmation')) }}</code>
+        </div>
+    </div>
+    <button type="button" onclick="registerC2bUrls(this)"
+            class="btn" style="background:#1565C0; color:#fff; white-space:nowrap; flex-shrink:0;">
+        <i class="fas fa-satellite-dish"></i> Register C2B URLs
+    </button>
+</div>
 
 {{-- Stats --}}
 <div class="grid-4" style="margin-bottom:24px;">
@@ -139,4 +163,47 @@
     @endif
 </div>
 
+@endsection
+
+@section('scripts')
+<script>
+function registerC2bUrls(btn) {
+    if (!confirm('Register C2B URLs with Safaricom? This will tell Safaricom to send payment notifications to:\n\n{{ config('services.mpesa.c2b_confirmation_url', url('/mpesa/c2b/confirmation')) }}\n\nProceed?')) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering…';
+
+    fetch('{{ route('mpesa.c2b.register') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        },
+        body: JSON.stringify({}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            btn.innerHTML = '<i class="fas fa-check"></i> Registered!';
+            btn.style.background = '#2E7D32';
+            // Show success banner
+            const banner = document.createElement('div');
+            banner.className = 'flash-success';
+            banner.innerHTML = '<i class="fas fa-check-circle"></i> C2B URLs registered with Safaricom successfully. Payments made to paybill will now reflect automatically.';
+            document.querySelector('.content-area').insertBefore(banner, document.querySelector('.content-area').firstChild);
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-satellite-dish"></i> Register C2B URLs';
+            alert('Registration failed: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-satellite-dish"></i> Register C2B URLs';
+        alert('Network error: ' + err.message);
+    });
+}
+</script>
 @endsection
