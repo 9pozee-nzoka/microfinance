@@ -30,10 +30,26 @@ if (!$customer) {
 $product = LoanProduct::first();
 $user    = User::first();
 
-// Create a fresh active loan with arrears for testing
+// Clean slate: complete existing loans and remove any previous test loan
 Loan::whereIn('status', ['active','disbursed'])
     ->where('customer_id', $customer->id)
     ->update(['status' => 'completed', 'outstanding_balance' => 0]);
+
+// Remove any leftover test loans (and their repayments) to avoid unique constraint
+$testLoans = Loan::withTrashed()
+    ->where('customer_id', $customer->id)
+    ->where('purpose', 'business')
+    ->where('principal_amount', 5000)
+    ->get();
+
+foreach ($testLoans as $tl) {
+    // Delete in dependency order: transactions → repayments → schedules → callbacks → loan
+    \App\Models\Transaction::where('loan_id', $tl->id)->forceDelete();
+    \App\Models\LoanRepayment::where('loan_id', $tl->id)->forceDelete();
+    \App\Models\RepaymentSchedule::where('loan_id', $tl->id)->forceDelete();
+    \App\Models\MpesaC2bCallback::where('loan_id', $tl->id)->forceDelete();
+    $tl->forceDelete();
+}
 
 $loan = Loan::create([
     'customer_id'             => $customer->id,
@@ -152,14 +168,15 @@ run_test(
     'completed'
 );
 
-// Test 3: No account ref — MSISDN fallback
+// Test 3: No account ref — MSISDN is hashed by Safaricom so it WON'T match
+// Correct behaviour: payment goes to suspense (customer must enter their phone as account ref)
 run_test(
-    "No acct ref — MSISDN fallback",
+    "Empty acct ref → suspense (correct)",
     'C2B_T3_' . (time()+2),
-    '',              // empty account ref
-    $phone254,       // payer's own phone = customer's phone
+    '',              // empty account ref — customer forgot to enter phone
+    $phone254,       // MSISDN — may be hashed in real Safaricom callbacks
     1500.0,
-    'completed'
+    'suspended'      // correctly suspended — customer should use phone as account ref
 );
 
 // Test 4: Account ref = loan number (backward compat)

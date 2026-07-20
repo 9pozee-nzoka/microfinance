@@ -372,7 +372,8 @@ class MpesaController extends Controller
         $transAmount = (float) ($payload['TransAmount'] ?? 0);
         // BillRefNumber = what customer typed as account number (their phone number)
         $accountRef  = trim($payload['BillRefNumber'] ?? '');
-        $msisdn      = $payload['MSISDN'] ?? null;  // payer's actual SIM number
+        // MSISDN may be a hashed/encrypted value from Safaricom — do NOT use for matching
+        $rawMsisdn   = $payload['MSISDN'] ?? null;
         $transTime   = $payload['TransTime'] ?? null;
 
         if (! $transId || $transAmount <= 0) {
@@ -388,52 +389,50 @@ class MpesaController extends Controller
                 return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
             }
 
-            // Format the payer's SIM number
-            $formattedMsisdn = $msisdn ? $this->mpesa->formatPhone($msisdn) : null;
-
             $callback = MpesaC2bCallback::create([
                 'transaction_id'       => $transId,
                 'mpesa_receipt_number' => $transId,
                 'account_reference'    => $accountRef,
-                'phone_number'         => $formattedMsisdn ?? $msisdn,
+                'phone_number'         => $rawMsisdn,  // store as-is — may be hashed
                 'amount'               => $transAmount,
                 'trans_time'           => $this->parseC2bTransTime($transTime),
                 'status'               => 'pending',
                 'raw_callback'         => $payload,
             ]);
 
-            DB::transaction(function () use ($callback, $transAmount, $transId, $formattedMsisdn, $msisdn, $accountRef) {
+            DB::transaction(function () use ($callback, $transAmount, $transId, $rawMsisdn, $accountRef) {
 
                 // ═══════════════════════════════════════════════════════════
-                // MATCH PRIORITY:
-                // 1. Account ref (BillRefNumber) as phone number — PRIMARY
-                //    Customer types their phone e.g. 0712345678 or 254712345678
-                // 2. Payer MSISDN as phone — fallback if account ref doesn't match
-                //    (covers cases where customer forgets to enter account ref)
-                // 3. Account ref as loan number — last resort
+                // MATCHING STRATEGY — BillRefNumber is the ONLY reliable identifier.
+                // MSISDN from Safaricom may be hashed/encrypted and cannot be used
+                // for customer lookup. Always match on BillRefNumber first.
+                //
+                // Priority:
+                // 1. BillRefNumber → customer phone number (primary — customer typed it)
+                // 2. BillRefNumber → loan number (fallback / backward compat)
+                // 3. No match → suspense
+                //
+                // NOTE: We intentionally do NOT fall back to MSISDN matching
+                //       because Safaricom sometimes sends a hashed value there.
                 // ═══════════════════════════════════════════════════════════
 
-                $customer = null;
+                $customer    = null;
                 $matchMethod = null;
 
-                // ── Strategy 1: BillRefNumber → customer phone ────────────
+                // ── Strategy 1: BillRefNumber as customer phone ────────────
                 if ($accountRef) {
-                    $formattedRef = $this->mpesa->formatPhone($accountRef);
-                    $customer = $this->findCustomerByPhone($formattedRef);
-                    if ($customer) {
-                        $matchMethod = "account_ref_phone:{$accountRef}";
+                    try {
+                        $formattedRef = $this->mpesa->formatPhone($accountRef);
+                        $customer     = $this->findCustomerByPhone($formattedRef);
+                        if ($customer) {
+                            $matchMethod = "bill_ref_phone:{$accountRef}";
+                        }
+                    } catch (\Throwable $e) {
+                        // BillRefNumber wasn't a valid phone — try as loan number next
                     }
                 }
 
-                // ── Strategy 2: MSISDN → customer phone ──────────────────
-                if (!$customer && $formattedMsisdn) {
-                    $customer = $this->findCustomerByPhone($formattedMsisdn);
-                    if ($customer) {
-                        $matchMethod = "msisdn_phone:{$formattedMsisdn}";
-                    }
-                }
-
-                // ── Strategy 3: BillRefNumber → loan number ───────────────
+                // ── Strategy 2: BillRefNumber as loan number ───────────────
                 if (!$customer && $accountRef) {
                     $loanByRef = \App\Models\Loan::where('loan_number', $accountRef)
                         ->whereIn('status', ['disbursed', 'active'])
@@ -446,60 +445,56 @@ class MpesaController extends Controller
                             'trans_id' => $transId,
                         ]);
                         $callback->update([
-                            'customer_id' => $loanByRef->customer_id,
-                            'loan_id'     => $loanByRef->id,
-                            'status'      => 'completed',
-                            'processed_at'=> now(),
+                            'customer_id'  => $loanByRef->customer_id,
+                            'loan_id'      => $loanByRef->id,
+                            'status'       => 'completed',
+                            'processed_at' => now(),
                         ]);
-                        $this->applyRepayment($loanByRef, $transAmount, $transId, $formattedMsisdn ?? $msisdn ?? '');
+                        $this->applyRepayment($loanByRef, $transAmount, $transId, $accountRef);
                         return;
                     }
                 }
 
-                // ── Customer found via phone — find their active loan ─────
+                // ── Customer found via phone — find their active loan ──────
                 if ($customer) {
                     $callback->update(['customer_id' => $customer->id]);
                     $activeLoan = $this->findActiveLoanForCustomer($customer);
 
                     if ($activeLoan) {
                         Log::info('C2B: matched via ' . $matchMethod, [
-                            'customer'  => $customer->id,
-                            'loan'      => $activeLoan->loan_number,
-                            'arrears'   => $activeLoan->arrears_amount,
-                            'amount'    => $transAmount,
-                            'trans_id'  => $transId,
+                            'customer' => $customer->id,
+                            'loan'     => $activeLoan->loan_number,
+                            'arrears'  => $activeLoan->arrears_amount,
+                            'amount'   => $transAmount,
+                            'trans_id' => $transId,
                         ]);
                         $callback->update([
-                            'loan_id'     => $activeLoan->id,
-                            'status'      => 'completed',
-                            'processed_at'=> now(),
+                            'loan_id'      => $activeLoan->id,
+                            'status'       => 'completed',
+                            'processed_at' => now(),
                         ]);
-                        $this->applyRepayment($activeLoan, $transAmount, $transId, $formattedMsisdn ?? $msisdn ?? '');
+                        $this->applyRepayment($activeLoan, $transAmount, $transId, $accountRef);
                         return;
                     }
 
-                    // Customer found but no active loan → suspense
+                    // Customer found but no active loan
                     $this->storeC2bSuspense(
-                        $callback, $customer, $transAmount, $transId,
-                        $formattedMsisdn ?? $msisdn ?? '',
-                        "Customer found ({$customer->full_name}) but has no active loan"
+                        $callback, $customer, $transAmount, $transId, $accountRef,
+                        "Customer {$customer->full_name} has no active loan"
                     );
                     $callback->update(['status' => 'suspended', 'processed_at' => now()]);
                     return;
                 }
 
-                // ── No match at all → suspense ────────────────────────────
-                Log::warning('C2B: no customer match — payment suspended', [
+                // ── No match — suspense ────────────────────────────────────
+                Log::warning('C2B: no match — going to suspense', [
                     'account_ref' => $accountRef,
-                    'msisdn'      => $msisdn,
                     'trans_id'    => $transId,
                     'amount'      => $transAmount,
                 ]);
                 $this->storeC2bSuspense(
-                    $callback, null, $transAmount, $transId,
-                    $formattedMsisdn ?? $msisdn ?? '',
-                    "No customer found for account ref [{$accountRef}] or MSISDN [{$msisdn}]. " .
-                    "Customer should use their registered phone number as account number."
+                    $callback, null, $transAmount, $transId, $accountRef,
+                    "No customer found for account ref [{$accountRef}]. Customer should use their registered phone number."
                 );
                 $callback->update(['status' => 'suspended', 'processed_at' => now()]);
             });
@@ -508,7 +503,6 @@ class MpesaController extends Controller
             Log::error('C2B confirmation processing error', [
                 'trans_id' => $transId,
                 'error'    => $e->getMessage(),
-                'trace'    => $e->getTraceAsString(),
             ]);
         }
 
