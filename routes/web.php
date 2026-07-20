@@ -290,10 +290,11 @@ Route::middleware(['auth', 'staff'])->group(function () {
         ->prefix('mpesa')->name('mpesa.')
         ->group(function () {
             Route::get('/', [MpesaController::class, 'index'])->name('index');
-            Route::post('/loans/{loan}/stk-push',          [MpesaController::class, 'initiateStkPush'])->name('stk.push');
-            Route::post('/loans/{loan}/disburse',           [MpesaController::class, 'initiateB2c'])->name('b2c.disburse');
-            Route::get('/transactions/{mpesaTxn}/status',   [MpesaController::class, 'stkStatus'])->name('stk.status');
-            Route::post('/c2b/register-urls',               [MpesaController::class, 'registerC2bUrls'])->name('c2b.register');
+            Route::post('/loans/{loan}/stk-push',               [MpesaController::class, 'initiateStkPush'])->name('stk.push');
+            Route::post('/loans/{loan}/disburse',               [MpesaController::class, 'initiateB2c'])->name('b2c.disburse');
+            Route::get('/transactions/{mpesaTxn}/status',       [MpesaController::class, 'stkStatus'])->name('stk.status');
+            Route::post('/c2b/register-urls',                   [MpesaController::class, 'registerC2bUrls'])->name('c2b.register');
+            Route::post('/c2b/callbacks/{callback}/reprocess',  [MpesaController::class, 'reprocessC2b'])->name('c2b.reprocess');
         });
 
     // ── Reports — admin / branch manager ───────────────────────

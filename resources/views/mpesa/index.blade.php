@@ -59,6 +59,90 @@
     </div>
 </div>
 
+{{-- Failed / Suspended C2B Callbacks — Reprocess Panel --}}
+@if(isset($failedC2b) && $failedC2b->count() > 0)
+<div class="card" style="margin-bottom:24px; border-left:4px solid var(--danger);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div>
+            <div style="font-size:14px; font-weight:700; color:var(--danger);">
+                <i class="fas fa-exclamation-triangle"></i>
+                Failed / Suspended C2B Callbacks ({{ $failedC2b->count() }})
+            </div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:3px;">
+                These payments were received from Safaricom but could not be matched. Click Reprocess to retry.
+            </div>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Transaction ID</th>
+                    <th>Account Ref</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Reason</th>
+                    <th style="text-align:center;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($failedC2b as $cb)
+                <tr id="cb-row-{{ $cb->id }}">
+                    <td style="font-size:12px; white-space:nowrap;">{{ $cb->created_at->format('d M Y H:i') }}</td>
+                    <td style="font-family:monospace; font-size:11px; font-weight:600; color:var(--primary);">
+                        {{ $cb->transaction_id }}
+                    </td>
+                    <td>
+                        <span style="font-family:monospace; font-size:13px; font-weight:600;">
+                            {{ $cb->account_reference ?: '—' }}
+                        </span>
+                        @if($cb->customer)
+                            <div style="font-size:11px; color:var(--success); margin-top:2px;">
+                                <i class="fas fa-check-circle"></i> {{ $cb->customer->full_name }}
+                            </div>
+                        @endif
+                    </td>
+                    <td style="font-weight:700; color:var(--success);">
+                        KSH {{ number_format($cb->amount, 0) }}
+                    </td>
+                    <td>
+                        <span class="status {{ $cb->status === 'suspended' ? 'status-partially-approved' : 'status-pending' }}">
+                            {{ ucfirst($cb->status) }}
+                        </span>
+                    </td>
+                    <td style="font-size:11px; color:var(--text-secondary); max-width:220px;">
+                        @php
+                            $raw = $cb->raw_callback;
+                            $suspenseNote = \App\Models\SuspenseAccount::where('external_reference', $cb->transaction_id)
+                                ->value('resolution_notes');
+                        @endphp
+                        {{ $suspenseNote ?? 'Check account reference' }}
+                    </td>
+                    <td style="text-align:center;">
+                        <div style="display:flex; gap:6px; justify-content:center; align-items:center;" id="cb-actions-{{ $cb->id }}">
+                            {{-- Edit account ref inline --}}
+                            <input type="text" id="cb-ref-{{ $cb->id }}"
+                                   value="{{ $cb->account_reference }}"
+                                   placeholder="Phone or loan no."
+                                   style="width:130px; padding:5px 8px; font-size:12px; border:1px solid var(--border); border-radius:6px; font-family:monospace;">
+                            <button type="button"
+                                    onclick="reprocessCallback({{ $cb->id }}, this)"
+                                    class="btn btn-primary"
+                                    style="font-size:12px; padding:5px 12px; white-space:nowrap;">
+                                <i class="fas fa-redo"></i> Reprocess
+                            </button>
+                        </div>
+                        <div id="cb-result-{{ $cb->id }}" style="font-size:11px; margin-top:4px; display:none;"></div>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+@endif
+
 {{-- Filters --}}
 <form method="GET" action="{{ route('mpesa.index') }}" style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; align-items:flex-end;">
     <div class="search-box" style="width:260px;">
@@ -167,7 +251,59 @@
 
 @section('scripts')
 <script>
-function registerC2bUrls(btn) {
+function reprocessCallback(id, btn) {
+    const refInput = document.getElementById('cb-ref-' + id);
+    const result   = document.getElementById('cb-result-' + id);
+    const ref      = refInput.value.trim();
+
+    if (!ref) {
+        result.style.display = 'block';
+        result.style.color   = 'var(--danger)';
+        result.textContent   = 'Enter the customer phone or loan number.';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing…';
+    result.style.display = 'none';
+
+    // Update the account_reference first if changed
+    fetch('{{ url('/mpesa/c2b/callbacks') }}/' + id + '/reprocess', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        },
+        body: JSON.stringify({ account_reference: ref }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        result.style.display = 'block';
+        if (data.success) {
+            result.style.color = 'var(--success)';
+            result.innerHTML   = '<i class="fas fa-check-circle"></i> ' + data.message;
+            btn.innerHTML      = '<i class="fas fa-check"></i> Done';
+            btn.style.background = 'var(--success)';
+            // Fade out the row after 2s
+            setTimeout(() => {
+                const row = document.getElementById('cb-row-' + id);
+                if (row) { row.style.opacity = '0.4'; row.style.transition = 'opacity 0.5s'; }
+            }, 1500);
+        } else {
+            result.style.color = 'var(--danger)';
+            result.innerHTML   = '<i class="fas fa-times-circle"></i> ' + data.message;
+            btn.disabled       = false;
+            btn.innerHTML      = '<i class="fas fa-redo"></i> Reprocess';
+        }
+    })
+    .catch(err => {
+        result.style.display = 'block';
+        result.style.color   = 'var(--danger)';
+        result.textContent   = 'Network error: ' + err.message;
+        btn.disabled         = false;
+        btn.innerHTML        = '<i class="fas fa-redo"></i> Reprocess';
+    });
+}
     if (!confirm('Register C2B URLs with Safaricom? This will tell Safaricom to send payment notifications to:\n\n{{ config('services.mpesa.c2b_confirmation_url', url('/mpesa/c2b/confirmation')) }}\n\nProceed?')) {
         return;
     }

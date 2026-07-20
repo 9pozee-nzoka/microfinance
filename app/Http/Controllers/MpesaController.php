@@ -541,12 +541,117 @@ class MpesaController extends Controller
         $totalDisbursed  = MpesaTransaction::where('type', 'b2c')->where('status', 'completed')->sum('amount');
         $totalCollected  = MpesaTransaction::where('type', 'stk_push')->where('status', 'completed')->sum('amount');
 
+        // Failed/suspended C2B callbacks that can be reprocessed
+        $failedC2b = MpesaC2bCallback::whereIn('status', ['suspended', 'pending'])
+            ->latest()
+            ->limit(50)
+            ->get();
+
         return view('mpesa.index', compact(
             'transactions',
             'totalStkPush', 'totalB2c',
             'completedToday', 'pendingCount',
-            'totalDisbursed', 'totalCollected'
+            'totalDisbursed', 'totalCollected',
+            'failedC2b'
         ));
+    }
+
+    // ── Reprocess a failed/suspended C2B callback ────────────────
+    public function reprocessC2b(Request $request, MpesaC2bCallback $callback): JsonResponse
+    {
+        if ($callback->status === 'completed') {
+            return response()->json(['success' => false, 'message' => 'This payment has already been processed.'], 422);
+        }
+
+        // Allow staff to correct the account reference from the UI
+        if ($request->filled('account_reference')) {
+            $callback->update(['account_reference' => trim($request->account_reference)]);
+        }
+
+        // Prevent duplicate
+        if (\App\Models\LoanRepayment::where('transaction_reference', $callback->transaction_id)->exists()
+            || \App\Models\Transaction::where('external_reference', $callback->transaction_id)->exists()) {
+            $callback->update(['status' => 'completed', 'processed_at' => now()]);
+            return response()->json(['success' => false, 'message' => 'A repayment with this transaction ID already exists — marked as completed.'], 422);
+        }
+
+        $payload     = $callback->raw_callback ?? [];
+        $accountRef  = $callback->account_reference ?? '';
+        $transAmount = (float) $callback->amount;
+        $transId     = $callback->transaction_id;
+
+        $customer    = null;
+        $activeLoan  = null;
+        $matchMethod = null;
+
+        // Match by BillRefNumber as phone
+        if ($accountRef) {
+            try {
+                $formattedRef = $this->mpesa->formatPhone($accountRef);
+                $customer     = $this->findCustomerByPhone($formattedRef);
+                if ($customer) $matchMethod = "bill_ref_phone:{$accountRef}";
+            } catch (\Throwable $e) {}
+        }
+
+        // Match by loan number
+        if (!$customer && $accountRef) {
+            $loanByRef = \App\Models\Loan::where('loan_number', $accountRef)
+                ->whereIn('status', ['disbursed', 'active'])
+                ->where('outstanding_balance', '>', 0)
+                ->first();
+
+            if ($loanByRef) {
+                DB::transaction(function () use ($callback, $loanByRef, $transAmount, $transId, $accountRef) {
+                    $this->applyRepayment($loanByRef, $transAmount, $transId, $accountRef);
+                    $callback->update([
+                        'customer_id'  => $loanByRef->customer_id,
+                        'loan_id'      => $loanByRef->id,
+                        'status'       => 'completed',
+                        'processed_at' => now(),
+                    ]);
+                });
+                Log::info('C2B reprocess: matched by loan number', ['loan' => $accountRef, 'trans_id' => $transId]);
+                return response()->json(['success' => true, 'message' => "Payment of KSH " . number_format($transAmount, 0) . " applied to loan {$accountRef}."]);
+            }
+        }
+
+        if (!$customer) {
+            return response()->json([
+                'success' => false,
+                'message' => "No customer found for account ref [{$accountRef}]. Update the account_reference to the customer's phone or loan number and try again.",
+            ], 422);
+        }
+
+        $activeLoan = $this->findActiveLoanForCustomer($customer);
+        if (!$activeLoan) {
+            return response()->json([
+                'success' => false,
+                'message' => "Customer {$customer->full_name} has no active loan to apply this payment to.",
+            ], 422);
+        }
+
+        DB::transaction(function () use ($callback, $customer, $activeLoan, $transAmount, $transId, $accountRef, $matchMethod) {
+            $this->applyRepayment($activeLoan, $transAmount, $transId, $accountRef);
+            $callback->update([
+                'customer_id'  => $customer->id,
+                'loan_id'      => $activeLoan->id,
+                'status'       => 'completed',
+                'processed_at' => now(),
+            ]);
+        });
+
+        Log::info('C2B reprocess: success', [
+            'callback_id' => $callback->id,
+            'customer'    => $customer->full_name,
+            'loan'        => $activeLoan->loan_number,
+            'amount'      => $transAmount,
+            'match'       => $matchMethod,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "KSH " . number_format($transAmount, 0) . " applied to {$customer->full_name}'s loan {$activeLoan->loan_number}.",
+        ]);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -697,12 +802,16 @@ class MpesaController extends Controller
 
     private function findCustomerByPhone(string $formattedPhone): ?Customer
     {
-        $local07 = '0' . substr($formattedPhone, 3);
-        $plus    = '+' . $formattedPhone;
+        // formattedPhone is in 254XXXXXXXXX format
+        // Try all variants the DB might store the number in
+        $local07  = '0' . substr($formattedPhone, 3);     // 07XXXXXXXX
+        $plus254  = '+' . $formattedPhone;                 // +254XXXXXXXX
+        $nineDigit= substr($formattedPhone, 3);            // 7XXXXXXXX (no country code or leading zero)
 
-        return Customer::where('phone_number', $formattedPhone)
-            ->orWhere('phone_number', $local07)
-            ->orWhere('phone_number', $plus)
+        return Customer::where('phone_number', $formattedPhone)  // 254XXXXXXXX
+            ->orWhere('phone_number', $local07)                  // 07XXXXXXXX
+            ->orWhere('phone_number', $plus254)                  // +254XXXXXXXX
+            ->orWhere('phone_number', $nineDigit)                // 7XXXXXXXX
             ->first();
     }
 
