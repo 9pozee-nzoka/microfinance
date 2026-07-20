@@ -20,11 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Exclude M-Pesa Safaricom callback URLs from CSRF
         $middleware->validateCsrfTokens(except: [
-            'mpesa/stk/callback',
-            'mpesa/b2c/result',
-            'mpesa/b2c/timeout',
-            'mpesa/c2b/validation',
-            'mpesa/c2b/confirmation',
+            'payment/stk/callback',
+            'payment/b2c/result',
+            'payment/b2c/timeout',
+            'payment/c2b/validation',
+            'payment/c2b/confirmation',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -81,6 +81,9 @@ class MpesaController extends Controller
      */
     public function stkCallback(Request $request): JsonResponse
     {
+        if ($request->isMethod('get')) {
+            return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
+        }
         $payload = $request->all();
         Log::info('M-Pesa STK callback', $payload);
 
@@ -225,6 +228,9 @@ class MpesaController extends Controller
      */
     public function b2cResult(Request $request): JsonResponse
     {
+        if ($request->isMethod('get')) {
+            return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
+        }
         $payload = $request->all();
         Log::info('M-Pesa B2C result', $payload);
 
@@ -302,6 +308,9 @@ class MpesaController extends Controller
      */
     public function b2cTimeout(Request $request): JsonResponse
     {
+        if ($request->isMethod('get')) {
+            return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
+        }
         Log::warning('M-Pesa B2C timeout', $request->all());
         return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
     }
@@ -337,6 +346,10 @@ class MpesaController extends Controller
      */
     public function c2bValidation(Request $request): JsonResponse
     {
+        // GET — Safaricom URL reachability check
+        if ($request->isMethod('get')) {
+            return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
+        }
         Log::info('M-Pesa C2B validation', $request->all());
         return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
     }
@@ -349,13 +362,17 @@ class MpesaController extends Controller
      */
     public function c2bConfirmation(Request $request): JsonResponse
     {
+        if ($request->isMethod('get')) {
+            return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
+        }
         $payload = $request->all();
         Log::info('M-Pesa C2B confirmation received', $payload);
 
         $transId     = $payload['TransID'] ?? null;
         $transAmount = (float) ($payload['TransAmount'] ?? 0);
-        $accountRef  = trim($payload['BillRefNumber'] ?? '');  // customer enters loan no. or phone
-        $msisdn      = $payload['MSISDN'] ?? null;
+        // BillRefNumber = what customer typed as account number (their phone number)
+        $accountRef  = trim($payload['BillRefNumber'] ?? '');
+        $msisdn      = $payload['MSISDN'] ?? null;  // payer's actual SIM number
         $transTime   = $payload['TransTime'] ?? null;
 
         if (! $transId || $transAmount <= 0) {
@@ -371,69 +388,119 @@ class MpesaController extends Controller
                 return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
             }
 
-            // Format payer phone
-            $formattedPhone = $msisdn ? $this->mpesa->formatPhone($msisdn) : null;
+            // Format the payer's SIM number
+            $formattedMsisdn = $msisdn ? $this->mpesa->formatPhone($msisdn) : null;
 
             $callback = MpesaC2bCallback::create([
                 'transaction_id'       => $transId,
                 'mpesa_receipt_number' => $transId,
                 'account_reference'    => $accountRef,
-                'phone_number'         => $formattedPhone ?? $msisdn,
+                'phone_number'         => $formattedMsisdn ?? $msisdn,
                 'amount'               => $transAmount,
                 'trans_time'           => $this->parseC2bTransTime($transTime),
                 'status'               => 'pending',
                 'raw_callback'         => $payload,
             ]);
 
-            DB::transaction(function () use ($callback, $transAmount, $transId, $formattedPhone, $msisdn, $accountRef) {
+            DB::transaction(function () use ($callback, $transAmount, $transId, $formattedMsisdn, $msisdn, $accountRef) {
 
-                // ── Match strategy 1: account ref is a loan number ──
-                $loan = \App\Models\Loan::where('loan_number', $accountRef)
-                    ->whereIn('status', ['disbursed', 'active'])
-                    ->where('outstanding_balance', '>', 0)
-                    ->first();
+                // ═══════════════════════════════════════════════════════════
+                // MATCH PRIORITY:
+                // 1. Account ref (BillRefNumber) as phone number — PRIMARY
+                //    Customer types their phone e.g. 0712345678 or 254712345678
+                // 2. Payer MSISDN as phone — fallback if account ref doesn't match
+                //    (covers cases where customer forgets to enter account ref)
+                // 3. Account ref as loan number — last resort
+                // ═══════════════════════════════════════════════════════════
 
-                if ($loan) {
-                    Log::info('C2B: matched by loan number', ['loan' => $accountRef, 'trans_id' => $transId]);
-                    $callback->update(['customer_id' => $loan->customer_id, 'loan_id' => $loan->id]);
-                    $callback->update(['status' => 'completed', 'processed_at' => now()]);
-                    $this->applyRepayment($loan, $transAmount, $transId, $formattedPhone ?? $msisdn ?? '');
-                    return;
+                $customer = null;
+                $matchMethod = null;
+
+                // ── Strategy 1: BillRefNumber → customer phone ────────────
+                if ($accountRef) {
+                    $formattedRef = $this->mpesa->formatPhone($accountRef);
+                    $customer = $this->findCustomerByPhone($formattedRef);
+                    if ($customer) {
+                        $matchMethod = "account_ref_phone:{$accountRef}";
+                    }
                 }
 
-                // ── Match strategy 2: account ref or payer MSISDN is a customer phone ──
-                $phoneToSearch = $formattedPhone;
-                if (!$phoneToSearch && $accountRef) {
-                    $phoneToSearch = $this->mpesa->formatPhone($accountRef);
+                // ── Strategy 2: MSISDN → customer phone ──────────────────
+                if (!$customer && $formattedMsisdn) {
+                    $customer = $this->findCustomerByPhone($formattedMsisdn);
+                    if ($customer) {
+                        $matchMethod = "msisdn_phone:{$formattedMsisdn}";
+                    }
                 }
 
-                $customer = $phoneToSearch ? $this->findCustomerByPhone($phoneToSearch) : null;
+                // ── Strategy 3: BillRefNumber → loan number ───────────────
+                if (!$customer && $accountRef) {
+                    $loanByRef = \App\Models\Loan::where('loan_number', $accountRef)
+                        ->whereIn('status', ['disbursed', 'active'])
+                        ->where('outstanding_balance', '>', 0)
+                        ->first();
 
+                    if ($loanByRef) {
+                        Log::info('C2B: matched by loan number', [
+                            'loan'     => $accountRef,
+                            'trans_id' => $transId,
+                        ]);
+                        $callback->update([
+                            'customer_id' => $loanByRef->customer_id,
+                            'loan_id'     => $loanByRef->id,
+                            'status'      => 'completed',
+                            'processed_at'=> now(),
+                        ]);
+                        $this->applyRepayment($loanByRef, $transAmount, $transId, $formattedMsisdn ?? $msisdn ?? '');
+                        return;
+                    }
+                }
+
+                // ── Customer found via phone — find their active loan ─────
                 if ($customer) {
                     $callback->update(['customer_id' => $customer->id]);
                     $activeLoan = $this->findActiveLoanForCustomer($customer);
 
                     if ($activeLoan) {
-                        Log::info('C2B: matched by customer phone', ['customer' => $customer->id, 'loan' => $activeLoan->loan_number, 'trans_id' => $transId]);
-                        $callback->update(['loan_id' => $activeLoan->id, 'status' => 'completed', 'processed_at' => now()]);
-                        $this->applyRepayment($activeLoan, $transAmount, $transId, $formattedPhone ?? $msisdn ?? '');
+                        Log::info('C2B: matched via ' . $matchMethod, [
+                            'customer'  => $customer->id,
+                            'loan'      => $activeLoan->loan_number,
+                            'arrears'   => $activeLoan->arrears_amount,
+                            'amount'    => $transAmount,
+                            'trans_id'  => $transId,
+                        ]);
+                        $callback->update([
+                            'loan_id'     => $activeLoan->id,
+                            'status'      => 'completed',
+                            'processed_at'=> now(),
+                        ]);
+                        $this->applyRepayment($activeLoan, $transAmount, $transId, $formattedMsisdn ?? $msisdn ?? '');
                         return;
                     }
 
-                    // Customer found but no active loan — suspense
-                    $this->storeC2bSuspense($callback, $customer, $transAmount, $transId, $formattedPhone ?? $msisdn ?? '', 'Customer has no active loan');
+                    // Customer found but no active loan → suspense
+                    $this->storeC2bSuspense(
+                        $callback, $customer, $transAmount, $transId,
+                        $formattedMsisdn ?? $msisdn ?? '',
+                        "Customer found ({$customer->full_name}) but has no active loan"
+                    );
                     $callback->update(['status' => 'suspended', 'processed_at' => now()]);
                     return;
                 }
 
-                // ── No match — suspense ──
-                Log::warning('C2B: no customer match', [
+                // ── No match at all → suspense ────────────────────────────
+                Log::warning('C2B: no customer match — payment suspended', [
                     'account_ref' => $accountRef,
                     'msisdn'      => $msisdn,
                     'trans_id'    => $transId,
                     'amount'      => $transAmount,
                 ]);
-                $this->storeC2bSuspense($callback, null, $transAmount, $transId, $formattedPhone ?? $msisdn ?? '', "No match for account ref [{$accountRef}] or phone [{$msisdn}]");
+                $this->storeC2bSuspense(
+                    $callback, null, $transAmount, $transId,
+                    $formattedMsisdn ?? $msisdn ?? '',
+                    "No customer found for account ref [{$accountRef}] or MSISDN [{$msisdn}]. " .
+                    "Customer should use their registered phone number as account number."
+                );
                 $callback->update(['status' => 'suspended', 'processed_at' => now()]);
             });
 
@@ -445,7 +512,6 @@ class MpesaController extends Controller
             ]);
         }
 
-        // Always return success to Safaricom — never let them retry
         return response()->json(['ResultCode' => '0', 'ResultDesc' => 'Accepted']);
     }
 
@@ -648,6 +714,31 @@ class MpesaController extends Controller
 
     private function findActiveLoanForCustomer(Customer $customer): ?Loan
     {
+        // Priority 1: loans with arrears (customer is overdue — apply payment there first)
+        $arrearsLoan = $customer->loans()
+            ->whereIn('status', ['disbursed', 'active'])
+            ->where('outstanding_balance', '>', 0)
+            ->where('days_in_arrears', '>', 0)
+            ->orderByDesc('days_in_arrears')  // worst arrears first
+            ->first();
+
+        if ($arrearsLoan) {
+            return $arrearsLoan;
+        }
+
+        // Priority 2: oldest active loan with a due installment today or overdue
+        $dueLoan = $customer->loans()
+            ->whereIn('status', ['disbursed', 'active'])
+            ->where('outstanding_balance', '>', 0)
+            ->whereDate('next_due_date', '<=', today())
+            ->orderBy('next_due_date')
+            ->first();
+
+        if ($dueLoan) {
+            return $dueLoan;
+        }
+
+        // Priority 3: any active loan (upcoming installment)
         return $customer->loans()
             ->whereIn('status', ['disbursed', 'active'])
             ->where('outstanding_balance', '>', 0)

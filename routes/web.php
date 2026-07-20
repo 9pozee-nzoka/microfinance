@@ -347,14 +347,15 @@ Route::middleware(['auth', 'staff'])->group(function () {
 
 // ============================================
 // M-PESA CALLBACK ROUTES (public — Safaricom)
+// Path uses /payment/ prefix — Safaricom rejects URLs containing "mpesa"
 // ============================================
 
-Route::prefix('mpesa')->name('mpesa.')->group(function () {
-    Route::post('/stk/callback',     [MpesaController::class, 'stkCallback'])->name('stk.callback');
-    Route::post('/b2c/result',       [MpesaController::class, 'b2cResult'])->name('b2c.result');
-    Route::post('/b2c/timeout',      [MpesaController::class, 'b2cTimeout'])->name('b2c.timeout');
-    Route::post('/c2b/validation',   [MpesaController::class, 'c2bValidation'])->name('c2b.validation');
-    Route::post('/c2b/confirmation', [MpesaController::class, 'c2bConfirmation'])->name('c2b.confirmation');
+Route::prefix('payment')->name('mpesa.')->group(function () {
+    Route::match(['GET', 'POST'], '/stk/callback',     [MpesaController::class, 'stkCallback'])->name('stk.callback');
+    Route::match(['GET', 'POST'], '/b2c/result',       [MpesaController::class, 'b2cResult'])->name('b2c.result');
+    Route::match(['GET', 'POST'], '/b2c/timeout',      [MpesaController::class, 'b2cTimeout'])->name('b2c.timeout');
+    Route::match(['GET', 'POST'], '/c2b/validation',   [MpesaController::class, 'c2bValidation'])->name('c2b.validation');
+    Route::match(['GET', 'POST'], '/c2b/confirmation', [MpesaController::class, 'c2bConfirmation'])->name('c2b.confirmation');
 });
 
 // ============================================
