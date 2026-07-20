@@ -69,6 +69,11 @@
     <div class="card">
         <div class="card-header" style="margin-bottom: 12px;">
             <span class="card-title">Loans Due Today</span>
+            <a href="{{ route('dashboard.export.loans-due', request()->only(['officer','branch'])) }}"
+               target="_blank"
+               class="btn btn-outline" style="font-size:11px; padding:4px 10px; color:#E65100; border-color:#FFCC80;">
+                <i class="fas fa-file-pdf"></i> Export PDF
+            </a>
         </div>
         <div class="table-wrap">
             <table class="data-table">
@@ -129,6 +134,11 @@
     <div class="card">
         <div class="card-header" style="margin-bottom: 12px;">
             <span class="card-title">Prepay Loans (Due Tomorrow)</span>
+            <a href="{{ route('dashboard.export.prepay', request()->only(['officer','branch'])) }}"
+               target="_blank"
+               class="btn btn-outline" style="font-size:11px; padding:4px 10px; color:#2E7D32; border-color:#A5D6A7;">
+                <i class="fas fa-file-pdf"></i> Export PDF
+            </a>
         </div>
         <div class="table-wrap">
             <table class="data-table">

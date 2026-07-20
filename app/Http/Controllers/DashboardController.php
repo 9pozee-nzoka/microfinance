@@ -23,6 +23,73 @@ class DashboardController extends Controller
      */
     private const CACHE_TTL = 300;
 
+    public function exportLoansDue(Request $request)
+    {
+        $today  = Carbon::today();
+        $user   = auth()->user();
+        $canFilter      = $user->hasAnyRole(['admin', 'super_admin', 'branch_manager']);
+        $isPureOfficer  = $user->hasRole('loan_officer') && !$canFilter;
+        $selectedOfficer= $canFilter ? $request->input('officer') : ($isPureOfficer ? (string)$user->id : null);
+        $selectedBranch = $canFilter ? $request->input('branch') : null;
+
+        $loanFilter = fn ($query) => $query
+            ->when($selectedOfficer, fn ($q) => $q->where('relationship_officer_id', $selectedOfficer))
+            ->when($selectedBranch,  fn ($q) => $q->where('branch_id', $selectedBranch));
+
+        $loans = $loanFilter(Loan::active()
+            ->with(['customer', 'branch', 'relationshipOfficer'])
+            ->whereDate('next_due_date', $today)
+            ->orderBy('loan_number'))
+            ->get();
+
+        return $this->streamPdf('dashboard.exports.loans-due', [
+            'loans'    => $loans,
+            'title'    => 'Loans Due Today — ' . $today->format('d M Y'),
+            'canFilter'=> $canFilter,
+            'exportedAt' => now()->format('d M Y H:i'),
+        ], 'loans_due_today_' . $today->format('Ymd') . '.pdf');
+    }
+
+    public function exportPrepay(Request $request)
+    {
+        $today  = Carbon::today();
+        $user   = auth()->user();
+        $canFilter      = $user->hasAnyRole(['admin', 'super_admin', 'branch_manager']);
+        $isPureOfficer  = $user->hasRole('loan_officer') && !$canFilter;
+        $selectedOfficer= $canFilter ? $request->input('officer') : ($isPureOfficer ? (string)$user->id : null);
+        $selectedBranch = $canFilter ? $request->input('branch') : null;
+
+        $loanFilter = fn ($query) => $query
+            ->when($selectedOfficer, fn ($q) => $q->where('relationship_officer_id', $selectedOfficer))
+            ->when($selectedBranch,  fn ($q) => $q->where('branch_id', $selectedBranch));
+
+        $loans = $loanFilter(Loan::active()
+            ->with(['customer', 'branch', 'relationshipOfficer'])
+            ->whereDate('next_due_date', $today->copy()->addDay())
+            ->orderBy('loan_number'))
+            ->get();
+
+        return $this->streamPdf('dashboard.exports.prepay', [
+            'loans'    => $loans,
+            'title'    => 'Prepay Loans (Due Tomorrow: ' . $today->copy()->addDay()->format('d M Y') . ')',
+            'canFilter'=> $canFilter,
+            'exportedAt' => now()->format('d M Y H:i'),
+        ], 'prepay_loans_' . $today->format('Ymd') . '.pdf');
+    }
+
+    private function streamPdf(string $view, array $data, string $filename)
+    {
+        try {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView($view, $data)
+                ->setPaper('a4', 'landscape');
+            return $pdf->download($filename);
+        } catch (\Throwable $e) {
+            // DomPDF not available — return CSV instead
+            \Illuminate\Support\Facades\Log::warning('DomPDF not available: ' . $e->getMessage());
+            return response()->json(['error' => 'PDF export not available on this server. Use CSV export instead.'], 500);
+        }
+    }
+
     public function index(Request $request)
     {
         $today = Carbon::today();

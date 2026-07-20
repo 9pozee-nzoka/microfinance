@@ -104,6 +104,8 @@ Route::middleware(['auth', 'staff'])->group(function () {
     // Note: Public '/' is defined above for guests (welcome page).
     // Staff dashboard is at /dashboard only to avoid route conflicts.
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/export/loans-due', [DashboardController::class, 'exportLoansDue'])->name('dashboard.export.loans-due');
+    Route::get('/dashboard/export/prepay',    [DashboardController::class, 'exportPrepay'])->name('dashboard.export.prepay');
 
     // ── Profile ────────────────────────────────────────────────
     Route::get('/profile/change-password', [StaffController::class, 'showChangePassword'])->name('profile.change-password');
