@@ -268,7 +268,7 @@ function reprocessCallback(id, btn) {
     result.style.display = 'none';
 
     // Update the account_reference first if changed
-    fetch('{{ url('/mpesa/c2b/callbacks') }}/' + id + '/reprocess', {
+    fetch('/mpesa/c2b/callbacks/' + id + '/reprocess', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -304,7 +304,9 @@ function reprocessCallback(id, btn) {
         btn.innerHTML        = '<i class="fas fa-redo"></i> Reprocess';
     });
 }
-    if (!confirm('Register C2B URLs with Safaricom? This will tell Safaricom to send payment notifications to:\n\n{{ config('services.mpesa.c2b_confirmation_url', url('/mpesa/c2b/confirmation')) }}\n\nProceed?')) {
+
+function registerC2bUrls(btn) {
+    if (!confirm('Register C2B URLs with Safaricom? This will tell Safaricom to send payment notifications to:\n\n{{ config('services.mpesa.c2b_confirmation_url', url('/payment/c2b/confirmation')) }}\n\nProceed?')) {
         return;
     }
 

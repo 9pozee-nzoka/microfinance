@@ -852,7 +852,7 @@ class MpesaController extends Controller
     private function storeC2bSuspense(MpesaC2bCallback $callback, ?Customer $customer, float $amount, string $transId, string $phone, string $reason): void
     {
         $suspense = SuspenseAccount::create([
-            'reference_number'   => 'SUSP-' . date('YmdHis') . '-' . str_pad(SuspenseAccount::count() + 1, 4, '0', STR_PAD_LEFT),
+            'reference_number'   => 'SUSP-' . date('YmdHisv') . '-' . str_pad((SuspenseAccount::withTrashed()->max('id') ?? 0) + 1, 6, '0', STR_PAD_LEFT),
             'source'             => 'mpesa',
             'external_reference' => $transId,
             'phone_number'       => $phone,

@@ -196,7 +196,7 @@ class TransactionController extends Controller
         ]);
 
         SuspenseAccount::create([
-            'reference_number'   => 'SUSP-' . date('YmdHis') . '-' . str_pad(SuspenseAccount::count() + 1, 4, '0', STR_PAD_LEFT),
+            'reference_number'   => 'SUSP-' . date('YmdHisv') . '-' . str_pad((SuspenseAccount::withTrashed()->max('id') ?? 0) + 1, 6, '0', STR_PAD_LEFT),
             'source'             => $request->source,
             'external_reference' => strtoupper($request->external_reference),
             'phone_number'       => $request->phone_number,
@@ -228,7 +228,7 @@ class TransactionController extends Controller
             $txnType = $request->loan_id ? 'loan_repayment' : 'savings_deposit';
 
             $transaction = Transaction::create([
-                'transaction_number' => 'TXN-' . date('YmdHis') . '-' . str_pad(Transaction::count() + 1, 4, '0', STR_PAD_LEFT),
+                'transaction_number' => 'TXN-' . date('YmdHisv') . '-' . str_pad((Transaction::max('id') ?? 0) + 1, 6, '0', STR_PAD_LEFT),
                 'customer_id'        => $customer->id,
                 'loan_id'            => $request->loan_id,
                 'transaction_type'   => $txnType,
@@ -403,7 +403,7 @@ class TransactionController extends Controller
 
         // Create transaction record
         Transaction::create([
-            'transaction_number' => 'TXN-' . date('YmdHis') . '-' . str_pad(Transaction::count() + 1, 4, '0', STR_PAD_LEFT),
+            'transaction_number' => 'TXN-' . date('YmdHisv') . '-' . str_pad((Transaction::max('id') ?? 0) + 1, 6, '0', STR_PAD_LEFT),
             'customer_id'        => $customer->id,
             'loan_id'            => $loan->id,
             'repayment_id'       => $repayment->id,
@@ -433,7 +433,7 @@ class TransactionController extends Controller
         $customer->update(['last_transaction_at' => now()]);
 
         Transaction::create([
-            'transaction_number' => 'TXN-' . date('YmdHis') . '-' . str_pad(Transaction::count() + 1, 4, '0', STR_PAD_LEFT),
+            'transaction_number' => 'TXN-' . date('YmdHisv') . '-' . str_pad((Transaction::max('id') ?? 0) + 1, 6, '0', STR_PAD_LEFT),
             'customer_id'        => $customer->id,
             'transaction_type'   => 'savings_deposit',
             'direction'          => 'credit',
@@ -523,7 +523,7 @@ class TransactionController extends Controller
         $customer->update(['last_transaction_at' => now()]);
 
         Transaction::create([
-            'transaction_number' => 'TXN-' . date('YmdHis') . '-' . str_pad(Transaction::count() + 1, 4, '0', STR_PAD_LEFT),
+            'transaction_number' => 'TXN-' . date('YmdHisv') . '-' . str_pad((Transaction::max('id') ?? 0) + 1, 6, '0', STR_PAD_LEFT),
             'customer_id'        => $customer->id,
             'transaction_type'   => 'share_capital',
             'direction'          => 'credit',

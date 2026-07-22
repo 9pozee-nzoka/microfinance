@@ -130,7 +130,7 @@
                 'description' => 'Trusted microfinance institution providing quick business loans, personal loans, and SME financing in Kenya.',
                 'contactPoint' => [
                     '@type' => 'ContactPoint',
-                    'telephone' => '+254-700-000-001',
+                    'telephone' => '+254-720157447',
                     'contactType' => 'customer service',
                     'areaServed' => 'KE',
                     'availableLanguage' => ['English', 'Swahili']
@@ -142,7 +142,7 @@
                 'name' => 'Mweela Cash Capital',
                 'image' => 'https://mweelacredit.co.ke/images/og-image.jpg',
                 'url' => 'https://mweelacredit.co.ke',
-                'telephone' => '+254-700-000-001',
+                'telephone' => '+254-746186990',
                 'address' => [
                     '@type' => 'PostalAddress',
                     'streetAddress' => 'Mutomo Town',

@@ -86,6 +86,16 @@ class Customer extends Model
         return $this->hasMany(Guarantor::class, 'guarantor_customer_id');
     }
 
+    public function savedGuarantors(): HasMany
+    {
+        return $this->hasMany(CustomerGuarantor::class)->where('is_active', true);
+    }
+
+    public function savedCollaterals(): HasMany
+    {
+        return $this->hasMany(CustomerCollateral::class)->where('is_active', true);
+    }
+
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
@@ -102,7 +112,17 @@ class Customer extends Model
         
         static::creating(function ($customer) {
             if (empty($customer->customer_number)) {
-                $customer->customer_number = 'CUST-' . date('Y') . '-' . str_pad(static::count() + 1, 6, '0', STR_PAD_LEFT);
+                $attempts = 0;
+                do {
+                    $maxId    = static::withTrashed()->max('id') ?? 0;
+                    $seq      = str_pad($maxId + 1 + $attempts, 6, '0', STR_PAD_LEFT);
+                    $candidate = 'CUST-' . date('Y') . '-' . $seq;
+                    $attempts++;
+                } while (
+                    static::withTrashed()->where('customer_number', $candidate)->exists()
+                    && $attempts < 10
+                );
+                $customer->customer_number = $candidate;
             }
             if (empty($customer->full_name)) {
                 $customer->full_name = trim($customer->first_name . ' ' . ($customer->middle_name ?? '') . ' ' . $customer->last_name);

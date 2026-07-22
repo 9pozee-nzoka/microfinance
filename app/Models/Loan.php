@@ -275,7 +275,19 @@ class Loan extends Model
         
         static::creating(function ($loan) {
             if (empty($loan->loan_number)) {
-                $loan->loan_number = 'LN-' . date('Y') . '-' . str_pad(static::count() + 1, 6, '0', STR_PAD_LEFT);
+                // Use withTrashed to include deleted rows so we never reuse a number.
+                // Retry up to 5 times if a race condition causes a duplicate.
+                $attempts = 0;
+                do {
+                    $maxId = static::withTrashed()->max('id') ?? 0;
+                    $seq   = str_pad($maxId + 1 + $attempts, 6, '0', STR_PAD_LEFT);
+                    $candidate = 'LN-' . date('Y') . '-' . $seq;
+                    $attempts++;
+                } while (
+                    static::withTrashed()->where('loan_number', $candidate)->exists()
+                    && $attempts < 10
+                );
+                $loan->loan_number = $candidate;
             }
         });
     }

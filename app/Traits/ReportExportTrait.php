@@ -19,6 +19,20 @@ trait ReportExportTrait
         $safeName = $this->exportService->safeFileName($reportName);
         $dateSuffix = now()->format('Ymd_His');
 
+        // Safety net: unwrap any paginated collections that slipped through.
+        // Proper fix is for callers to pass ->get() — this handles edge cases.
+        foreach (['loans', 'schedules', 'repayments', 'customers', 'transactions',
+                  'earlyPayments', 'closures', 'topCustomers'] as $key) {
+            if (isset($data[$key]) && $data[$key] instanceof \Illuminate\Pagination\AbstractPaginator) {
+                // This only gets the current page — callers MUST pass ->get() for full data.
+                // Log a warning so we can find and fix the caller.
+                \Illuminate\Support\Facades\Log::warning(
+                    "ReportExportTrait: '{$key}' is paginated in export for '{$reportName}'. Pass ->get() instead."
+                );
+                $data[$key] = $data[$key]->getCollection();
+            }
+        }
+
         $headers = $this->exportHeaders($reportName);
         $rows = $this->exportRows($reportName, $data);
 

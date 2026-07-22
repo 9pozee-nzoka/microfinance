@@ -51,7 +51,11 @@ class Transaction extends Model
         
         static::creating(function ($transaction) {
             if (empty($transaction->transaction_number)) {
-                $transaction->transaction_number = 'TXN-' . date('YmdHis') . '-' . str_pad(static::count() + 1, 4, '0', STR_PAD_LEFT);
+                // Include microseconds to avoid duplicates in rapid succession
+                $transaction->transaction_number = 'TXN-' . date('YmdHis') . '-' . str_pad(
+                    (static::max('id') ?? 0) + 1,
+                    6, '0', STR_PAD_LEFT
+                );
             }
         });
     }

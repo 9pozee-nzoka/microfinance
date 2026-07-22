@@ -22,22 +22,27 @@ class LoanController extends Controller
             ? Customer::where('status', 'active')->findOrFail($request->customer_id)
             : null;
 
+        // Staff list for admin/manager to assign relationship officer
+        $canAssignOfficer = auth()->user()->hasAnyRole(['super_admin', 'admin', 'branch_manager']);
+        $officers = $canAssignOfficer
+            ? User::where('status', 'active')
+                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['loan_officer', 'branch_manager', 'admin', 'super_admin']))
+                ->orderBy('name')->get()
+            : collect();
+
         // Determine processing fee and eligibility for pre-selected customer
-        $processingFee    = 700;  // default for first-timers
-        $hasActiveLoan    = false;
-        $activeLoan       = null;
+        $processingFee       = 700;
+        $hasActiveLoan       = false;
+        $activeLoan          = null;
         $isReturningCustomer = false;
 
         if ($customer) {
-            // Check for any outstanding (active/disbursed/pending/approved) loan
             $activeLoan = Loan::where('customer_id', $customer->id)
                 ->whereIn('status', ['pending', 'approved', 'disbursed', 'active'])
-                ->latest()
-                ->first();
+                ->latest()->first();
 
             $hasActiveLoan = (bool) $activeLoan;
 
-            // Returning = has at least one completed or written-off loan
             $isReturningCustomer = Loan::where('customer_id', $customer->id)
                 ->whereIn('status', ['completed', 'written_off'])
                 ->exists();
@@ -47,7 +52,8 @@ class LoanController extends Controller
 
         return view('loans.create', compact(
             'products', 'branches', 'customer',
-            'processingFee', 'hasActiveLoan', 'activeLoan', 'isReturningCustomer'
+            'processingFee', 'hasActiveLoan', 'activeLoan', 'isReturningCustomer',
+            'canAssignOfficer', 'officers'
         ));
     }
 
@@ -78,6 +84,11 @@ class LoanController extends Controller
             'guarantors'                 => 'nullable|array',
             'guarantors.*.customer_id'   => 'nullable|exists:customers,id',
             'guarantors.*.amount'        => 'nullable|numeric|min:0',
+            'relationship_officer_id'    => 'nullable|exists:users,id',
+            // Collateral (may be new or selected from saved)
+            'collateral_id'              => 'nullable|exists:customer_collaterals,id',
+            'collateral_description'     => 'nullable|string|max:500',
+            'collateral_value'           => 'nullable|string|max:100',
         ]);
 
         // ── Block if customer has an outstanding loan ─────────────────────
@@ -155,16 +166,33 @@ class LoanController extends Controller
         $backdate = $validated['created_at_date'] ?? today()->toDateString();
         $isBackdated = $backdate !== today()->toDateString();
 
-        $loan = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $backdate, $isBackdated) {
+        // Determine relationship officer — admin/manager can assign any officer
+        $canAssignOfficer = auth()->user()->hasAnyRole(['super_admin', 'admin', 'branch_manager']);
+        $officerId = ($canAssignOfficer && !empty($validated['relationship_officer_id']))
+            ? $validated['relationship_officer_id']
+            : auth()->id();
+
+        // Resolve collateral from saved record or inline fields
+        $collateralDescription = $validated['collateral_description'] ?? null;
+        $collateralValue       = $validated['collateral_value'] ?? null;
+        if (!empty($validated['collateral_id'])) {
+            $savedCollateral = \App\Models\CustomerCollateral::find($validated['collateral_id']);
+            if ($savedCollateral && $savedCollateral->customer_id == $customer->id) {
+                $collateralDescription = $collateralDescription ?: $savedCollateral->description;
+                $collateralValue       = $collateralValue ?: (string) $savedCollateral->value;
+            }
+        }
+
+        $loan = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $backdate, $isBackdated, $officerId, $collateralDescription, $collateralValue, $customer) {
             $loan = Loan::create([
                 'customer_id'                => $validated['customer_id'],
                 'product_id'                 => $validated['product_id'],
                 'branch_id'                  => $validated['branch_id'],
-                'relationship_officer_id'    => auth()->id(),
+                'relationship_officer_id'    => $officerId,
                 'principal_amount'           => $validated['principal_amount'],
                 'interest_amount'            => $validated['interest_amount'],
                 'processing_fee'             => $validated['processing_fee'],
-                'processing_fee_paid'        => $validated['processing_fee'],  // recorded at creation
+                'processing_fee_paid'        => $validated['processing_fee'],
                 'processing_fee_paid_at'     => $isBackdated ? $backdate . ' 00:00:00' : now(),
                 'processing_fee_paid_by'     => auth()->id(),
                 'insurance_fee'              => $validated['insurance_fee'] ?? 0,
@@ -173,8 +201,8 @@ class LoanController extends Controller
                 'weekly_installment'         => $validated['weekly_installment'],
                 'purpose'                    => $validated['purpose'],
                 'purpose_description'        => $validated['purpose_description'],
-                'collateral_description'     => $validated['collateral_description'],
-                'collateral_value'           => $validated['collateral_value'],
+                'collateral_description'     => $collateralDescription,
+                'collateral_value'           => $collateralValue,
                 'outstanding_balance'        => $validated['principal_amount'],
                 'application_date'           => $validated['application_date'],
                 'status'                     => 'pending',
@@ -189,7 +217,7 @@ class LoanController extends Controller
             // Record processing fee as a transaction
             if ($validated['processing_fee'] > 0) {
                 \App\Models\Transaction::create([
-                    'transaction_number' => 'TXN-' . date('YmdHis') . '-' . str_pad(\App\Models\Transaction::count() + 1, 4, '0', STR_PAD_LEFT),
+                    'transaction_number' => 'TXN-' . date('YmdHisv') . '-' . str_pad((\App\Models\Transaction::max('id') ?? 0) + 1, 6, '0', STR_PAD_LEFT),
                     'customer_id'        => $loan->customer_id,
                     'loan_id'            => $loan->id,
                     'transaction_type'   => 'processing_fee',
@@ -216,7 +244,7 @@ class LoanController extends Controller
                 }
             }
 
-            // Save guarantors
+            // Save guarantors to loan + sync to customer's saved guarantors list
             if (!empty($validated['guarantors'])) {
                 foreach ($validated['guarantors'] as $g) {
                     if (!empty($g['customer_id'])) {
@@ -226,8 +254,38 @@ class LoanController extends Controller
                             'guaranteed_amount'     => $g['amount'] ?? 0,
                             'status'                => 'pending',
                         ]);
+
+                        // Upsert into customer_guarantors so they're pre-filled next time
+                        \App\Models\CustomerGuarantor::updateOrCreate(
+                            [
+                                'customer_id'          => $loan->customer_id,
+                                'guarantor_customer_id'=> $g['customer_id'],
+                            ],
+                            [
+                                'typical_amount' => $g['amount'] ?? 0,
+                                'is_active'      => true,
+                                'last_used_at'   => now(),
+                            ]
+                        );
                     }
                 }
+            }
+
+            // Sync collateral to customer's saved collaterals
+            if ($collateralDescription) {
+                \App\Models\CustomerCollateral::updateOrCreate(
+                    [
+                        'customer_id'  => $loan->customer_id,
+                        'description'  => $collateralDescription,
+                    ],
+                    [
+                        'value'        => is_numeric(str_replace(',', '', $collateralValue ?? '0'))
+                            ? (float) str_replace(',', '', $collateralValue ?? '0')
+                            : 0,
+                        'is_active'    => true,
+                        'last_used_at' => now(),
+                    ]
+                );
             }
 
             return $loan;
@@ -604,7 +662,7 @@ class LoanController extends Controller
 
         // Create transaction record
         \App\Models\Transaction::create([
-            'transaction_number' => 'TXN-' . date('YmdHis') . '-' . str_pad(\App\Models\Transaction::count() + 1, 4, '0', STR_PAD_LEFT),
+            'transaction_number' => 'TXN-' . date('YmdHisv') . '-' . str_pad((\App\Models\Transaction::max('id') ?? 0) + 1, 6, '0', STR_PAD_LEFT),
             'customer_id'        => $loan->customer_id,
             'loan_id'            => $loan->id,
             'transaction_type'   => 'processing_fee',

@@ -94,7 +94,7 @@
                 ],
                 'contactPoint' => [
                     '@type' => 'ContactPoint',
-                    'telephone' => '+254-700-000-001',
+                    'telephone' => '+254-720157447',
                     'contactType' => 'customer service',
                     'areaServed' => 'KE',
                     'availableLanguage' => ['English', 'Swahili']
@@ -192,8 +192,8 @@
                     <p><i class="fas fa-map-marker-alt"></i> Mutomo Town, Kitui County, Kenya</p>
                     <p><i class="fas fa-clock"></i> Monday – Friday: 8:00 AM – 5:00 PM</p>
                     <p><i class="fas fa-clock"></i> Saturday: 9:00 AM – 1:00 PM</p>
-                    <p><i class="fas fa-phone"></i> +254 700 000 001</p>
-                    <p><i class="fas fa-envelope"></i> info@mweelacredit.co.ke</p>
+                    <p><i class="fas fa-phone"></i> +254 720157447</p>
+                    <p><i class="fas fa-envelope"></i> mweelacredit@gmail.com</p>
                 </div>
                 <div class="location-map">
                     <i class="fas fa-map"></i>

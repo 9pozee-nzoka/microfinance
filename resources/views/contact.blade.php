@@ -103,8 +103,8 @@
                 'name' => 'Mweela Cash Capital',
                 'image' => 'https://mweelacredit.co.ke/images/og-image.jpg',
                 'url' => 'https://mweelacredit.co.ke',
-                'telephone' => '+254-700-000-001',
-                'email' => 'info@mweelacredit.co.ke',
+                'telephone' => '+254-720157447',
+                'email' => 'mweelacredit@gmail.com',
                 'address' => [
                     '@type' => 'PostalAddress',
                     'streetAddress' => 'Mutomo Town',
@@ -151,14 +151,14 @@
                         <i class="fas fa-phone"></i>
                         <div>
                             <h4>Call Us</h4>
-                            <p><a href="tel:+254700000001">+254 700 000 001</a><br>Mon – Fri: 8AM – 5PM</p>
+                            <p><a href="tel:+254720157447">+254 720157447</a><br>Mon – Fri: 8AM – 5PM</p>
                         </div>
                     </div>
                     <div class="info-card">
                         <i class="fas fa-envelope"></i>
                         <div>
                             <h4>Email Us</h4>
-                            <p><a href="mailto:info@mweelacredit.co.ke">info@mweelacredit.co.ke</a><br>We reply within 24 hours</p>
+                            <p><a href="mailto:info@mweelacredit.co.ke">mweelacredit@gmail.com</a><br>We reply within 24 hours</p>
                         </div>
                     </div>
                     <div class="info-card">
@@ -182,7 +182,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Full Name <span class="req">*</span></label>
-                                <input type="text" name="name" required placeholder="John Doe">
+                                <input type="text" name="name" required placeholder="Josh king">
                             </div>
                             <div class="form-group">
                                 <label>Phone <span class="req">*</span></label>
@@ -191,7 +191,7 @@
                         </div>
                         <div class="form-group">
                             <label>Email</label>
-                            <input type="email" name="email" placeholder="john@example.com">
+                            <input type="email" name="email" placeholder="mutua@example.com">
                         </div>
                         <div class="form-group">
                             <label>I need <span class="req">*</span></label>
@@ -296,7 +296,7 @@
             <p>Visit our branch in Mutomo or contact us to start your application today.</p>
             <div class="hero-buttons" style="justify-content:center;">
                 <a href="/our-loans" class="btn btn-primary">View Loan Products</a>
-                <a href="tel:+254700000001" class="btn btn-outline"><i class="fas fa-phone"></i> Call Now</a>
+                <a href="tel:+254720157447" class="btn btn-outline"><i class="fas fa-phone"></i> Call Now</a>
             </div>
         </div>
     </section>

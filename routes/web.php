@@ -158,6 +158,41 @@ Route::middleware(['auth', 'staff'])->group(function () {
         Route::get('/loan-products/{product}/rates', function (LoanProduct $product) {
             return response()->json($product->rates);
         })->name('loan-products.rates');
+
+        // Saved guarantors, collaterals, and next-of-kin for a customer
+        Route::get('/customers/{customer}/saved-data', function (Customer $customer) {
+            $customer->load([
+                'savedGuarantors.guarantorCustomer',
+                'savedCollaterals',
+            ]);
+
+            return response()->json([
+                'next_of_kin' => [
+                    'name'         => $customer->next_of_kin_name,
+                    'phone'        => $customer->next_of_kin_phone,
+                    'relationship' => $customer->next_of_kin_relationship,
+                    'address'      => $customer->next_of_kin_address,
+                ],
+                'guarantors' => $customer->savedGuarantors->map(fn ($g) => [
+                    'id'             => $g->id,
+                    'customer_id'    => $g->guarantor_customer_id,
+                    'full_name'      => $g->guarantorCustomer?->full_name,
+                    'phone_number'   => $g->guarantorCustomer?->phone_number,
+                    'customer_number'=> $g->guarantorCustomer?->customer_number,
+                    'typical_amount' => $g->typical_amount,
+                    'last_used_at'   => $g->last_used_at?->format('d M Y'),
+                ]),
+                'collaterals' => $customer->savedCollaterals->map(fn ($c) => [
+                    'id'          => $c->id,
+                    'description' => $c->description,
+                    'value'       => $c->value,
+                    'type'        => $c->type,
+                    'last_used_at'=> $c->last_used_at?->format('d M Y'),
+                ]),
+                'is_returning' => \App\Models\Loan::where('customer_id', $customer->id)
+                    ->whereIn('status', ['completed', 'written_off'])->exists(),
+            ]);
+        })->name('customers.saved-data');
     });
 
     // ── Customer Management ────────────────────────────────────

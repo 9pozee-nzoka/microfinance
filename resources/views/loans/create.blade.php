@@ -192,32 +192,111 @@
                 @error('branch_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
 
+            {{-- Relationship Officer — only shown to admins/managers --}}
+            @if(isset($canAssignOfficer) && $canAssignOfficer)
+            <div class="form-group">
+                <label class="form-label">Relationship Officer <span class="req">*</span></label>
+                <select name="relationship_officer_id" id="officerSelect"
+                        class="form-control {{ $errors->has('relationship_officer_id') ? 'is-invalid' : '' }}">
+                    <option value="">-- Assign Officer --</option>
+                    @foreach($officers as $officer)
+                        <option value="{{ $officer->id }}"
+                            {{ old('relationship_officer_id', isset($customer) ? $customer->relationship_officer_id : auth()->id()) == $officer->id ? 'selected' : '' }}>
+                            {{ $officer->name }}
+                            ({{ $officer->roles->first()?->name ? ucfirst(str_replace('_',' ',$officer->roles->first()->name)) : 'Staff' }})
+                        </option>
+                    @endforeach
+                </select>
+                <div class="form-hint">Leave blank to assign to yourself</div>
+                @error('relationship_officer_id')<span class="invalid-feedback">{{ $message }}</span>@enderror
+            </div>
+            @endif
         </div>
     </div>
 
-    {{-- ── Section 3: Collateral ── --}}
+    {{-- ── Section 3: Next of Kin ── --}}
     <div class="form-section">
-        <div class="section-heading"><i class="fas fa-shield-alt"></i> Collateral (Optional)</div>
+        <div class="section-heading">
+            <i class="fas fa-users"></i> Next of Kin
+            @if(isset($customer) && $customer->next_of_kin_name)
+            <span style="font-size:11px; font-weight:400; color:var(--success); margin-left:8px;">
+                <i class="fas fa-check-circle"></i> Pre-filled from customer record
+            </span>
+            @endif
+        </div>
         <div class="grid-2">
             <div class="form-group">
-                <label class="form-label">Collateral Description</label>
-                <input type="text" name="collateral_description" value="{{ old('collateral_description') }}"
+                <label class="form-label">Full Name</label>
+                <input type="text" name="next_of_kin_name" id="nokName"
+                       value="{{ old('next_of_kin_name', isset($customer) ? $customer->next_of_kin_name : '') }}"
+                       class="form-control" placeholder="Next of kin full name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="text" name="next_of_kin_phone" id="nokPhone"
+                       value="{{ old('next_of_kin_phone', isset($customer) ? $customer->next_of_kin_phone : '') }}"
+                       class="form-control" placeholder="07XXXXXXXX">
+            </div>
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label class="form-label">Relationship</label>
+                <input type="text" name="next_of_kin_relationship" id="nokRelationship"
+                       value="{{ old('next_of_kin_relationship', isset($customer) ? $customer->next_of_kin_relationship : '') }}"
+                       class="form-control" placeholder="e.g. Spouse, Parent, Sibling">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                <input type="text" name="next_of_kin_address" id="nokAddress"
+                       value="{{ old('next_of_kin_address', isset($customer) ? $customer->next_of_kin_address : '') }}"
+                       class="form-control" placeholder="Next of kin address">
+            </div>
+        </div>
+        <div class="form-hint" style="margin-top:4px;">
+            <i class="fas fa-info-circle"></i>
+            These fields are pre-filled from the customer profile. Any changes here will update the customer's record.
+        </div>
+    </div>
+
+    {{-- ── Section 4: Collateral ── --}}
+    <div class="form-section">
+        <div class="section-heading"><i class="fas fa-shield-alt"></i> Collateral <small style="font-weight:400;">(Optional)</small></div>
+
+        {{-- Saved collaterals for returning customers --}}
+        <div id="savedCollateralsSection" style="{{ isset($customer) ? '' : 'display:none;' }}">
+            <div id="savedCollateralsContainer"></div>
+        </div>
+
+        <input type="hidden" name="collateral_id" id="selectedCollateralId">
+        <div class="grid-2" id="collateralInputs">
+            <div class="form-group">
+                <label class="form-label" id="collateralDescLabel">Collateral Description</label>
+                <input type="text" name="collateral_description" id="collateralDesc"
+                       value="{{ old('collateral_description') }}"
                        class="form-control" placeholder="e.g. Motor vehicle KBZ 123A, Land title LR/1234">
             </div>
             <div class="form-group">
                 <label class="form-label">Estimated Value (KSH)</label>
-                <input type="text" name="collateral_value" value="{{ old('collateral_value') }}"
+                <input type="text" name="collateral_value" id="collateralValue"
+                       value="{{ old('collateral_value') }}"
                        class="form-control" placeholder="e.g. 500,000">
             </div>
         </div>
+        <div class="form-hint"><i class="fas fa-info-circle"></i> Collateral details are saved and pre-filled on future loans.</div>
     </div>
 
-    {{-- ── Section 4: Guarantors ── --}}
+    {{-- ── Section 5: Guarantors ── --}}
     <div class="form-section">
         <div class="section-heading"><i class="fas fa-handshake"></i> Guarantors</div>
+
+        {{-- Saved guarantors for returning customers --}}
+        <div id="savedGuarantorsSection" style="{{ isset($customer) ? '' : 'display:none;' }}">
+            <div id="savedGuarantorsContainer"></div>
+        </div>
+
         <div id="guarantorsContainer"></div>
         <button type="button" class="btn btn-outline" onclick="addGuarantor()" style="font-size:13px;">
-            <i class="fas fa-plus"></i> Add Guarantor
+            <i class="fas fa-plus"></i> Add New Guarantor
         </button>
         <span class="form-hint" style="display:inline-block; margin-left:10px;">Add customers who will guarantee this loan</span>
     </div>
@@ -372,7 +451,7 @@ function selectCustomer(id, name, phone, num) {
     document.getElementById('submitBtn').disabled = false;
     document.getElementById('submitBtn').innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
 
-    // Check loan eligibility for this customer
+    // Check loan eligibility + load saved data
     fetch(`/api/customers/${id}/loan-eligibility`)
         .then(r => r.json())
         .then(data => {
@@ -390,9 +469,7 @@ function selectCustomer(id, name, phone, num) {
             const fee = data.processing_fee;
             document.getElementById('processingFee').value = fee;
             document.getElementById('processingFeeHint').textContent =
-                data.is_returning
-                    ? `Returning customer fee: KSH ${fee.toLocaleString()}`
-                    : `First-time customer fee: KSH ${fee.toLocaleString()}`;
+                data.is_returning ? `Returning customer fee: KSH ${fee.toLocaleString()}` : `First-time customer fee: KSH ${fee.toLocaleString()}`;
             const pfEl = document.getElementById('calcProcessingFee');
             if (pfEl) pfEl.textContent = 'KSH ' + fee.toLocaleString('en-KE');
 
@@ -400,14 +477,95 @@ function selectCustomer(id, name, phone, num) {
             if (data.has_active_loan) {
                 document.getElementById('activeLoanWarning').style.display = 'flex';
                 document.getElementById('activeLoanWarningText').innerHTML =
-                    `<strong>Cannot apply</strong> — this customer has an outstanding loan 
-                    <strong>${data.active_loan_number}</strong> 
-                    (${data.active_loan_status}, KSH ${Number(data.active_loan_balance).toLocaleString('en-KE')} remaining). 
-                    They must complete it before applying again.`;
+                    `<strong>Cannot apply</strong> — outstanding loan <strong>${data.active_loan_number}</strong> (${data.active_loan_status}, KSH ${Number(data.active_loan_balance).toLocaleString('en-KE')} remaining).`;
                 document.getElementById('submitBtn').disabled = true;
                 document.getElementById('submitBtn').innerHTML = '<i class="fas fa-ban"></i> Cannot Apply — Outstanding Loan';
             }
         });
+
+    // Load saved guarantors, collaterals, next-of-kin
+    fetch(`/api/customers/${id}/saved-data`)
+        .then(r => r.json())
+        .then(data => {
+            // Pre-fill next of kin
+            if (data.next_of_kin) {
+                const n = data.next_of_kin;
+                if (n.name)  document.getElementById('nokName').value = n.name;
+                if (n.phone) document.getElementById('nokPhone').value = n.phone;
+                if (n.relationship) document.getElementById('nokRelationship').value = n.relationship;
+                if (n.address) document.getElementById('nokAddress').value = n.address;
+            }
+
+            // Show saved collaterals
+            const collDiv = document.getElementById('savedCollateralsContainer');
+            document.getElementById('savedCollateralsSection').style.display = 'block';
+            if (data.collaterals && data.collaterals.length > 0) {
+                collDiv.innerHTML = `<div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">
+                    <i class="fas fa-history"></i> Previously used collateral — click to use:
+                </div>` +
+                data.collaterals.map(c => `
+                    <div class="saved-item-chip" onclick="selectCollateral(${c.id},'${escHtml(c.description)}','${c.value}',this)"
+                         style="display:inline-flex;align-items:center;gap:8px;background:#F0F4F8;border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin:0 6px 6px 0;cursor:pointer;font-size:13px;">
+                        <i class="fas fa-shield-alt" style="color:var(--primary);"></i>
+                        <span><strong>${c.description}</strong> &nbsp;·&nbsp; KSH ${Number(c.value).toLocaleString('en-KE')}</span>
+                        ${c.last_used_at ? `<span style="font-size:10px;color:var(--text-secondary);">Used ${c.last_used_at}</span>` : ''}
+                    </div>`).join('') +
+                `<button type="button" onclick="clearCollateral()" style="font-size:12px;color:var(--primary);background:none;border:none;cursor:pointer;padding:8px;">
+                    <i class="fas fa-plus"></i> Add new collateral instead
+                </button>`;
+            } else {
+                collDiv.innerHTML = '';
+            }
+
+            // Show saved guarantors
+            const guarDiv = document.getElementById('savedGuarantorsContainer');
+            document.getElementById('savedGuarantorsSection').style.display = 'block';
+            if (data.guarantors && data.guarantors.length > 0) {
+                guarDiv.innerHTML = `<div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">
+                    <i class="fas fa-history"></i> Previously used guarantors — click to add:
+                </div>` +
+                data.guarantors.map(g => `
+                    <div class="saved-item-chip" onclick="addSavedGuarantor(${g.customer_id},'${escHtml(g.full_name)}','${g.phone_number}',${g.typical_amount},this)"
+                         style="display:inline-flex;align-items:center;gap:8px;background:#F0F4F8;border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin:0 6px 6px 0;cursor:pointer;font-size:13px;">
+                        <i class="fas fa-user-check" style="color:var(--success);"></i>
+                        <span><strong>${g.full_name}</strong> &nbsp;·&nbsp; ${g.phone_number}</span>
+                        ${g.last_used_at ? `<span style="font-size:10px;color:var(--text-secondary);">Used ${g.last_used_at}</span>` : ''}
+                    </div>`).join('');
+            } else {
+                guarDiv.innerHTML = '';
+            }
+        });
+}
+
+function selectCollateral(id, desc, value, el) {
+    document.getElementById('selectedCollateralId').value = id;
+    document.getElementById('collateralDesc').value = desc;
+    document.getElementById('collateralValue').value = value;
+    // Highlight selected
+    document.querySelectorAll('#savedCollateralsContainer .saved-item-chip').forEach(c => c.style.background = '#F0F4F8');
+    el.style.background = '#E3F2FD';
+    el.style.borderColor = 'var(--primary)';
+}
+
+function clearCollateral() {
+    document.getElementById('selectedCollateralId').value = '';
+    document.getElementById('collateralDesc').value = '';
+    document.getElementById('collateralValue').value = '';
+    document.querySelectorAll('#savedCollateralsContainer .saved-item-chip').forEach(c => {
+        c.style.background = '#F0F4F8'; c.style.borderColor = 'var(--border)';
+    });
+}
+
+function addSavedGuarantor(customerId, name, phone, amount, el) {
+    // Don't add same guarantor twice
+    if (document.querySelector(`input[name*="[customer_id]"][value="${customerId}"]`)) {
+        el.style.borderColor = 'var(--warning)';
+        return;
+    }
+    addGuarantor(customerId, name, phone, amount);
+    el.style.background = '#E8F5E9';
+    el.style.borderColor = 'var(--success)';
+    el.style.pointerEvents = 'none';
 }
 
 document.addEventListener('click', e => {
@@ -590,7 +748,7 @@ function onDateChange() {
 
 // ── Guarantors ───────────────────────────────────────────────────
 let guarantorCount = 0;
-function addGuarantor() {
+function addGuarantor(prefillId, prefillName, prefillPhone, prefillAmount) {
     const idx = guarantorCount++;
     const row = document.createElement('div');
     row.className = 'guarantor-row';
@@ -600,17 +758,18 @@ function addGuarantor() {
             <label class="form-label">Guarantor Customer</label>
             <input type="text" id="gSearch${idx}" autocomplete="off"
                    class="form-control" placeholder="Search by name or phone…"
-                   oninput="searchGuarantor(${idx}, this.value)">
+                   oninput="searchGuarantor(${idx}, this.value)"
+                   value="${prefillName || ''}">
             <div id="gDrop${idx}" class="customer-dropdown"></div>
-            <input type="hidden" name="guarantors[${idx}][customer_id]" id="gId${idx}">
-            <div id="gBadge${idx}" style="display:none; margin-top:6px; font-size:12px; color:var(--success);">
-                <i class="fas fa-check-circle"></i> <span></span>
+            <input type="hidden" name="guarantors[${idx}][customer_id]" id="gId${idx}" value="${prefillId || ''}">
+            <div id="gBadge${idx}" style="${prefillName ? '' : 'display:none;'} margin-top:6px; font-size:12px; color:var(--success);">
+                <i class="fas fa-check-circle"></i> <span>${prefillName ? prefillName + ' — ' + (prefillPhone||'') : ''}</span>
             </div>
         </div>
         <div style="flex:1;">
             <label class="form-label">Guaranteed Amount (KSH)</label>
             <input type="number" name="guarantors[${idx}][amount]" class="form-control"
-                   placeholder="0.00" min="0" step="0.01">
+                   placeholder="0.00" min="0" step="0.01" value="${prefillAmount || ''}">
         </div>
         <div style="padding-bottom:2px;">
             <button type="button" onclick="removeGuarantor(${idx})"
