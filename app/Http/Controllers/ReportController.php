@@ -80,7 +80,10 @@ class ReportController extends Controller
             $query->whereDate('disbursement_date', '<=', $dateTo);
         }
 
-        $loans = $query->orderBy('disbursement_date', 'desc')->paginate(config('pagination.per_page'))->withQueryString();
+        // Use get() for export to get all records, paginate for web view
+        $loans = $request->filled('export') 
+            ? $query->orderBy('disbursement_date', 'desc')->get()
+            : $query->orderBy('disbursement_date', 'desc')->paginate(config('pagination.per_page'))->withQueryString();
 
         // Aggregates
         $totalsQuery = Loan::whereIn('status', ['disbursed', 'active']);
@@ -138,7 +141,9 @@ class ReportController extends Controller
 
         $this->applyCommonLoanFilters($query, $request);
 
-        $loans = $query->orderByDesc('days_in_arrears')->paginate(config('pagination.per_page'))->withQueryString();
+        $loans = $request->filled('export') 
+            ? $query->orderByDesc('days_in_arrears')->get()
+            : $query->orderByDesc('days_in_arrears')->paginate(config('pagination.per_page'))->withQueryString();
 
         // PAR buckets — tailored for short-term weekly loans
         $buckets = collect([
@@ -197,7 +202,9 @@ class ReportController extends Controller
 
         $this->applyCommonLoanFilters($query, $request);
 
-        $loans = $query->orderByDesc('disbursement_date')->paginate(config('pagination.per_page'))->withQueryString();
+        $loans = $request->filled('export') 
+            ? $query->orderByDesc('disbursement_date')->get()
+            : $query->orderByDesc('disbursement_date')->paginate(config('pagination.per_page'))->withQueryString();
 
         $totals = Loan::whereNotNull('disbursement_date')
             ->whereBetween('disbursement_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
@@ -254,7 +261,9 @@ class ReportController extends Controller
             $query->where('payment_method', $request->method);
         }
 
-        $repayments = $query->orderByDesc('created_at')->paginate(config('pagination.per_page'))->withQueryString();
+        $repayments = $request->filled('export')
+            ? $query->orderByDesc('created_at')->get()
+            : $query->orderByDesc('created_at')->paginate(config('pagination.per_page'))->withQueryString();
 
         $totalsQuery = LoanRepayment::whereBetween('created_at', [$dateFrom, $dateTo]);
         if ($statusFilter) {
@@ -575,7 +584,9 @@ class ReportController extends Controller
             $query->whereHas('loan', fn($q) => $q->where('branch_id', $request->branch));
         }
 
-        $schedules = $query->orderBy('due_date')->paginate(config('pagination.per_page'))->withQueryString();
+        $schedules = $request->filled('export')
+            ? $query->orderBy('due_date')->get()
+            : $query->orderBy('due_date')->paginate(config('pagination.per_page'))->withQueryString();
 
         $totalDue = RepaymentSchedule::whereBetween('due_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
             ->where('status', '!=', 'paid')
@@ -608,7 +619,9 @@ class ReportController extends Controller
 
         $this->applyCommonLoanFilters($query, $request);
 
-        $loans = $query->orderByDesc('created_at')->paginate(config('pagination.per_page'))->withQueryString();
+        $loans = $request->filled('export')
+            ? $query->orderByDesc('created_at')->get()
+            : $query->orderByDesc('created_at')->paginate(config('pagination.per_page'))->withQueryString();
 
         $totals = Loan::whereBetween('created_at', [$dateFrom, $dateTo])
             ->selectRaw('COUNT(*) as count, SUM(principal_amount) as total_principal')
@@ -643,7 +656,9 @@ class ReportController extends Controller
 
         $this->applyCommonLoanFilters($query, $request);
 
-        $loans = $query->orderByDesc('approved_at')->paginate(config('pagination.per_page'))->withQueryString();
+        $loans = $request->filled('export')
+            ? $query->orderByDesc('approved_at')->get()
+            : $query->orderByDesc('approved_at')->paginate(config('pagination.per_page'))->withQueryString();
 
         $totals = Loan::where('status', 'approved')
             ->whereNull('disbursement_date')
@@ -1001,11 +1016,16 @@ class ReportController extends Controller
 
         $total = (clone $customerQuery)->count();
 
-        $topCustomers = (clone $customerQuery)->with('branch')
-            ->where('credit_score', '>', 0)
-            ->orderByDesc('credit_score')
-            ->paginate(config('pagination.per_page'))
-            ->withQueryString();
+        $topCustomers = $request->filled('export')
+            ? (clone $customerQuery)->with('branch')
+                ->where('credit_score', '>', 0)
+                ->orderByDesc('credit_score')
+                ->get()
+            : (clone $customerQuery)->with('branch')
+                ->where('credit_score', '>', 0)
+                ->orderByDesc('credit_score')
+                ->paginate(config('pagination.per_page'))
+                ->withQueryString();
 
         $avgScore = (clone $customerQuery)->where('credit_score', '>', 0)->avg('credit_score') ?? 0;
 
@@ -1047,7 +1067,9 @@ class ReportController extends Controller
             $query->whereDate('disbursement_date', '<=', $dateTo);
         }
 
-        $loans = $query->orderByDesc('days_in_arrears')->paginate(config('pagination.per_page'))->withQueryString();
+        $loans = $request->filled('export')
+            ? $query->orderByDesc('days_in_arrears')->get()
+            : $query->orderByDesc('days_in_arrears')->paginate(config('pagination.per_page'))->withQueryString();
 
         $totals = Loan::whereIn('status', ['disbursed', 'active'])
             ->where('arrears_amount', '>', 0)
