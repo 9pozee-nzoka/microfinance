@@ -21,3 +21,6 @@ Schedule::call(function () {
         ->where('trigger_type', '!=', 'manual')
         ->each(fn ($schedule) => ProcessSmsScheduleJob::dispatch($schedule));
 })->dailyAt('08:00')->name('sms-schedules-daily')->withoutOverlapping();
+
+// Weekly database backup - Sundays at 2 AM
+Schedule::command('backup:weekly')->weekly()->sundays()->at('02:00')->name('weekly-backup')->withoutOverlapping();
