@@ -60,6 +60,11 @@
             <i class="fas fa-lock"></i> Close Loan
         </button>
         @endif
+        <button class="btn btn-outline" onclick="openReallocateModal()"
+                style="color:#1565C0; border-color:#90CAF9;"
+                title="Reassign this loan to a different relationship officer">
+            <i class="fas fa-exchange-alt"></i> Reallocate
+        </button>
         @endhasanyrole
         <button class="btn btn-outline" onclick="openSmsModal()" style="color:#7B1FA2; border-color:#CE93D8;">
             <i class="fas fa-sms"></i> Send SMS
@@ -665,6 +670,82 @@
     </div>
 </div>
 
+{{-- ── Reallocate Officer Modal ── --}}
+@hasanyrole('admin|super_admin|branch_manager')
+<div id="reallocateModal" class="modal-overlay" onclick="if(event.target===this)closeModal('reallocateModal')">
+    <div class="modal-box" style="width:480px; max-width:96vw;">
+        <div class="modal-header">
+            <div class="modal-title" style="color:#1565C0;">
+                <i class="fas fa-exchange-alt"></i> Reallocate Loan Officer
+            </div>
+            <button class="modal-close" onclick="closeModal('reallocateModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ route('loans.reallocate', $loan) }}">
+            @csrf @method('PATCH')
+            <div class="modal-body">
+
+                {{-- Current officer --}}
+                <div style="background:#F0F4FF; border:1px solid #C5CAE9; border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:13px;">
+                    <div style="color:var(--text-secondary); font-size:11px; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;">Currently Assigned Officer</div>
+                    <div style="font-weight:700; color:#1A237E;">
+                        <i class="fas fa-user-tie" style="margin-right:6px; color:#3949AB;"></i>
+                        {{ $loan->relationshipOfficer->name ?? '—' }}
+                    </div>
+                    @if($loan->relationshipOfficer)
+                    <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
+                        {{ $loan->relationshipOfficer->designation ?? '' }}
+                        @if($loan->relationshipOfficer->branch) &nbsp;·&nbsp; {{ $loan->relationshipOfficer->branch->name }} @endif
+                    </div>
+                    @endif
+                </div>
+
+                {{-- New officer selection --}}
+                <div class="form-group">
+                    <label class="form-label">Reassign To <span class="req">*</span></label>
+                    <select name="relationship_officer_id" class="form-control" required>
+                        <option value="">-- Select new officer --</option>
+                        @foreach(\App\Models\User::where('status', 'active')
+                            ->whereHas('roles', fn($q) => $q->whereIn('name', ['loan_officer','branch_manager','admin','super_admin']))
+                            ->orderBy('name')->get() as $officer)
+                        <option value="{{ $officer->id }}"
+                            {{ $officer->id === $loan->relationship_officer_id ? 'disabled style=color:var(--text-secondary)' : '' }}>
+                            {{ $officer->name }}
+                            @if($officer->designation) — {{ $officer->designation }} @endif
+                            @if($officer->branch) ({{ $officer->branch->name }}) @endif
+                            @if($officer->id === $loan->relationship_officer_id) [current] @endif
+                        </option>
+                        @endforeach
+                    </select>
+                    <div class="form-hint">Only active staff members are listed.</div>
+                </div>
+
+                {{-- Reason --}}
+                <div class="form-group">
+                    <label class="form-label">Reason for Reallocation</label>
+                    <textarea name="reallocation_reason" rows="2" class="form-control"
+                              placeholder="e.g. Staff transfer, resignation, workload redistribution…"></textarea>
+                </div>
+
+                {{-- Warning for active/disbursed loans --}}
+                @if(in_array($loan->status, ['active', 'disbursed']))
+                <div style="background:#FFF3E0; border:1px solid #FFCC80; border-radius:8px; padding:10px 14px; font-size:12px; color:#5D4037;">
+                    <i class="fas fa-exclamation-triangle" style="color:#E65100;"></i>
+                    This is an <strong>active loan</strong>. The new officer will be responsible for all future collections and follow-ups.
+                </div>
+                @endif
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('reallocateModal')">Cancel</button>
+                <button type="submit" class="btn" style="background:#1565C0; color:white; border-color:#1565C0;"
+                        onclick="return confirm('Reassign this loan to the selected officer?')">
+                    <i class="fas fa-exchange-alt"></i> Confirm Reallocation
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+@endhasanyrole
+
 {{-- ── SMS Modal ── --}}
 <div id="smsModal" class="modal-overlay" onclick="if(event.target===this)closeModal('smsModal')">
     <div class="modal-box wide">
@@ -747,11 +828,12 @@
 
 @section('scripts')
 <script>
-function openApproveModal()  { document.getElementById('approveModal').classList.add('show'); }
-function openRejectModal()   { document.getElementById('rejectModal').classList.add('show'); }
-function openDisburseModal() { document.getElementById('disburseModal').classList.add('show'); }
-function openStkModal()      { document.getElementById('stkModal').classList.add('show'); }
-function openCloseModal()    { document.getElementById('closeModal').classList.add('show'); }
+function openApproveModal()    { document.getElementById('approveModal').classList.add('show'); }
+function openRejectModal()     { document.getElementById('rejectModal').classList.add('show'); }
+function openDisburseModal()   { document.getElementById('disburseModal').classList.add('show'); }
+function openStkModal()        { document.getElementById('stkModal').classList.add('show'); }
+function openCloseModal()      { document.getElementById('closeModal').classList.add('show'); }
+function openReallocateModal() { document.getElementById('reallocateModal').classList.add('show'); }
 
 // ── Close Loan modal logic ───────────────────────────────────────
 const closureHints = {

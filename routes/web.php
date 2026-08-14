@@ -258,12 +258,13 @@ Route::middleware(['auth', 'staff'])->group(function () {
 
         // Approval — admin / branch manager
         Route::middleware(['role:super_admin|admin|branch_manager'])->group(function () {
-            Route::get('/approve-new',      [LoanController::class, 'approveNew'])->name('approve');
-            Route::patch('/{loan}/approve', [LoanController::class, 'approve'])->name('approve-action');
-            Route::patch('/{loan}/reject',  [LoanController::class, 'rejectLoan'])->name('reject');
-            Route::patch('/{loan}/disburse',[LoanController::class, 'disburse'])->name('disburse');
+            Route::get('/approve-new',          [LoanController::class, 'approveNew'])->name('approve');
+            Route::patch('/{loan}/approve',     [LoanController::class, 'approve'])->name('approve-action');
+            Route::patch('/{loan}/reject',      [LoanController::class, 'rejectLoan'])->name('reject');
+            Route::patch('/{loan}/disburse',    [LoanController::class, 'disburse'])->name('disburse');
             Route::post('/{loan}/processing-fee', [LoanController::class, 'recordProcessingFee'])->name('processing-fee');
-            Route::patch('/{loan}/close',   [LoanController::class, 'closeLoan'])->name('close');
+            Route::patch('/{loan}/close',       [LoanController::class, 'closeLoan'])->name('close');
+            Route::patch('/{loan}/reallocate',  [LoanController::class, 'reallocate'])->name('reallocate');
         });
 
         // View single loan — all staff that can see loans

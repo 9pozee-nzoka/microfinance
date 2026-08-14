@@ -646,6 +646,50 @@ class LoanController extends Controller
 
         return back()->with('success', $messages[$request->closure_type] . ' Customer is now eligible for a new loan application.');
     }
+    // ── Reallocate Relationship Officer ─────────────────────────
+    // Admin / Branch Manager only
+    public function reallocate(Request $request, Loan $loan)
+    {
+        $request->validate([
+            'relationship_officer_id' => 'required|exists:users,id',
+            'reallocation_reason'     => 'nullable|string|max:500',
+        ]);
+
+        $newOfficer = User::where('status', 'active')
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['loan_officer', 'branch_manager', 'admin', 'super_admin']))
+            ->findOrFail($request->relationship_officer_id);
+
+        if ($newOfficer->id === $loan->relationship_officer_id) {
+            return back()->with('error', 'The selected officer is already assigned to this loan.');
+        }
+
+        $previousOfficer = $loan->relationshipOfficer;
+
+        $auditNote = "[Reallocation] Reassigned from " . ($previousOfficer->name ?? 'N/A')
+            . " to " . $newOfficer->name
+            . " by " . auth()->user()->name
+            . " on " . now()->format('d M Y H:i');
+
+        if ($request->filled('reallocation_reason')) {
+            $auditNote .= ' | Reason: ' . $request->reallocation_reason;
+        }
+
+        $loan->update([
+            'relationship_officer_id' => $newOfficer->id,
+            'approval_notes'          => ($loan->approval_notes ? $loan->approval_notes . ' | ' : '') . $auditNote,
+        ]);
+
+        Log::info('Loan reallocated', [
+            'loan_id'           => $loan->id,
+            'loan_number'       => $loan->loan_number,
+            'previous_officer'  => $previousOfficer?->id,
+            'new_officer'       => $newOfficer->id,
+            'reallocated_by'    => auth()->id(),
+        ]);
+
+        return back()->with('success', "Loan {$loan->loan_number} reallocated to {$newOfficer->name}.");
+    }
+
     public function recordProcessingFee(Request $request, Loan $loan)
     {
         $request->validate([
