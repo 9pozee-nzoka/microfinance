@@ -207,6 +207,87 @@ class StaffController extends Controller
         return back()->with('success', 'Password changed successfully.');
     }
 
+    // ── Contact Staff via Email ──────────────────────────────────
+    public function contactEmail(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'subject' => 'required|string|max:255',
+            'message' => 'required|string|max:5000',
+        ]);
+
+        $staff = User::findOrFail($request->user_id);
+
+        if (!$staff->email) {
+            return back()->with('error', "{$staff->name} has no email address on file.");
+        }
+
+        try {
+            Mail::send([], [], function ($mail) use ($staff, $request) {
+                $mail->to($staff->email, $staff->name)
+                     ->from(config('mail.from.address'), config('mail.from.name'))
+                     ->replyTo(auth()->user()->email, auth()->user()->name)
+                     ->subject($request->subject)
+                     ->html(
+                         '<div style="font-family:Arial,sans-serif;font-size:14px;color:#2C3E50;line-height:1.6;">' .
+                         '<p>Hi <strong>' . e($staff->name) . '</strong>,</p>' .
+                         '<p>' . nl2br(e($request->message)) . '</p>' .
+                         '<hr style="border:none;border-top:1px solid #eee;margin:20px 0;">' .
+                         '<p style="font-size:12px;color:#7F8C8D;">Sent by ' . e(auth()->user()->name) .
+                         ' via Mweela Cash Capital Staff Portal</p>' .
+                         '</div>'
+                     );
+            });
+
+            return back()->with('success', "Email sent to {$staff->name} ({$staff->email}) successfully.");
+        } catch (\Throwable $e) {
+            Log::error('Staff contact email failed', ['to' => $staff->email, 'error' => $e->getMessage()]);
+            return back()->with('error', "Failed to send email: {$e->getMessage()}");
+        }
+    }
+
+    // ── Contact Staff via SMS ─────────────────────────────────────
+    public function contactSms(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'message' => 'required|string|max:459',
+        ]);
+
+        $staff = User::findOrFail($request->user_id);
+
+        if (!$staff->phone_number) {
+            return back()->with('error', "{$staff->name} has no phone number on file.");
+        }
+
+        try {
+            $at = new AfricasTalkingService();
+
+            $smsLog = SmsLog::create([
+                'customer_id'  => null,
+                'loan_id'      => null,
+                'phone_number' => $staff->phone_number,
+                'message'      => $request->message,
+                'message_type' => 'custom',
+                'status'       => 'pending',
+                'created_by'   => auth()->id(),
+            ]);
+
+            $sent = $at->send($smsLog);
+
+            if ($sent) {
+                return back()->with('success', "SMS sent to {$staff->name} ({$staff->phone_number}) successfully.");
+            }
+
+            $smsLog->refresh();
+            return back()->with('error', "SMS failed: " . ($smsLog->failure_reason ?? 'Unknown error'));
+
+        } catch (\Throwable $e) {
+            Log::error('Staff contact SMS failed', ['to' => $staff->phone_number, 'error' => $e->getMessage()]);
+            return back()->with('error', "Failed to send SMS: {$e->getMessage()}");
+        }
+    }
+
     // ── Deactivate Staff ─────────────────────────────────────────
     public function deactivate(Request $request, User $user)
     {

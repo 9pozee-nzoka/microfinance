@@ -295,6 +295,8 @@ Route::middleware(['auth', 'staff'])->group(function () {
             Route::get('/{user}/performance',     [StaffController::class, 'performance'])->name('performance');
             Route::patch('/{user}/deactivate',    [StaffController::class, 'deactivate'])->name('deactivate');
             Route::patch('/{user}/reactivate',    [StaffController::class, 'reactivate'])->name('reactivate');
+            Route::post('/contact/email',         [StaffController::class, 'contactEmail'])->name('contact.email');
+            Route::post('/contact/sms',           [StaffController::class, 'contactSms'])->name('contact.sms');
         });
 
     // ── Branch Management — admin only ─────────────────────────
@@ -332,6 +334,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
             Route::get('/transactions/{mpesaTxn}/status',       [MpesaController::class, 'stkStatus'])->name('stk.status');
             Route::post('/c2b/register-urls',                   [MpesaController::class, 'registerC2bUrls'])->name('c2b.register');
             Route::post('/c2b/callbacks/{callback}/reprocess',  [MpesaController::class, 'reprocessC2b'])->name('c2b.reprocess');
+            Route::post('/c2b/callbacks/{callback}/match',      [MpesaController::class, 'matchC2b'])->name('c2b.match');
         });
 
     // ── Reports — admin / branch manager ───────────────────────

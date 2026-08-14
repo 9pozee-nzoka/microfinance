@@ -22,5 +22,8 @@ Schedule::call(function () {
         ->each(fn ($schedule) => ProcessSmsScheduleJob::dispatch($schedule));
 })->dailyAt('08:00')->name('sms-schedules-daily')->withoutOverlapping();
 
+// Daily database backup - every day at 1 AM
+Schedule::command('backup:weekly --type=daily')->dailyAt('01:00')->name('daily-backup')->withoutOverlapping();
+
 // Weekly database backup - Sundays at 2 AM
-Schedule::command('backup:weekly')->weekly()->sundays()->at('02:00')->name('weekly-backup')->withoutOverlapping();
+Schedule::command('backup:weekly --type=weekly')->weekly()->sundays()->at('02:00')->name('weekly-backup')->withoutOverlapping();

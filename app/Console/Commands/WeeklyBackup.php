@@ -10,23 +10,46 @@ use Carbon\Carbon;
 
 class WeeklyBackup extends Command
 {
-    protected $signature = 'backup:weekly {--email=pauljohns730@gmail.com}';
-    protected $description = 'Create weekly database backup and send via email';
+    protected $signature = 'backup:weekly {--email=pauljohns730@gmail.com} {--type=weekly}';
+    protected $description = 'Create database backup (daily or weekly) and send via email';
 
     public function handle(): int
     {
         $email = $this->option('email');
+        $type = $this->option('type'); // 'daily' or 'weekly'
         $timestamp = Carbon::now()->format('Y-m-d_H-i-s');
+        $dateFolder = Carbon::now()->format('Y-m-d');
+        $weekFolder = 'week-' . Carbon::now()->weekOfYear;
+        
         $backupFileName = "microfinance_backup_{$timestamp}.sql";
         $zipFileName = "microfinance_backup_{$timestamp}.zip";
-        $backupPath = storage_path("app/backups/{$backupFileName}");
-        $zipPath = storage_path("app/backups/{$zipFileName}");
-
-        $this->info('Starting weekly backup...');
         
-        // Ensure backups directory exists
+        // Create folder structure based on backup type
+        if ($type === 'daily') {
+            $backupPath = storage_path("app/backups/daily/{$dateFolder}/{$backupFileName}");
+            $zipPath = storage_path("app/backups/daily/{$dateFolder}/{$zipFileName}");
+            $this->info('Starting daily backup...');
+        } else {
+            $backupPath = storage_path("app/backups/weekly/{$weekFolder}/{$backupFileName}");
+            $zipPath = storage_path("app/backups/weekly/{$weekFolder}/{$zipFileName}");
+            $this->info('Starting weekly backup...');
+        }
+        
+        // Ensure backups directory structure exists
         if (!Storage::exists('backups')) {
             Storage::makeDirectory('backups');
+        }
+        if (!Storage::exists('backups/daily')) {
+            Storage::makeDirectory('backups/daily');
+        }
+        if (!Storage::exists('backups/weekly')) {
+            Storage::makeDirectory('backups/weekly');
+        }
+        if ($type === 'daily' && !Storage::exists("backups/daily/{$dateFolder}")) {
+            Storage::makeDirectory("backups/daily/{$dateFolder}");
+        }
+        if ($type === 'weekly' && !Storage::exists("backups/weekly/{$weekFolder}")) {
+            Storage::makeDirectory("backups/weekly/{$weekFolder}");
         }
 
         // Ensure the physical directory exists
@@ -114,14 +137,23 @@ class WeeklyBackup extends Command
             $this->warn('Backup file saved locally at: ' . $zipPath);
         }
 
-        // Cleanup old backups (keep last 4 weeks)
+        // Cleanup old backups based on type
         $this->info('Cleaning up old backups...');
-        $this->cleanupOldBackups();
+        if ($type === 'daily') {
+            $this->cleanupOldDailyBackups();
+        } else {
+            $this->cleanupOldWeeklyBackups();
+        }
 
         // Delete temporary SQL file
-        Storage::delete("backups/{$backupFileName}");
+        if ($type === 'daily') {
+            Storage::delete("backups/daily/{$dateFolder}/{$backupFileName}");
+        } else {
+            Storage::delete("backups/weekly/{$weekFolder}/{$backupFileName}");
+        }
 
-        $this->info('Weekly backup completed successfully!');
+        $backupType = ucfirst($type);
+        $this->info("{$backupType} backup completed successfully!");
         return self::SUCCESS;
     }
 
@@ -141,24 +173,39 @@ class WeeklyBackup extends Command
         }
     }
 
-    private function cleanupOldBackups()
+    private function cleanupOldWeeklyBackups()
     {
-        $backups = Storage::files('backups');
-        $backupFiles = array_filter($backups, function ($file) {
-            return str_ends_with($file, '.zip');
-        });
-
+        $backups = Storage::directories('backups/weekly');
+        
         // Sort by modification time (newest first)
-        usort($backupFiles, function ($a, $b) {
+        usort($backups, function ($a, $b) {
             return Storage::lastModified($b) - Storage::lastModified($a);
         });
 
-        // Keep only the 4 most recent backups
-        $filesToDelete = array_slice($backupFiles, 4);
+        // Keep only the 4 most recent weekly folders
+        $foldersToDelete = array_slice($backups, 4);
         
-        foreach ($filesToDelete as $file) {
-            Storage::delete($file);
-            $this->info("Deleted old backup: " . basename($file));
+        foreach ($foldersToDelete as $folder) {
+            Storage::deleteDirectory($folder);
+            $this->info("Deleted old weekly backup folder: " . basename($folder));
+        }
+    }
+
+    private function cleanupOldDailyBackups()
+    {
+        $dailyFolders = Storage::directories('backups/daily');
+        
+        // Sort by modification time (newest first)
+        usort($dailyFolders, function ($a, $b) {
+            return Storage::lastModified($b) - Storage::lastModified($a);
+        });
+
+        // Keep only the 7 most recent daily folders (one week)
+        $foldersToDelete = array_slice($dailyFolders, 7);
+        
+        foreach ($foldersToDelete as $folder) {
+            Storage::deleteDirectory($folder);
+            $this->info("Deleted old daily backup folder: " . basename($folder));
         }
     }
 }

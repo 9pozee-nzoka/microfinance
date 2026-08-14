@@ -556,6 +556,58 @@ class MpesaController extends Controller
         ));
     }
 
+    // ── Match a C2B callback to a specific loan (manual reconciliation) ─
+    public function matchC2b(Request $request, MpesaC2bCallback $callback): JsonResponse
+    {
+        $request->validate([
+            'loan_id' => 'required|exists:loans,id',
+        ]);
+
+        if ($callback->status === 'completed') {
+            return response()->json(['success' => false, 'message' => 'This payment has already been processed.'], 422);
+        }
+
+        // Duplicate guard
+        if (\App\Models\LoanRepayment::where('transaction_reference', $callback->transaction_id)->exists()
+            || \App\Models\Transaction::where('external_reference', $callback->transaction_id)->exists()) {
+            $callback->update(['status' => 'completed', 'processed_at' => now()]);
+            return response()->json(['success' => false, 'message' => 'A repayment with this transaction ID already exists — marked as completed.'], 422);
+        }
+
+        $loan = \App\Models\Loan::with('customer')->findOrFail($request->loan_id);
+
+        if (!in_array($loan->status, ['disbursed', 'active'])) {
+            return response()->json(['success' => false, 'message' => "Loan {$loan->loan_number} is not active ({$loan->status}). Choose an active loan."], 422);
+        }
+
+        if ($loan->outstanding_balance <= 0) {
+            return response()->json(['success' => false, 'message' => "Loan {$loan->loan_number} has no outstanding balance."], 422);
+        }
+
+        DB::transaction(function () use ($callback, $loan) {
+            $this->applyRepayment($loan, (float) $callback->amount, $callback->transaction_id, $callback->account_reference ?? '');
+            $callback->update([
+                'customer_id'  => $loan->customer_id,
+                'loan_id'      => $loan->id,
+                'status'       => 'completed',
+                'processed_at' => now(),
+            ]);
+        });
+
+        Log::info('C2B manual match', [
+            'callback_id' => $callback->id,
+            'loan'        => $loan->loan_number,
+            'customer'    => $loan->customer?->full_name,
+            'amount'      => $callback->amount,
+            'matched_by'  => auth()->user()->name,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "KSH " . number_format($callback->amount, 0) . " matched to {$loan->customer?->full_name}'s loan {$loan->loan_number} and applied.",
+        ]);
+    }
+
     // ── Reprocess a failed/suspended C2B callback ────────────────
     public function reprocessC2b(Request $request, MpesaC2bCallback $callback): JsonResponse
     {
