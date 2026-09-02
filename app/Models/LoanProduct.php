@@ -13,7 +13,7 @@ class LoanProduct extends Model
         'interest_method', 'interest_rate',
         'min_term_weeks', 'max_term_weeks',
         'min_amount', 'max_amount',
-        'processing_fee_rate', 'insurance_fee_rate',
+        'processing_fee', 'processing_fee_rate', 'insurance_fee_rate',
         'late_penalty_rate', 'grace_period_days',
         'min_guarantors', 'min_savings_multiplier',
         'requires_collateral', 'collateral_type',
@@ -23,6 +23,7 @@ class LoanProduct extends Model
 
     protected $casts = [
         'interest_rate' => 'decimal:2',
+        'processing_fee' => 'decimal:2',
         'processing_fee_rate' => 'decimal:2',
         'insurance_fee_rate' => 'decimal:2',
         'late_penalty_rate' => 'decimal:2',

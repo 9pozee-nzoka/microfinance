@@ -204,6 +204,21 @@
                 <select name="loan_id" id="matchLoanSelect" class="form-control">
                     <option value="">-- Select customer first --</option>
                 </select>
+                <div style="margin-top:8px; font-size:12px; color:var(--text-secondary);">
+                    Leave blank to apply as savings deposit, or select a loan for repayment
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Transaction Type</label>
+                <select name="transaction_type" id="matchTransactionType" class="form-control">
+                    <option value="loan_repayment">Loan Repayment</option>
+                    <option value="processing_fee">Processing Fee</option>
+                    <option value="savings_deposit">Savings Deposit</option>
+                </select>
+                <div style="margin-top:8px; font-size:12px; color:var(--text-secondary);">
+                    Select "Processing Fee" if this payment is for loan processing fee
+                </div>
             </div>
 
             <div class="form-group">

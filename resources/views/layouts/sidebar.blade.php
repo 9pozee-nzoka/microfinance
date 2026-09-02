@@ -47,7 +47,6 @@
                class="nav-item {{ request()->routeIs('customers.new') ? 'active' : '' }}">
                 <i class="fas fa-user-plus"></i><span>Newly Registered</span>
             </a>
-            @hasanyrole('branch_manager|admin|super_admin')
             <a href="{{ route('customers.rejected') }}"
                class="nav-item {{ request()->routeIs('customers.rejected') ? 'active' : '' }}">
                 <i class="fas fa-user-times"></i><span>Rejected</span>
@@ -56,6 +55,7 @@
                class="nav-item {{ request()->routeIs('customers.credit-history') ? 'active' : '' }}">
                 <i class="fas fa-chart-bar"></i><span>Credit History</span>
             </a>
+            @hasanyrole('branch_manager|admin|super_admin')
             <a href="{{ route('customers.limits') }}"
                class="nav-item {{ request()->routeIs('customers.limits') ? 'active' : '' }}">
                 <i class="fas fa-sliders-h"></i><span>Limit Management</span>
@@ -73,12 +73,13 @@
         </button>
         <div class="submenu {{ request()->routeIs('loans.*') || request()->routeIs('collection.*') || request()->routeIs('loan-products.*') ? 'show' : '' }}">
 
-            {{-- Approve — admin/branch manager only --}}
-            @hasanyrole('branch_manager|admin|super_admin')
+            {{-- Approve — all staff can now approve loans --}}
             <a href="{{ route('loans.approve') }}"
                class="nav-item {{ request()->routeIs('loans.approve') ? 'active' : '' }}">
                 <i class="fas fa-check-circle"></i><span>Approve New Loans</span>
             </a>
+            {{-- Pending Disbursements — higher management only --}}
+            @hasanyrole('branch_manager|admin|super_admin')
             @php $pendingDisburseCount = \App\Models\Loan::where('status','approved')->count(); @endphp
             <a href="{{ route('loans.index', ['status' => 'approved']) }}"
                class="nav-item {{ request()->routeIs('loans.index') && request('status') === 'approved' ? 'active' : '' }}">

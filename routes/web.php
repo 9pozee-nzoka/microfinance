@@ -155,6 +155,10 @@ Route::middleware(['auth', 'staff'])->group(function () {
             ]);
         })->name('customers.loan-eligibility');
 
+        // Collect processing fee via STK Push
+        Route::post('/collect-processing-fee-stk', [MpesaController::class, 'collectProcessingFeeStk'])
+            ->name('collect-processing-fee-stk');
+
         Route::get('/loan-products/{product}/rates', function (LoanProduct $product) {
             return response()->json($product->rates);
         })->name('loan-products.rates');
@@ -196,8 +200,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
     });
 
     // ── Customer Management ────────────────────────────────────
-    // Loan officers can register / view customers
-    // Admin/Manager can also approve, reject, activate
+    // All staff can register, view, approve, and manage customers
     Route::prefix('customers')->name('customers.')->group(function () {
         Route::middleware(['role:super_admin|admin|branch_manager|loan_officer'])
             ->group(function () {
@@ -211,12 +214,14 @@ Route::middleware(['auth', 'staff'])->group(function () {
                 Route::get('/{customer}/profile', [CustomerController::class, 'profile'])->name('profile');
                 Route::get('/{customer}/edit',    [CustomerController::class, 'edit'])->name('edit');
                 Route::put('/{customer}',         [CustomerController::class, 'update'])->name('update');
+                // All staff can now approve, reject, and reactivate customers
+                Route::patch('/{customer}/activate',         [CustomerController::class, 'activate'])->name('activate');
+                Route::patch('/{customer}/reject',           [CustomerController::class, 'reject'])->name('reject');
+                Route::patch('/{customer}/reactivate',       [CustomerController::class, 'reactivate'])->name('reactivate');
             });
 
+        // Only higher management can delete customers and adjust limits/scores
         Route::middleware(['role:super_admin|admin|branch_manager'])->group(function () {
-            Route::patch('/{customer}/activate',         [CustomerController::class, 'activate'])->name('activate');
-            Route::patch('/{customer}/reject',           [CustomerController::class, 'reject'])->name('reject');
-            Route::patch('/{customer}/reactivate',       [CustomerController::class, 'reactivate'])->name('reactivate');
             Route::delete('/{customer}',                 [CustomerController::class, 'destroy'])->name('destroy');
             Route::patch('/{customer}/adjust-limit',     [CustomerController::class, 'adjustLimit'])->name('adjust-limit');
             Route::post('/{customer}/recalculate-score', [CustomerController::class, 'recalculateScore'])->name('recalculate-score');
@@ -249,28 +254,24 @@ Route::middleware(['auth', 'staff'])->group(function () {
 
     // ── Loan Management ────────────────────────────────────────
     Route::prefix('loans')->name('loans.')->group(function () {
-        // Loan officers can create and view loans
+        // All staff can create, view, approve, and reject loans
         Route::middleware(['role:super_admin|admin|branch_manager|loan_officer'])->group(function () {
             Route::get('/create',  [LoanController::class, 'create'])->name('create');
             Route::post('/',       [LoanController::class, 'store'])->name('store');
             Route::get('/',        [LoanController::class, 'index'])->name('index');
-        });
-
-        // Approval — admin / branch manager
-        Route::middleware(['role:super_admin|admin|branch_manager'])->group(function () {
             Route::get('/approve-new',          [LoanController::class, 'approveNew'])->name('approve');
             Route::patch('/{loan}/approve',     [LoanController::class, 'approve'])->name('approve-action');
             Route::patch('/{loan}/reject',      [LoanController::class, 'rejectLoan'])->name('reject');
+            // /{loan} MUST come last — wildcard
+            Route::get('/{loan}', [LoanController::class, 'show'])->name('show');
+        });
+
+        // Disbursement, closing, and reallocation — higher management only
+        Route::middleware(['role:super_admin|admin|branch_manager'])->group(function () {
             Route::patch('/{loan}/disburse',    [LoanController::class, 'disburse'])->name('disburse');
             Route::post('/{loan}/processing-fee', [LoanController::class, 'recordProcessingFee'])->name('processing-fee');
             Route::patch('/{loan}/close',       [LoanController::class, 'closeLoan'])->name('close');
             Route::patch('/{loan}/reallocate',  [LoanController::class, 'reallocate'])->name('reallocate');
-        });
-
-        // View single loan — all staff that can see loans
-        Route::middleware(['role:super_admin|admin|branch_manager|loan_officer'])->group(function () {
-            // /{loan} MUST come last — wildcard
-            Route::get('/{loan}', [LoanController::class, 'show'])->name('show');
         });
     });
 

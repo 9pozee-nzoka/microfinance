@@ -64,15 +64,22 @@
                 <input type="number" name="interest_rate" value="{{ old('interest_rate', $loanProduct->interest_rate) }}" step="0.01" min="0" max="100" class="form-control" required>
             </div>
             <div class="form-group">
-                <label class="form-label">Min Term (weeks) <span class="req">*</span></label>
-                <input type="number" name="min_term_weeks" value="{{ old('min_term_weeks', $loanProduct->min_term_weeks) }}" min="1" class="form-control" required>
+                <label class="form-label">Processing Fee (KSH) <span class="req">*</span></label>
+                <input type="number" name="processing_fee" value="{{ old('processing_fee', $loanProduct->processing_fee ?? 500) }}" step="0.01" min="0" class="form-control" required>
+                <small style="color:var(--text-secondary); font-size:11px;">Fixed fee charged per loan</small>
             </div>
         </div>
         <div class="grid-3">
             <div class="form-group">
+                <label class="form-label">Min Term (weeks) <span class="req">*</span></label>
+                <input type="number" name="min_term_weeks" value="{{ old('min_term_weeks', $loanProduct->min_term_weeks) }}" min="1" class="form-control" required>
+            </div>
+            <div class="form-group">
                 <label class="form-label">Max Term (weeks) <span class="req">*</span></label>
                 <input type="number" name="max_term_weeks" value="{{ old('max_term_weeks', $loanProduct->max_term_weeks) }}" min="1" class="form-control" required>
             </div>
+        </div>
+        <div class="grid-3">
             <div class="form-group">
                 <label class="form-label">Min Amount (KSH) <span class="req">*</span></label>
                 <input type="number" name="min_amount" value="{{ old('min_amount', $loanProduct->min_amount) }}" min="0" step="0.01" class="form-control" required>

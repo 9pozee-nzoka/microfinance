@@ -119,6 +119,7 @@
                                 data-max-weeks="{{ $product->max_term_weeks }}"
                                 data-rate="{{ $product->interest_rate }}"
                                 data-method="{{ $product->interest_method }}"
+                                data-processing-fee="{{ $product->processing_fee ?? 500 }}"
                                 {{ old('product_id') == $product->id ? 'selected' : '' }}>
                             {{ $product->name }} — {{ $product->interest_rate }}% p.a.
                         </option>
@@ -310,32 +311,32 @@
         <div class="grid-3">
             <div class="form-group">
                 <label class="form-label">Processing Fee Amount (KSH) <span class="req">*</span></label>
-                <input type="number" name="processing_fee" id="processingFee"
-                       value="{{ old('processing_fee', $processingFee ?? 700) }}"
-                       class="form-control {{ $errors->has('processing_fee') ? 'is-invalid' : '' }}"
-                       placeholder="700" min="0" step="0.01" required>
-                <div class="form-hint" id="processingFeeHint">
-                    @if(isset($isReturningCustomer))
-                        {{ $isReturningCustomer ? 'Returning customer fee: KSH 500' : 'First-time customer fee: KSH 700' }}
-                    @else
-                        First-time: KSH 700 &nbsp;·&nbsp; Returning: KSH 500 (auto-set when customer is selected)
-                    @endif
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <input type="number" name="processing_fee" id="processingFee"
+                           value="{{ old('processing_fee', $processingFee ?? 500) }}"
+                           class="form-control {{ $errors->has('processing_fee') ? 'is-invalid' : '' }}"
+                           placeholder="500" min="0" step="0.01" required style="flex:1;">
+                    <button type="button" class="btn btn-primary" onclick="openCollectFeeModal()" style="white-space:nowrap;">
+                        <i class="fas fa-hand-holding-usd"></i> Collect
+                    </button>
                 </div>
+                <div class="form-hint" id="processingFeeHint">Fee varies by loan product (auto-set when product is selected)</div>
                 @error('processing_fee')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
             <div class="form-group">
                 <label class="form-label">Payment Method <span class="req">*</span></label>
                 <select name="processing_fee_method" id="processingFeeMethod"
                         class="form-control {{ $errors->has('processing_fee_method') ? 'is-invalid' : '' }}" required>
-                    <option value="cash"          {{ old('processing_fee_method','cash') === 'cash'          ? 'selected':'' }}>Cash</option>
-                    <option value="mpesa"         {{ old('processing_fee_method') === 'mpesa'         ? 'selected':'' }}>M-Pesa</option>
+                    <option value=""              {{ old('processing_fee_method') === '' ? 'selected':'' }}>Not Paid Yet</option>
+                    <option value="cash"          {{ old('processing_fee_method') === 'cash' ? 'selected':'' }}>Cash</option>
+                    <option value="mpesa"         {{ old('processing_fee_method') === 'mpesa' ? 'selected':'' }}>M-Pesa</option>
                     <option value="bank_transfer" {{ old('processing_fee_method') === 'bank_transfer' ? 'selected':'' }}>Bank Transfer</option>
                 </select>
                 @error('processing_fee_method')<span class="invalid-feedback">{{ $message }}</span>@enderror
             </div>
-            <div class="form-group" id="processingFeeRefGroup" style="display:none;">
+            <div class="form-group" id="processingFeeRefGroup">
                 <label class="form-label">M-Pesa / Reference No.</label>
-                <input type="text" name="processing_fee_reference" value="{{ old('processing_fee_reference') }}"
+                <input type="text" name="processing_fee_reference" id="processingFeeReference" value="{{ old('processing_fee_reference') }}"
                        class="form-control" placeholder="e.g. QAB1234XYZ">
             </div>
         </div>
@@ -591,9 +592,14 @@ function onProductChange() {
     const max  = parseFloat(opt.dataset.max);
     const minW = opt.dataset.minWeeks;
     const maxW = opt.dataset.maxWeeks;
+    const processingFee = parseFloat(opt.dataset.processingFee) || 500;
 
     document.getElementById('productHint').textContent =
         `Amount: KSH ${fmt(min)} – ${fmt(max)} · Term: ${minW}–${maxW} weeks`;
+
+    // Set processing fee from product
+    document.getElementById('processingFee').value = processingFee;
+    document.getElementById('processingFeeHint').textContent = `Processing fee for this product: KSH ${fmt(processingFee)}`;
 
     const termInput = document.getElementById('termWeeks');
     termInput.min = minW;
@@ -820,5 +826,152 @@ document.addEventListener('DOMContentLoaded', () => {
         onProductChange();
     }
 });
+
+// ── Collect Processing Fee Modal ────────────────────────────────
+function openCollectFeeModal() {
+    const customerId = document.getElementById('customerId')?.value;
+    const feeAmount = parseFloat(document.getElementById('processingFee').value);
+    
+    if (!feeAmount || feeAmount <= 0) {
+        alert('Please enter a valid processing fee amount');
+        return;
+    }
+    
+    document.getElementById('collectFeeAmount').textContent = fmt(feeAmount);
+    
+    // Pre-fill phone number if customer is selected
+    let phoneNumber = '';
+    if (customerId) {
+        // Get customer phone from the search results or selected customer badge
+        const customerSearch = document.getElementById('customerSearch')?.value;
+        const selectedBadge = document.getElementById('selectedCustomerBadge');
+        
+        // Try to extract phone from badge if visible
+        if (selectedBadge && selectedBadge.style.display !== 'none') {
+            const badgeText = selectedBadge.textContent;
+            const phoneMatch = badgeText.match(/\d{10,}/);
+            if (phoneMatch) {
+                phoneNumber = phoneMatch[0];
+            }
+        }
+    }
+    
+    document.getElementById('collectFeePhone').value = phoneNumber;
+    document.getElementById('collectFeeModal').classList.add('show');
+}
+
+function closeCollectFeeModal() {
+    document.getElementById('collectFeeModal').classList.remove('show');
+}
+
+function collectFeeCash() {
+    const feeAmount = parseFloat(document.getElementById('processingFee').value);
+    const refNumber = `CASH-${Date.now()}`;
+    
+    document.getElementById('processingFeeMethod').value = 'cash';
+    document.getElementById('processingFeeReference').value = refNumber;
+    
+    alert(`Processing fee of KSH ${fmt(feeAmount)} recorded as CASH payment\nReference: ${refNumber}`);
+    closeCollectFeeModal();
+}
+
+function collectFeeMpesa() {
+    const phoneNumber = document.getElementById('collectFeePhone')?.value;
+    const feeAmount = parseFloat(document.getElementById('processingFee').value);
+    
+    if (!phoneNumber || phoneNumber.length < 10) {
+        alert('Please enter a valid phone number (10 digits minimum)');
+        return;
+    }
+    
+    // Show loading state
+    const btnMpesa = document.querySelector('#collectFeeModal .btn-primary');
+    const originalText = btnMpesa.innerHTML;
+    btnMpesa.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending STK Push...';
+    btnMpesa.disabled = true;
+    
+    // Send STK Push request
+    fetch('/api/collect-processing-fee-stk', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+            phone_number: phoneNumber,
+            amount: feeAmount
+        })
+    })
+    .then(r => {
+        if (!r.ok) {
+            return r.json().then(err => Promise.reject(err));
+        }
+        return r.json();
+    })
+    .then(data => {
+        if (data.success) {
+            alert(`STK Push sent successfully!\nPlease complete payment on phone: ${phoneNumber}\n\nTransaction ID: ${data.checkout_request_id || 'Pending'}`);
+            document.getElementById('processingFeeMethod').value = 'mpesa';
+            document.getElementById('processingFeeReference').value = data.checkout_request_id || 'PENDING';
+            closeCollectFeeModal();
+        } else {
+            alert(`Failed to send STK Push: ${data.message || 'Unknown error'}`);
+        }
+    })
+    .catch(err => {
+        console.error('STK Push error:', err);
+        const message = err.message || (err.errors ? Object.values(err.errors).flat().join('\n') : 'Network error occurred');
+        alert(`Error: ${message}`);
+    })
+    .finally(() => {
+        btnMpesa.innerHTML = originalText;
+        btnMpesa.disabled = false;
+    });
+}
 </script>
+
+{{-- Collect Processing Fee Modal --}}
+<div id="collectFeeModal" class="modal-overlay" onclick="if(event.target===this)closeCollectFeeModal()">
+    <div class="modal-box" style="width:480px; max-width:96vw;">
+        <div class="modal-header">
+            <h3><i class="fas fa-hand-holding-usd"></i> Collect Processing Fee</h3>
+            <button class="modal-close" onclick="closeCollectFeeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="text-align:center; padding:20px 0;">
+                <div style="font-size:14px; color:var(--text-secondary); margin-bottom:8px;">Amount to Collect</div>
+                <div style="font-size:32px; font-weight:700; color:var(--primary);">
+                    KSH <span id="collectFeeAmount">0</span>
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin-bottom:20px;">
+                <label class="form-label">Phone Number for M-Pesa (Optional)</label>
+                <input type="text" id="collectFeePhone" class="form-control" 
+                       placeholder="e.g. 0712345678 or 254712345678"
+                       maxlength="12">
+                <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">
+                    <i class="fas fa-info-circle"></i> Enter phone number to send M-Pesa STK push. Leave blank for cash only.
+                </div>
+            </div>
+            
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <button type="button" class="btn btn-outline" onclick="collectFeeCash()" 
+                        style="padding:14px; font-size:15px;">
+                    <i class="fas fa-money-bill-wave"></i> Collect Cash
+                </button>
+                <button type="button" class="btn btn-primary" onclick="collectFeeMpesa()"
+                        style="padding:14px; font-size:15px; background:#2E7D32; border-color:#2E7D32;">
+                    <i class="fas fa-mobile-alt"></i> Send M-Pesa STK Push
+                </button>
+            </div>
+            
+            <div style="margin-top:16px; padding:12px; background:#FFF8E1; border-radius:8px; font-size:12px; color:#E65100;">
+                <i class="fas fa-info-circle"></i> 
+                <strong>Note:</strong> The payment reference will be automatically recorded when you select a payment method.
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection

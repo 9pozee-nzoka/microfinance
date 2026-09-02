@@ -218,15 +218,15 @@ class TransactionController extends Controller
         $request->validate([
             'customer_id'      => 'required|exists:customers,id',
             'loan_id'          => 'nullable|exists:loans,id',
+            'transaction_type' => 'required|in:loan_repayment,processing_fee,savings_deposit',
             'resolution_notes' => 'nullable|string',
         ]);
 
         DB::transaction(function () use ($request, $suspense) {
             $customer = Customer::findOrFail($request->customer_id);
+            $txnType = $request->transaction_type;
 
             // Create a transaction record
-            $txnType = $request->loan_id ? 'loan_repayment' : 'savings_deposit';
-
             $transaction = Transaction::create([
                 'transaction_number' => 'TXN-' . date('YmdHisv') . '-' . str_pad((Transaction::max('id') ?? 0) + 1, 6, '0', STR_PAD_LEFT),
                 'customer_id'        => $customer->id,
@@ -247,9 +247,26 @@ class TransactionController extends Controller
                 'branch_id'          => auth()->user()->branch_id,
             ]);
 
-            // If loan repayment, apply to loan
-            if ($request->loan_id) {
+            // Handle based on transaction type
+            if ($txnType === 'loan_repayment' && $request->loan_id) {
                 $this->applyRepaymentToLoan($request->loan_id, $suspense->amount, $suspense->source, $suspense->external_reference, $transaction->id);
+            } elseif ($txnType === 'processing_fee' && $request->loan_id) {
+                // Record processing fee payment
+                $loan = Loan::findOrFail($request->loan_id);
+                $loan->update([
+                    'processing_fee_paid'      => true,
+                    'processing_fee_method'    => $suspense->source,
+                    'processing_fee_reference' => $suspense->external_reference,
+                    'processing_fee_paid_at'   => now(),
+                ]);
+                
+                // Log activity
+                \Log::info('Processing fee matched from suspense', [
+                    'loan_id' => $loan->id,
+                    'loan_number' => $loan->loan_number,
+                    'amount' => $suspense->amount,
+                    'suspense_ref' => $suspense->reference_number,
+                ]);
             } else {
                 // Apply to savings
                 $customer->increment('savings_balance', $suspense->amount);

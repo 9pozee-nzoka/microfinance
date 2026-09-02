@@ -14,7 +14,8 @@ class Loan extends Model
 
     protected $fillable = [
         'loan_number', 'customer_id', 'product_id', 'branch_id', 'relationship_officer_id',
-        'principal_amount', 'interest_amount', 'processing_fee', 'processing_fee_paid', 'processing_fee_paid_at', 'processing_fee_paid_by', 'insurance_fee',
+        'principal_amount', 'interest_amount', 'processing_fee', 'processing_fee_paid', 'processing_fee_paid_at', 'processing_fee_paid_by', 
+        'processing_fee_method', 'processing_fee_reference', 'insurance_fee',
         'total_repayable', 'term_weeks', 'weekly_installment',
         'purpose', 'purpose_description',
         'collateral_description', 'collateral_value',

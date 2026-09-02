@@ -561,11 +561,14 @@ class MpesaController extends Controller
     {
         $request->validate([
             'loan_id' => 'required|exists:loans,id',
+            'transaction_type' => 'nullable|in:loan_repayment,processing_fee',
         ]);
 
         if ($callback->status === 'completed') {
             return response()->json(['success' => false, 'message' => 'This payment has already been processed.'], 422);
         }
+
+        $transactionType = $request->input('transaction_type', 'loan_repayment');
 
         // Duplicate guard
         if (\App\Models\LoanRepayment::where('transaction_reference', $callback->transaction_id)->exists()
@@ -576,6 +579,40 @@ class MpesaController extends Controller
 
         $loan = \App\Models\Loan::with('customer')->findOrFail($request->loan_id);
 
+        if ($transactionType === 'processing_fee') {
+            // Apply as processing fee
+            DB::transaction(function () use ($callback, $loan) {
+                $loan->update([
+                    'processing_fee_paid'      => $callback->amount,
+                    'processing_fee_method'    => 'mpesa',
+                    'processing_fee_reference' => $callback->transaction_id,
+                    'processing_fee_paid_at'   => now(),
+                    'processing_fee_paid_by'   => auth()->id(),
+                ]);
+
+                $callback->update([
+                    'customer_id'  => $loan->customer_id,
+                    'loan_id'      => $loan->id,
+                    'status'       => 'completed',
+                    'processed_at' => now(),
+                ]);
+            });
+
+            Log::info('C2B manual match as processing fee', [
+                'callback_id' => $callback->id,
+                'loan'        => $loan->loan_number,
+                'customer'    => $loan->customer?->full_name,
+                'amount'      => $callback->amount,
+                'matched_by'  => auth()->user()->name,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "KSH " . number_format($callback->amount, 0) . " recorded as processing fee for loan {$loan->loan_number}.",
+            ]);
+        }
+
+        // Apply as loan repayment
         if (!in_array($loan->status, ['disbursed', 'active'])) {
             return response()->json(['success' => false, 'message' => "Loan {$loan->loan_number} is not active ({$loan->status}). Choose an active loan."], 422);
         }
@@ -936,6 +973,77 @@ class MpesaController extends Controller
             return Carbon::createFromFormat('YmdHis', $transTime);
         } catch (\Throwable $e) {
             return null;
+        }
+    }
+
+    /**
+     * Collect processing fee via STK Push
+     */
+    public function collectProcessingFeeStk(Request $request)
+    {
+        $validated = $request->validate([
+            'phone_number' => 'required|string',
+            'amount' => 'required|numeric|min:1',
+        ]);
+
+        // Ensure phone is in format 2547XXXXXXXX
+        $phone = $validated['phone_number'];
+        if (substr($phone, 0, 1) === '0') {
+            $phone = '254' . substr($phone, 1);
+        } elseif (substr($phone, 0, 1) === '+') {
+            $phone = substr($phone, 1);
+        }
+        $phone = preg_replace('/[^0-9]/', '', $phone);
+
+        // Validate phone format
+        if (!preg_match('/^254\d{9}$/', $phone)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid phone number format. Use format: 0712345678 or 254712345678',
+            ], 422);
+        }
+
+        try {
+            $response = app(MpesaService::class)->initiateStkPush(
+                $phone,
+                $validated['amount'],
+                'Processing Fee',
+                'Processing Fee Payment'
+            );
+
+            if ($response['success']) {
+                // Log the transaction
+                MpesaTransaction::create([
+                    'transaction_type' => 'stk_push',
+                    'phone_number' => $phone,
+                    'amount' => $validated['amount'],
+                    'merchant_request_id' => $response['MerchantRequestID'] ?? null,
+                    'checkout_request_id' => $response['CheckoutRequestID'] ?? null,
+                    'response_code' => $response['ResponseCode'] ?? null,
+                    'response_description' => $response['ResponseDescription'] ?? null,
+                    'customer_message' => $response['CustomerMessage'] ?? null,
+                    'status' => 'pending',
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'STK Push initiated successfully',
+                    'checkout_request_id' => $response['CheckoutRequestID'] ?? null,
+                    'phone_number' => $phone,
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $response['message'] ?? 'Failed to initiate STK Push',
+            ], 422);
+
+        } catch (\Exception $e) {
+            \Log::error('Processing fee STK Push failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while initiating payment: ' . $e->getMessage(),
+            ], 500);
         }
     }
 }

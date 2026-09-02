@@ -42,11 +42,13 @@
             <i class="fas fa-times"></i> Reject
         </button>
         @endif
+        @hasanyrole('admin|super_admin|branch_manager')
         @if($loan->status === 'approved')
         <button class="btn btn-primary" onclick="openDisburseModal()">
             <i class="fas fa-paper-plane"></i> Disburse
         </button>
         @endif
+        @endhasanyrole
         @if(in_array($loan->status, ['disbursed', 'active']))
         <button class="btn btn-primary" onclick="openStkModal()" style="background:#2E7D32; border-color:#2E7D32;">
             <i class="fas fa-mobile-alt"></i> Request Payment

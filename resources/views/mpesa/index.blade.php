@@ -296,6 +296,16 @@
         {{-- Active loans --}}
         <div id="matchLoanSection" style="display:none;">
             <div class="form-group">
+                <label class="form-label">Transaction Type <span class="req">*</span></label>
+                <select id="matchTransactionType" class="form-control">
+                    <option value="loan_repayment">Loan Repayment</option>
+                    <option value="processing_fee">Processing Fee</option>
+                </select>
+                <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">
+                    Select "Processing Fee" if this is for loan processing fee payment
+                </div>
+            </div>
+            <div class="form-group">
                 <label class="form-label">Select Active Loan <span class="req">*</span></label>
                 <select id="matchLoanSelect" class="form-control">
                     <option value="">-- Select Loan --</option>
@@ -399,6 +409,7 @@ function selectMatchCustomer(id, name, phone) {
 
 function confirmMatch() {
     const loanId = document.getElementById('matchLoanSelect').value;
+    const transactionType = document.getElementById('matchTransactionType').value;
     const btn    = document.getElementById('matchConfirmBtn');
     const result = document.getElementById('matchResult');
     if (!loanId || !matchCallbackId) return;
@@ -413,7 +424,10 @@ function confirmMatch() {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
         },
-        body: JSON.stringify({ loan_id: loanId }),
+        body: JSON.stringify({ 
+            loan_id: loanId,
+            transaction_type: transactionType 
+        }),
     })
     .then(r => r.json())
     .then(data => {
