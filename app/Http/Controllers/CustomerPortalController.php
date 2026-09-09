@@ -199,6 +199,23 @@ class CustomerPortalController extends Controller
             'prepay_type'      => 'nullable|in:early,topup,full',
         ]);
 
+        // DUPLICATE PAYMENT PREVENTION
+        $reference = $request->mpesa_receipt ?? $request->bank_reference ?? null;
+        
+        if ($reference) {
+            $existingPayment = LoanRepayment::where('loan_id', $loan->id)
+                ->where(function($query) use ($reference) {
+                    $query->where('transaction_reference', $reference)
+                          ->orWhere('mpesa_receipt_number', $reference);
+                })
+                ->first();
+                
+            if ($existingPayment) {
+                return redirect()->route('portal.loan.detail', $loan)
+                    ->with('error', "Duplicate payment detected! A payment with reference {$reference} already exists (Amount: KSH " . number_format($existingPayment->amount, 2) . ", Date: " . $existingPayment->created_at->format('d M Y') . ")");
+            }
+        }
+
         $prepayType = $request->prepay_type;
 
         DB::transaction(function () use ($request, $loan, $customer, $prepayType) {
@@ -329,7 +346,6 @@ class CustomerPortalController extends Controller
             $loan->increment('total_paid', $amount - $totalExcess);
             $loan->increment('total_paid_principal', $totalPrincipalPortion);
             $loan->increment('total_paid_interest', $totalInterestPortion);
-            $loan->decrement('outstanding_balance', $totalPrincipalPortion);
 
             // For full prepay: ensure ALL remaining schedules are marked paid, then complete loan
             if ($prepayType === 'full') {
@@ -349,7 +365,6 @@ class CustomerPortalController extends Controller
                     'total_paid' => $loan->total_repayable,
                     'total_paid_principal' => $loan->principal_amount,
                     'total_paid_interest' => $loan->interest_amount,
-                    'outstanding_balance' => 0,
                     'arrears_amount' => 0,
                     'days_in_arrears' => 0,
                 ]);

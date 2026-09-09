@@ -12,7 +12,7 @@ class RepaymentSchedule extends Model
         'loan_id', 'installment_number', 'due_date',
         'principal_amount', 'interest_amount', 'total_amount',
         'principal_paid', 'interest_paid', 'total_paid',
-        'balance', 'status', 'paid_date'
+        'status', 'paid_date'
     ];
 
     protected $casts = [
@@ -24,8 +24,9 @@ class RepaymentSchedule extends Model
         'principal_paid' => 'decimal:2',
         'interest_paid' => 'decimal:2',
         'total_paid' => 'decimal:2',
-        'balance' => 'decimal:2',
     ];
+
+    protected $appends = ['balance', 'is_overdue', 'days_overdue'];
 
     public function loan(): BelongsTo
     {
@@ -41,5 +42,15 @@ class RepaymentSchedule extends Model
     {
         if (!$this->is_overdue) return 0;
         return $this->due_date->diffInDays(now());
+    }
+
+    /**
+     * Get the balance (unpaid portion) of this installment
+     */
+    public function getBalanceAttribute(): float
+    {
+        $totalAmount = (float) ($this->attributes['total_amount'] ?? 0);
+        $totalPaid = (float) ($this->attributes['total_paid'] ?? 0);
+        return max(0, $totalAmount - $totalPaid);
     }
 }

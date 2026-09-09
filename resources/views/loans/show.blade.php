@@ -54,7 +54,6 @@
             <i class="fas fa-mobile-alt"></i> Request Payment
         </button>
         @endif
-        @hasanyrole('admin|super_admin|branch_manager')
         @if(in_array($loan->status, ['disbursed', 'active']))
         <button class="btn btn-outline" onclick="openCloseModal()"
                 style="color:#B71C1C; border-color:#EF9A9A;"
@@ -62,6 +61,7 @@
             <i class="fas fa-lock"></i> Close Loan
         </button>
         @endif
+        @hasanyrole('admin|super_admin|branch_manager')
         <button class="btn btn-outline" onclick="openReallocateModal()"
                 style="color:#1565C0; border-color:#90CAF9;"
                 title="Reassign this loan to a different relationship officer">
@@ -344,7 +344,6 @@
 @endif
 
 {{-- ── Close Loan Modal (Prepayment / Top-Up / Early Settlement) ── --}}
-@hasanyrole('admin|super_admin|branch_manager')
 <div id="closeModal" class="modal-overlay" onclick="if(event.target===this)closeModal('closeModal')">
     <div class="modal-box" style="width:560px; max-width:96vw;">
         <div class="modal-header">
@@ -458,7 +457,6 @@
         </form>
     </div>
 </div>
-@endhasanyrole
 
 {{-- ── Approve Modal ── --}}
 <div id="approveModal" class="modal-overlay" onclick="if(event.target===this)closeModal('approveModal')">

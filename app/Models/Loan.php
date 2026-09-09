@@ -24,7 +24,7 @@ class Loan extends Model
         'disbursed_by', 'disbursed_at', 'approval_notes', 'rejection_reason',
         'disbursement_method', 'disbursement_reference', 'mpesa_receipt_number',
         'total_paid', 'total_paid_principal', 'total_paid_interest',
-        'outstanding_balance', 'arrears_amount', 'days_in_arrears', 'risk_category',
+        'arrears_amount', 'days_in_arrears', 'risk_category',
         'application_date', 'disbursement_date', 'first_due_date', 'maturity_date',
         'last_payment_date', 'next_due_date',
         'is_restructured', 'original_loan_id', 'restructure_reason'
@@ -41,7 +41,6 @@ class Loan extends Model
         'total_paid' => 'decimal:2',
         'total_paid_principal' => 'decimal:2',
         'total_paid_interest' => 'decimal:2',
-        'outstanding_balance' => 'decimal:2',
         'arrears_amount' => 'decimal:2',
         'is_restructured' => 'boolean',
         'application_date' => 'date',
@@ -55,6 +54,8 @@ class Loan extends Model
         'disbursed_at' => 'datetime',
         'processing_fee_paid_at' => 'datetime',
     ];
+
+    protected $appends = ['outstanding_balance', 'progress_percentage', 'is_overdue'];
 
     // Relationships
     public function customer(): BelongsTo
@@ -145,6 +146,18 @@ class Loan extends Model
     public function getIsOverdueAttribute(): bool
     {
         return $this->days_in_arrears > 0;
+    }
+
+    /**
+     * Get the outstanding balance (total amount left to pay on the loan).
+     * This is calculated as: total_repayable - total_paid
+     */
+    public function getOutstandingBalanceAttribute(): float
+    {
+        // If accessing the raw attribute, calculate from total_repayable - total_paid
+        $totalRepayable = (float) ($this->attributes['total_repayable'] ?? 0);
+        $totalPaid = (float) ($this->attributes['total_paid'] ?? 0);
+        return max(0, $totalRepayable - $totalPaid);
     }
 
     /**
@@ -259,7 +272,7 @@ class Loan extends Model
                 'principal_amount' => round($principalAmount, 2),
                 'interest_amount' => round($interestAmount, 2),
                 'total_amount' => round($principalAmount + $interestAmount, 2),
-                'balance' => round($principalRemaining, 2),
+                'status' => 'pending',
             ]);
             
             $principalRemaining -= $principalAmount;

@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class MpesaController extends Controller
@@ -189,7 +190,6 @@ class MpesaController extends Controller
                 'disbursement_date'      => today(),
                 'disbursement_method'    => 'mpesa',
                 'disbursement_reference' => $mpesaTxn->conversation_id ?? $mpesaTxn->originator_conversation_id,
-                'outstanding_balance'    => $loan->principal_amount,
                 'first_due_date'         => today()->addWeek(),
                 'next_due_date'          => today()->addWeek(),
             ]);
@@ -743,6 +743,38 @@ class MpesaController extends Controller
         ]);
     }
 
+    // ── Clear Old Failed Callbacks ────────────────────────────────
+    public function clearOldCallbacks(): JsonResponse
+    {
+        try {
+            // Delete callbacks older than 7 days that are still failed/suspended
+            $sevenDaysAgo = now()->subDays(7);
+            $deleted = MpesaC2bCallback::whereIn('status', ['failed', 'suspended'])
+                ->where('created_at', '<', $sevenDaysAgo)
+                ->delete();
+
+            Log::info('Cleared old M-Pesa callbacks', [
+                'count' => $deleted,
+                'older_than' => $sevenDaysAgo->toDateTimeString(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Cleared {$deleted} old unmatched callback(s).",
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to clear old callbacks', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to clear old callbacks: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     // ════════════════════════════════════════════════════════════
     // Private helpers
     // ════════════════════════════════════════════════════════════
@@ -750,6 +782,29 @@ class MpesaController extends Controller
     private function applyRepayment(Loan $loan, float $amount, ?string $receipt, string $phone): void
     {
         if (! $loan) return;
+
+        // DUPLICATE PAYMENT PREVENTION
+        // Check if a payment with the same M-Pesa receipt already exists
+        if ($receipt) {
+            $existingPayment = LoanRepayment::where('loan_id', $loan->id)
+                ->where(function($query) use ($receipt) {
+                    $query->where('transaction_reference', $receipt)
+                          ->orWhere('mpesa_receipt_number', $receipt);
+                })
+                ->first();
+                
+            if ($existingPayment) {
+                Log::warning('Duplicate M-Pesa payment prevented', [
+                    'loan_id' => $loan->id,
+                    'loan_number' => $loan->loan_number,
+                    'receipt' => $receipt,
+                    'amount' => $amount,
+                    'existing_repayment_id' => $existingPayment->id,
+                    'existing_amount' => $existingPayment->amount,
+                ]);
+                return; // Silently skip duplicate payment
+            }
+        }
 
         $distribution = $this->distributeRepaymentAcrossSchedules($loan, $amount);
 
@@ -777,7 +832,6 @@ class MpesaController extends Controller
         $loan->increment('total_paid', $amount - $distribution['excess']);
         $loan->increment('total_paid_principal', $distribution['total_principal']);
         $loan->increment('total_paid_interest', $distribution['total_interest']);
-        $loan->decrement('outstanding_balance', $distribution['total_principal']);
         $loan->update([
             'last_payment_date' => today(),
             'next_due_date'     => $this->getNextDueDate($loan),
@@ -981,6 +1035,11 @@ class MpesaController extends Controller
      */
     public function collectProcessingFeeStk(Request $request)
     {
+        \Log::info('Processing fee STK request received', [
+            'user' => auth()->id(),
+            'data' => $request->all()
+        ]);
+
         $validated = $request->validate([
             'phone_number' => 'required|string',
             'amount' => 'required|numeric|min:1',
@@ -995,6 +1054,8 @@ class MpesaController extends Controller
         }
         $phone = preg_replace('/[^0-9]/', '', $phone);
 
+        \Log::info('Phone formatted', ['phone' => $phone]);
+
         // Validate phone format
         if (!preg_match('/^254\d{9}$/', $phone)) {
             return response()->json([
@@ -1004,42 +1065,71 @@ class MpesaController extends Controller
         }
 
         try {
-            $response = app(MpesaService::class)->initiateStkPush(
-                $phone,
-                $validated['amount'],
-                'Processing Fee',
-                'Processing Fee Payment'
-            );
+            $mpesaService = app(MpesaService::class);
+            $token = $mpesaService->getAccessToken();
 
-            if ($response['success']) {
+            if (!$token) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to authenticate with M-Pesa',
+                ], 500);
+            }
+
+            // Prepare STK Push request
+            $timestamp = date('YmdHis');
+            $password = base64_encode(config('services.mpesa.shortcode') . config('services.mpesa.passkey') . $timestamp);
+
+            $response = Http::withToken($token)
+                ->post($mpesaService->baseUrl() . '/mpesa/stkpush/v1/processrequest', [
+                    'BusinessShortCode' => config('services.mpesa.shortcode'),
+                    'Password' => $password,
+                    'Timestamp' => $timestamp,
+                    'TransactionType' => 'CustomerPayBillOnline',
+                    'Amount' => (int) $validated['amount'],
+                    'PartyA' => $phone,
+                    'PartyB' => config('services.mpesa.shortcode'),
+                    'PhoneNumber' => $phone,
+                    'CallBackURL' => config('services.mpesa.callback_url') ?: route('mpesa.stk.callback'),
+                    'AccountReference' => 'PROC-FEE-' . time(),
+                    'TransactionDesc' => 'Processing Fee Payment',
+                ]);
+
+            $data = $response->json();
+            \Log::info('M-Pesa STK response', ['response' => $data]);
+
+            if (isset($data['ResponseCode']) && $data['ResponseCode'] == '0') {
                 // Log the transaction
                 MpesaTransaction::create([
+                    'type' => 'stk_push',
                     'transaction_type' => 'stk_push',
                     'phone_number' => $phone,
                     'amount' => $validated['amount'],
-                    'merchant_request_id' => $response['MerchantRequestID'] ?? null,
-                    'checkout_request_id' => $response['CheckoutRequestID'] ?? null,
-                    'response_code' => $response['ResponseCode'] ?? null,
-                    'response_description' => $response['ResponseDescription'] ?? null,
-                    'customer_message' => $response['CustomerMessage'] ?? null,
+                    'merchant_request_id' => $data['MerchantRequestID'] ?? null,
+                    'checkout_request_id' => $data['CheckoutRequestID'] ?? null,
+                    'response_code' => $data['ResponseCode'] ?? null,
+                    'response_description' => $data['ResponseDescription'] ?? null,
+                    'customer_message' => $data['CustomerMessage'] ?? null,
                     'status' => 'pending',
                 ]);
 
                 return response()->json([
                     'success' => true,
                     'message' => 'STK Push initiated successfully',
-                    'checkout_request_id' => $response['CheckoutRequestID'] ?? null,
+                    'checkout_request_id' => $data['CheckoutRequestID'] ?? null,
                     'phone_number' => $phone,
                 ]);
             }
 
             return response()->json([
                 'success' => false,
-                'message' => $response['message'] ?? 'Failed to initiate STK Push',
+                'message' => $data['errorMessage'] ?? $data['ResponseDescription'] ?? 'Failed to initiate STK Push',
             ], 422);
 
         } catch (\Exception $e) {
-            \Log::error('Processing fee STK Push failed: ' . $e->getMessage());
+            \Log::error('Processing fee STK Push failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while initiating payment: ' . $e->getMessage(),

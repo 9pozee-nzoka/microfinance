@@ -289,7 +289,7 @@ class MpesaService
 
     // ── Helpers ──────────────────────────────────────────────────
 
-    private function baseUrl(): string
+    public function baseUrl(): string
     {
         return in_array($this->env, ['live', 'production'])
             ? 'https://api.safaricom.co.ke'

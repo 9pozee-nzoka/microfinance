@@ -203,7 +203,6 @@ class LoanController extends Controller
                 'purpose_description'        => $validated['purpose_description'],
                 'collateral_description'     => $collateralDescription,
                 'collateral_value'           => $collateralValue,
-                'outstanding_balance'        => $validated['principal_amount'],
                 'application_date'           => $validated['application_date'],
                 'status'                     => 'pending',
             ]);
@@ -494,7 +493,6 @@ class LoanController extends Controller
             'disbursement_method'     => $request->disbursement_method,
             'disbursement_reference'  => $request->disbursement_reference,
             'mpesa_receipt_number'    => $request->mpesa_receipt_number,
-            'outstanding_balance'     => $loan->principal_amount,
             'first_due_date'          => $disburseDate->copy()->addWeek(),
             'next_due_date'           => $disburseDate->copy()->addWeek(),
         ]);
@@ -602,7 +600,6 @@ class LoanController extends Controller
             // Close the loan
             $updateData = [
                 'status'              => 'completed',
-                'outstanding_balance' => 0,
                 'arrears_amount'      => 0,
                 'days_in_arrears'     => 0,
                 'approval_notes'      => ($loan->approval_notes ? $loan->approval_notes . ' | ' : '') . $auditNote,

@@ -217,13 +217,48 @@ class DashboardController extends Controller
             ->with(['customer', 'branch', 'relationshipOfficer'])
             ->whereDate('next_due_date', $today)
             ->orderBy('loan_number'))
-            ->get();
+            ->get()
+            ->map(function ($loan) use ($today) {
+                // Calculate actual amount due from schedules due today
+                $loan->amount_due_today = $loan->repaymentSchedules()
+                    ->whereDate('due_date', $today)
+                    ->where('status', '!=', 'paid')
+                    ->selectRaw('SUM(CASE WHEN total_amount > total_paid THEN total_amount - total_paid ELSE 0 END) as due')
+                    ->value('due') ?? 0;
+                return $loan;
+            });
 
         $loansDueTomorrowList = $loanFilter(Loan::active()
             ->with(['customer', 'branch', 'relationshipOfficer'])
             ->whereDate('next_due_date', $today->copy()->addDay())
             ->orderBy('loan_number'))
-            ->get();
+            ->get()
+            ->map(function ($loan) use ($today) {
+                // Calculate actual amount due from schedules due tomorrow
+                $tomorrow = $today->copy()->addDay();
+                $loan->amount_due_tomorrow = $loan->repaymentSchedules()
+                    ->whereDate('due_date', $tomorrow)
+                    ->where('status', '!=', 'paid')
+                    ->selectRaw('SUM(CASE WHEN total_amount > total_paid THEN total_amount - total_paid ELSE 0 END) as due')
+                    ->value('due') ?? 0;
+                return $loan;
+            });
+
+        // Arrears List - Loans with overdue schedules (paginated)
+        $loansInArrearsQuery = $loanFilter(Loan::active()
+            ->with(['customer', 'branch', 'relationshipOfficer'])
+            ->where('arrears_amount', '>', 0)
+            ->orderByDesc('arrears_amount'));
+        
+        $loansInArrears = $loansInArrearsQuery->paginate(10)->through(function ($loan) use ($today) {
+            // Calculate total arrears from overdue schedules
+            $loan->total_arrears = $loan->repaymentSchedules()
+                ->where('due_date', '<', $today)
+                ->where('status', '!=', 'paid')
+                ->selectRaw('SUM(CASE WHEN total_amount > total_paid THEN total_amount - total_paid ELSE 0 END) as arrears')
+                ->value('arrears') ?? 0;
+            return $loan;
+        });
 
         // Filter dropdowns — fetched fresh to avoid Eloquent collection serialization issues.
         $officers = User::where('status', 'active')
@@ -253,7 +288,7 @@ class DashboardController extends Controller
             'pendingApprovals', 'pendingDisbursement',
             'officers', 'branches',
             'selectedOfficer', 'selectedBranch', 'canFilter', 'isPureOfficer',
-            'loansDueTodayList', 'loansDueTomorrowList',
+            'loansDueTodayList', 'loansDueTomorrowList', 'loansInArrears',
             'recentTransactions'
         ));
     }

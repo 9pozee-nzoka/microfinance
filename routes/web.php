@@ -266,11 +266,14 @@ Route::middleware(['auth', 'staff'])->group(function () {
             Route::get('/{loan}', [LoanController::class, 'show'])->name('show');
         });
 
-        // Disbursement, closing, and reallocation — higher management only
+        // Disbursement, closing, and reallocation — higher management only for disbursement, all staff can close their own loans
+        Route::middleware(['role:super_admin|admin|branch_manager|loan_officer'])->group(function () {
+            Route::patch('/{loan}/close',       [LoanController::class, 'closeLoan'])->name('close');
+        });
+        
         Route::middleware(['role:super_admin|admin|branch_manager'])->group(function () {
             Route::patch('/{loan}/disburse',    [LoanController::class, 'disburse'])->name('disburse');
             Route::post('/{loan}/processing-fee', [LoanController::class, 'recordProcessingFee'])->name('processing-fee');
-            Route::patch('/{loan}/close',       [LoanController::class, 'closeLoan'])->name('close');
             Route::patch('/{loan}/reallocate',  [LoanController::class, 'reallocate'])->name('reallocate');
         });
     });
@@ -337,6 +340,7 @@ Route::middleware(['auth', 'staff'])->group(function () {
             Route::post('/c2b/register-urls',                   [MpesaController::class, 'registerC2bUrls'])->name('c2b.register');
             Route::post('/c2b/callbacks/{callback}/reprocess',  [MpesaController::class, 'reprocessC2b'])->name('c2b.reprocess');
             Route::post('/c2b/callbacks/{callback}/match',      [MpesaController::class, 'matchC2b'])->name('c2b.match');
+            Route::post('/callbacks/clear-old',                 [MpesaController::class, 'clearOldCallbacks'])->name('callbacks.clear-old');
         });
 
     // ── Reports — admin / branch manager ───────────────────────

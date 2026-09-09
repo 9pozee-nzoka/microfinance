@@ -16,25 +16,6 @@
 </div>
 @endif
 
-{{-- C2B Registration Banner --}}
-<div style="background:#E3F2FD; border:1px solid #90CAF9; border-radius:10px;
-            padding:14px 18px; margin-bottom:20px; display:flex; align-items:center;
-            gap:14px; flex-wrap:wrap;">
-    <i class="fas fa-plug" style="color:#1565C0; font-size:20px; flex-shrink:0;"></i>
-    <div style="flex:1; min-width:200px;">
-        <div style="font-weight:700; font-size:13px; color:#1565C0;">C2B Paybill Registration</div>
-        <div style="font-size:12px; color:#1976D2; margin-top:2px;">
-            For payments made directly to paybill <strong>{{ config('services.mpesa.shortcode') }}</strong> to reflect automatically,
-            the confirmation URL must be registered with Safaricom. Click the button to register.
-            <br>Confirmation URL: <code style="background:#BBDEFB; padding:1px 5px; border-radius:3px; font-size:11px;">{{ config('services.mpesa.c2b_confirmation_url', url('/mpesa/c2b/confirmation')) }}</code>
-        </div>
-    </div>
-    <button type="button" onclick="registerC2bUrls(this)"
-            class="btn" style="background:#1565C0; color:#fff; white-space:nowrap; flex-shrink:0;">
-        <i class="fas fa-satellite-dish"></i> Register C2B URLs
-    </button>
-</div>
-
 {{-- Stats --}}
 <div class="grid-4" style="margin-bottom:24px;">
     <div class="card">
@@ -62,16 +43,20 @@
 {{-- Failed / Suspended C2B Callbacks — Reprocess Panel --}}
 @if(isset($failedC2b) && $failedC2b->count() > 0)
 <div class="card" style="margin-bottom:24px; border-left:4px solid var(--danger);">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
         <div>
             <div style="font-size:14px; font-weight:700; color:var(--danger);">
                 <i class="fas fa-exclamation-triangle"></i>
                 Failed / Suspended C2B Callbacks ({{ $failedC2b->count() }})
             </div>
             <div style="font-size:12px; color:var(--text-secondary); margin-top:3px;">
-                These payments were received from Safaricom but could not be matched. Click Reprocess to retry.
+                These payments were received from Safaricom but could not be matched. Click Reprocess to retry or Clear to remove old unmatched transactions.
             </div>
         </div>
+        <button type="button" onclick="clearOldCallbacks()" 
+                class="btn" style="background:#d32f2f; color:#fff;">
+            <i class="fas fa-trash-alt"></i> Clear Old
+        </button>
     </div>
     <div class="table-wrap">
         <table class="data-table">
@@ -519,6 +504,35 @@ function registerC2bUrls(btn) {
         }
     })
     .catch(err => { btn.disabled=false; btn.innerHTML='<i class="fas fa-satellite-dish"></i> Register C2B URLs'; alert('Network error: '+err.message); });
+}
+
+// ── Clear Old Failed Callbacks ──────────────────────────────────
+function clearOldCallbacks() {
+    if (!confirm('Clear all old unmatched failed callbacks?\n\nThis will permanently delete failed M-Pesa callback records older than 7 days that could not be matched to any customer or loan.\n\nProceed?')) return;
+    
+    fetch('{{ route('mpesa.callbacks.clear-old') }}', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json', 
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content 
+        },
+        body: JSON.stringify({}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const flash = document.createElement('div');
+            flash.className = 'flash-success';
+            flash.innerHTML = `<i class="fas fa-check-circle"></i> ${data.message}`;
+            document.querySelector('.content-area').insertBefore(flash, document.querySelector('.content-area').firstChild);
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            alert('Clear failed: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(err => { 
+        alert('Network error: ' + err.message); 
+    });
 }
 </script>
 @endsection

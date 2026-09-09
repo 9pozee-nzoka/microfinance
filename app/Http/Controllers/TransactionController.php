@@ -374,6 +374,23 @@ class TransactionController extends Controller
     private function processLoanRepayment(Request $request, Customer $customer, float $amount): void
     {
         $loan = Loan::findOrFail($request->loan_id);
+        
+        // DUPLICATE PAYMENT PREVENTION
+        // Check if a payment with the same reference already exists
+        $reference = $request->mpesa_receipt ?? $request->bank_reference ?? null;
+        
+        if ($reference) {
+            $existingPayment = LoanRepayment::where('loan_id', $loan->id)
+                ->where(function($query) use ($reference) {
+                    $query->where('transaction_reference', $reference)
+                          ->orWhere('mpesa_receipt_number', $reference);
+                })
+                ->first();
+                
+            if ($existingPayment) {
+                throw new \Exception("Duplicate payment detected! A payment with reference {$reference} already exists for this loan (Repayment ID: {$existingPayment->id}, Amount: KSH " . number_format($existingPayment->amount, 2) . ")");
+            }
+        }
 
         // Distribute payment across schedules (supports partial payments and early prepayment)
         $distribution = $this->distributeRepaymentAcrossSchedules($loan, $amount);
@@ -404,7 +421,6 @@ class TransactionController extends Controller
         $loan->increment('total_paid', $amount - $distribution['excess']);
         $loan->increment('total_paid_principal', $distribution['total_principal']);
         $loan->increment('total_paid_interest', $distribution['total_interest']);
-        $loan->decrement('outstanding_balance', $distribution['total_principal']);
         $loan->update([
             'last_payment_date' => today(),
             'next_due_date'     => $this->getNextDueDate($loan),
@@ -587,7 +603,6 @@ class TransactionController extends Controller
         $loan->increment('total_paid', $amount - $distribution['excess']);
         $loan->increment('total_paid_principal', $distribution['total_principal']);
         $loan->increment('total_paid_interest', $distribution['total_interest']);
-        $loan->decrement('outstanding_balance', $distribution['total_principal']);
         $loan->update(['last_payment_date' => today()]);
 
         // Recalculate arrears so cached columns stay in sync with schedules

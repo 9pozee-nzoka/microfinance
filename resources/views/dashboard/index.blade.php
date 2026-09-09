@@ -64,6 +64,23 @@
     </div>
 </div>
 
+{{-- Arrears Card --}}
+<div style="margin-bottom: 20px;">
+    <div class="card" style="cursor: pointer; border-left: 4px solid var(--danger);" onclick="document.getElementById('arrearsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });">
+        <div class="card-header">
+            <span class="card-title" style="color: var(--danger);">
+                <i class="fas fa-exclamation-triangle"></i> Loans with Arrears
+            </span>
+            <span class="badge" style="background: var(--danger); color: white;">{{ $loansInArrears->total() }}</span>
+        </div>
+        <div class="metric-value" style="font-size: 32px; color: var(--danger);">{{ $loansInArrears->total() }}</div>
+        <div class="metric-label">KSH {{ number_format($totalArrears, 0) }} in overdue payments</div>
+        <div style="margin-top: 10px; font-size: 12px; color: var(--text-secondary);">
+            <i class="fas fa-arrow-down"></i> Click to view &amp; collect arrears
+        </div>
+    </div>
+</div>
+
 {{-- Loans Due Today List --}}
 <div id="dueTodayList" style="display: none; margin-bottom: 20px;">
     <div class="card">
@@ -97,7 +114,7 @@
                         <td>{{ $loan->customer?->full_name ?? 'N/A' }}</td>
                         <td>{{ $loan->loan_number }}</td>
                         <td>{{ $loan->customer?->phone_number ?? 'N/A' }}</td>
-                        <td>KSH {{ number_format($loan->weekly_installment, 0) }}</td>
+                        <td>KSH {{ number_format($loan->amount_due_today, 0) }}</td>
                         <td>KSH {{ number_format($loan->outstanding_balance, 0) }}</td>
                         @if($canFilter)
                             <td>{{ $loan->relationshipOfficer?->name ?? 'N/A' }}</td>
@@ -106,11 +123,11 @@
                         <td style="text-align: right;">
                             <div style="display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap;">
                                 <button type="button" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;"
-                                    onclick="event.stopPropagation(); openRecordPaymentModal({{ $loan->id }}, {{ $loan->customer_id }}, '{{ addslashes($loan->customer?->full_name ?? '') }}', {{ $loan->weekly_installment }}, '{{ $loan->customer?->phone_number ?? '' }}')">
+                                    onclick="event.stopPropagation(); openRecordPaymentModal({{ $loan->id }}, {{ $loan->customer_id }}, '{{ addslashes($loan->customer?->full_name ?? '') }}', {{ $loan->amount_due_today }}, '{{ $loan->customer?->phone_number ?? '' }}')">
                                     <i class="fas fa-money-bill-wave"></i> <span class="btn-text">Record Payment</span>
                                 </button>
                                 <button type="button" class="btn btn-success" style="padding: 5px 10px; font-size: 12px;"
-                                    onclick="event.stopPropagation(); openStkModal({{ $loan->id }}, '{{ addslashes($loan->customer?->full_name ?? '') }}', '{{ $loan->customer?->phone_number ?? '' }}', {{ $loan->weekly_installment }}, {{ $loan->outstanding_balance }}, '{{ route('mpesa.stk.push', $loan) }}')">
+                                    onclick="event.stopPropagation(); openStkModal({{ $loan->id }}, '{{ addslashes($loan->customer?->full_name ?? '') }}', '{{ $loan->customer?->phone_number ?? '' }}', {{ $loan->amount_due_today }}, {{ $loan->outstanding_balance }}, '{{ route('mpesa.stk.push', $loan) }}')">
                                     <i class="fas fa-mobile-alt"></i> <span class="btn-text">Request Payment</span>
                                 </button>
                             </div>
@@ -162,7 +179,7 @@
                         <td>{{ $loan->customer?->full_name ?? 'N/A' }}</td>
                         <td>{{ $loan->loan_number }}</td>
                         <td>{{ $loan->customer?->phone_number ?? 'N/A' }}</td>
-                        <td>KSH {{ number_format($loan->weekly_installment, 0) }}</td>
+                        <td>KSH {{ number_format($loan->amount_due_tomorrow, 0) }}</td>
                         <td>KSH {{ number_format($loan->outstanding_balance, 0) }}</td>
                         @if($canFilter)
                             <td>{{ $loan->relationshipOfficer?->name ?? 'N/A' }}</td>
@@ -171,11 +188,11 @@
                         <td style="text-align: right;">
                             <div style="display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap;">
                                 <button type="button" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;"
-                                    onclick="event.stopPropagation(); openRecordPaymentModal({{ $loan->id }}, {{ $loan->customer_id }}, '{{ addslashes($loan->customer?->full_name ?? '') }}', {{ $loan->weekly_installment }}, '{{ $loan->customer?->phone_number ?? '' }}')">
+                                    onclick="event.stopPropagation(); openRecordPaymentModal({{ $loan->id }}, {{ $loan->customer_id }}, '{{ addslashes($loan->customer?->full_name ?? '') }}', {{ $loan->amount_due_tomorrow }}, '{{ $loan->customer?->phone_number ?? '' }}')">
                                     <i class="fas fa-money-bill-wave"></i> <span class="btn-text">Record Payment</span>
                                 </button>
                                 <button type="button" class="btn btn-success" style="padding: 5px 10px; font-size: 12px;"
-                                    onclick="event.stopPropagation(); openStkModal({{ $loan->id }}, '{{ addslashes($loan->customer?->full_name ?? '') }}', '{{ $loan->customer?->phone_number ?? '' }}', {{ $loan->weekly_installment }}, {{ $loan->outstanding_balance }}, '{{ route('mpesa.stk.push', $loan) }}')">
+                                    onclick="event.stopPropagation(); openStkModal({{ $loan->id }}, '{{ addslashes($loan->customer?->full_name ?? '') }}', '{{ $loan->customer?->phone_number ?? '' }}', {{ $loan->amount_due_tomorrow }}, {{ $loan->outstanding_balance }}, '{{ route('mpesa.stk.push', $loan) }}')">
                                     <i class="fas fa-mobile-alt"></i> <span class="btn-text">Request Payment</span>
                                 </button>
                             </div>
@@ -191,6 +208,96 @@
                 </tbody>
             </table>
         </div>
+    </div>
+</div>
+
+{{-- Loans in Arrears List --}}
+<div id="arrearsSection" style="margin-bottom: 20px; scroll-margin-top: 80px;">
+    <div class="card">
+        <div class="card-header" style="margin-bottom: 12px;">
+            <span class="card-title" style="color: var(--danger);">
+                <i class="fas fa-exclamation-triangle"></i> Loans with Arrears (Overdue Payments)
+            </span>
+            <span class="badge" style="background: var(--danger); color: white;">{{ $loansInArrears->total() }}</span>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Loan No.</th>
+                        <th>Phone</th>
+                        <th>Arrears Amount</th>
+                        <th>Days Overdue</th>
+                        <th>Outstanding</th>
+                        @if($canFilter)
+                            <th>Officer</th>
+                            <th>Branch</th>
+                        @endif
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($loansInArrears as $loan)
+                    <tr>
+                        <td>{{ $loan->customer?->full_name ?? 'N/A' }}</td>
+                        <td>
+                            <a href="{{ route('loans.show', $loan) }}" style="color: var(--primary); text-decoration: none;">
+                                {{ $loan->loan_number }}
+                            </a>
+                        </td>
+                        <td>{{ $loan->customer?->phone_number ?? 'N/A' }}</td>
+                        <td style="color: var(--danger); font-weight: 600;">
+                            KSH {{ number_format($loan->total_arrears, 0) }}
+                        </td>
+                        <td>
+                            <span class="badge" style="background: {{ $loan->days_in_arrears > 30 ? 'var(--danger)' : ($loan->days_in_arrears > 7 ? 'var(--warning)' : '#FF9800') }}; color: white;">
+                                {{ $loan->days_in_arrears }} days
+                            </span>
+                        </td>
+                        <td>KSH {{ number_format($loan->outstanding_balance, 0) }}</td>
+                        @if($canFilter)
+                            <td>{{ $loan->relationshipOfficer?->name ?? 'N/A' }}</td>
+                            <td>{{ $loan->branch?->name ?? 'N/A' }}</td>
+                        @endif
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap;">
+                                <button type="button" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;"
+                                    onclick="event.stopPropagation(); openRecordPaymentModal({{ $loan->id }}, {{ $loan->customer_id }}, '{{ addslashes($loan->customer?->full_name ?? '') }}', {{ $loan->total_arrears }}, '{{ $loan->customer?->phone_number ?? '' }}')">
+                                    <i class="fas fa-money-bill-wave"></i> <span class="btn-text">Record Payment</span>
+                                </button>
+                                <button type="button" class="btn btn-success" style="padding: 5px 10px; font-size: 12px;"
+                                    onclick="event.stopPropagation(); openStkModal({{ $loan->id }}, '{{ addslashes($loan->customer?->full_name ?? '') }}', '{{ $loan->customer?->phone_number ?? '' }}', {{ $loan->total_arrears }}, {{ $loan->outstanding_balance }}, '{{ route('mpesa.stk.push', $loan) }}')">
+                                    <i class="fas fa-mobile-alt"></i> <span class="btn-text">Request Payment</span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="{{ $canFilter ? 9 : 7 }}" style="text-align: center;">
+                            <div class="empty-state">
+                                <i class="fas fa-check-circle" style="font-size: 24px; color: var(--success); display: block; margin-bottom: 8px;"></i>
+                                No loans with arrears
+                            </div>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        
+        {{-- Pagination --}}
+        @if($loansInArrears->hasPages())
+        <div style="padding: 16px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 13px; color: var(--text-secondary);">
+                Showing {{ $loansInArrears->firstItem() }} to {{ $loansInArrears->lastItem() }} of {{ $loansInArrears->total() }} loans
+            </div>
+            <div>
+                {{ $loansInArrears->links() }}
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 
